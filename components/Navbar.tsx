@@ -22,6 +22,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const supabase = createClient();
+    if (!supabase) return;
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
@@ -48,6 +49,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     const supabase = createClient();
+    if (!supabase) return;
     await supabase.auth.signOut();
     setUser(null);
     setIsAdmin(false);

@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createClient();
+  if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
+
   const { data, error } = await supabase
     .from("orders")
     .insert({
@@ -32,6 +34,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   const supabase = createClient();
+  if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
+
   const { data, error } = await supabase
     .from("orders")
     .select("*")

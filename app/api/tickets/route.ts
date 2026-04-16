@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createClient();
+  if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
-  // Get ticket info for pricing
   const { data: ticket, error: ticketError } = await supabase
     .from("tickets")
     .select("*")
@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
   const total_zar = ticket.price_zar * quantity;
   const qr_code = randomUUID();
 
-  // Create ticket order
   const { data: order, error: orderError } = await supabase
     .from("ticket_orders")
     .insert({
@@ -51,7 +50,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: orderError.message }, { status: 500 });
   }
 
-  // Update sold count
   await supabase
     .from("tickets")
     .update({ quantity_sold: ticket.quantity_sold + quantity })

@@ -44,3 +44,5 @@ scripts/footage/
 scripts/output/
 scripts/temp_merge/
 venv/
+
+.vercel

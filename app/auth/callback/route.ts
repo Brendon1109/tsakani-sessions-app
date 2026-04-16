@@ -8,6 +8,9 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createClient();
+    if (!supabase) {
+      return NextResponse.redirect(`${origin}/auth/signin?error=not_configured`);
+    }
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {

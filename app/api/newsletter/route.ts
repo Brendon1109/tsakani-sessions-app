@@ -9,6 +9,8 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createClient();
+  if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
+
   const { error } = await supabase
     .from("newsletter_subscribers")
     .upsert({ email, source: "website", is_active: true }, { onConflict: "email" });

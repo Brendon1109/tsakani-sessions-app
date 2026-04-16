@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const supabase = createClient();
+  if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
+
   const { data, error } = await supabase
     .from("events")
     .select("*")

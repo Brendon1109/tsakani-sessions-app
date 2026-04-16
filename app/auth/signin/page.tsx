@@ -12,6 +12,7 @@ function SignInContent() {
 
   const handleGoogleSignIn = async () => {
     const supabase = createClient();
+    if (!supabase) return;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
