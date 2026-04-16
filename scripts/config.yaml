@@ -1,0 +1,64 @@
+# Tsakani Sessions Video Pipeline Configuration
+# Edit this file or use the Admin UI to configure
+
+output:
+  resolution: "1920x1080"
+  fps: 30
+  codec: "libx264"
+  preset: "medium"
+  crf: 23
+  audio_codec: "aac"
+  audio_bitrate: "192k"
+
+# Audio Sync Modes:
+#   "replace" — Strip all video audio, overlay VirtualDJ mix from start.
+#               Best when DJ mix was recorded during the same session.
+#   "align"   — Blend VirtualDJ mix with original crowd noise.
+#               crowd_mix controls crowd volume (0.0 = silent, 1.0 = full).
+#   "offset"  — Each clip can specify audio_offset into the DJ mix.
+#               Use when clips were filmed at known points in the set.
+sync_mode: "replace"
+crowd_mix: 0.15  # Only used in "align" mode
+
+# Template: intro → main DJ footage → transition → more footage → outro
+clips:
+  intro:
+    file: "intro.mp4"
+    duration: 5                  # seconds (0 = full clip)
+
+  main_footage:
+    - file: "dji_clip_01.mp4"
+      start: 0                   # trim start (seconds)
+      end: 0                     # trim end (0 = full clip)
+      audio_offset: null          # offset into DJ mix (offset mode only)
+    - file: "dji_clip_02.mp4"
+      start: 0
+      end: 0
+      audio_offset: null
+
+  transitions:
+    # iPhone transition clips inserted between main footage segments
+    - file: "transition_01.mov"
+    - file: "transition_02.mov"
+
+  more_footage:
+    - file: "dji_clip_03.mp4"
+      start: 0
+      end: 0
+      audio_offset: null
+
+  outro:
+    file: "outro.mp4"
+    duration: 5
+
+audio:
+  file: "virtualdj_mix.mp3"
+  start_offset: 0                # seconds to skip from audio start
+  fade_in: 2                     # seconds
+  fade_out: 3                    # seconds
+
+# Crossfade between clips (seconds)
+crossfade_duration: 1.0
+
+input_folder: "./footage"
+output_file: "./output/tsakani_final.mp4"

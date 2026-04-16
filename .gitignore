@@ -34,3 +34,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+__pycache__/
+*.pyc
+scripts/client_secret.json
+scripts/youtube_token.json
+scripts/footage/
+scripts/output/
+scripts/temp_merge/
+venv/

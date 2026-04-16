@@ -1,0 +1,23 @@
+# Tsakani Sessions - Python Automation Dependencies
+# Install with: pip install -r requirements.txt
+
+# Video processing
+ffmpeg-python==0.2.0
+
+# YouTube upload
+google-api-python-client==2.131.0
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+
+# Instagram Graph API
+requests==2.31.0
+
+# TikTok API
+httpx==0.27.0
+
+# Config parsing
+pyyaml==6.0.1
+
+# Utilities
+python-dotenv==1.0.1
+tqdm==4.66.2
