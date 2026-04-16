@@ -8,25 +8,10 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { getFeaturedEvents } from "@/lib/queries";
+import { format } from "date-fns";
 
-const upcomingEvents = [
-  {
-    id: 1,
-    title: "Tsakani Sessions Sunset Boat Cruise",
-    date: "Coming Soon",
-    venue: "Cape Town Waterfront",
-    status: "Tickets Opening Soon",
-    featured: true,
-  },
-  {
-    id: 2,
-    title: "Tsakani Sessions Vol. 5",
-    date: "TBA",
-    venue: "TBA — Cape Town",
-    status: "Stay Tuned",
-    featured: false,
-  },
-];
+export const revalidate = 60; // Cache for 1 minute, reduces DB hits
 
 const services = [
   {
@@ -52,12 +37,13 @@ const services = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const events = await getFeaturedEvents();
+
   return (
     <div>
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-        {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-black via-black/95 to-black" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,215,0,0.08)_0%,_transparent_70%)]" />
 
@@ -98,7 +84,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
           <div className="w-6 h-10 border-2 border-gold-500/30 rounded-full flex justify-center pt-2">
             <div className="w-1 h-2 bg-gold-500/60 rounded-full" />
@@ -107,67 +92,71 @@ export default function HomePage() {
       </section>
 
       {/* Upcoming Events */}
-      <section className="py-16 sm:py-24 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold">
-                Upcoming <span className="text-gold-gradient">Events</span>
-              </h2>
-              <p className="text-gray-400 mt-2">
-                Don&apos;t miss the next Tsakani experience
-              </p>
+      {events.length > 0 && (
+        <section className="py-16 sm:py-24 px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-10">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-bold">
+                  Upcoming <span className="text-gold-gradient">Events</span>
+                </h2>
+                <p className="text-gray-400 mt-2">
+                  Don&apos;t miss the next Tsakani experience
+                </p>
+              </div>
+              <Link
+                href="/events"
+                className="hidden sm:flex items-center gap-1 text-gold-500 hover:text-gold-400 text-sm font-medium transition-colors"
+              >
+                View All <ArrowRight size={16} />
+              </Link>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {events.map((event) => (
+                <Link
+                  key={event.id}
+                  href={`/events/${event.slug}`}
+                  className={`group relative bg-dark-500 border rounded-2xl p-6 sm:p-8 hover:border-gold-500/40 transition-all duration-300 ${
+                    event.is_featured
+                      ? "border-gold-500/30 bg-gradient-to-br from-dark-500 to-gold-900/10"
+                      : "border-white/10"
+                  }`}
+                >
+                  {event.is_featured && (
+                    <div className="absolute top-4 right-4 bg-gold-gradient text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                      <Sparkles size={12} /> Featured
+                    </div>
+                  )}
+                  <div className="flex items-start gap-4">
+                    <div className="bg-gold-500/10 text-gold-500 p-3 rounded-xl">
+                      <Calendar size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold mb-1 group-hover:text-gold-500 transition-colors">
+                        {event.title}
+                      </h3>
+                      <p className="text-gray-400 text-sm mb-1">
+                        {format(new Date(event.date), "PPP")}
+                      </p>
+                      {event.venue_name && (
+                        <p className="text-gray-500 text-sm">{event.venue_name}</p>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
             <Link
               href="/events"
-              className="hidden sm:flex items-center gap-1 text-gold-500 hover:text-gold-400 text-sm font-medium transition-colors"
+              className="sm:hidden flex items-center justify-center gap-1 text-gold-500 hover:text-gold-400 text-sm font-medium mt-6 transition-colors"
             >
-              View All <ArrowRight size={16} />
+              View All Events <ArrowRight size={16} />
             </Link>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {upcomingEvents.map((event) => (
-              <div
-                key={event.id}
-                className={`group relative bg-dark-500 border rounded-2xl p-6 sm:p-8 hover:border-gold-500/40 transition-all duration-300 ${
-                  event.featured
-                    ? "border-gold-500/30 bg-gradient-to-br from-dark-500 to-gold-900/10"
-                    : "border-white/10"
-                }`}
-              >
-                {event.featured && (
-                  <div className="absolute top-4 right-4 bg-gold-gradient text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                    <Sparkles size={12} /> Featured
-                  </div>
-                )}
-                <div className="flex items-start gap-4">
-                  <div className="bg-gold-500/10 text-gold-500 p-3 rounded-xl">
-                    <Calendar size={24} />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold mb-1 group-hover:text-gold-500 transition-colors">
-                      {event.title}
-                    </h3>
-                    <p className="text-gray-400 text-sm mb-1">{event.date}</p>
-                    <p className="text-gray-500 text-sm">{event.venue}</p>
-                    <span className="inline-block mt-3 text-gold-500 text-sm font-medium bg-gold-500/10 px-3 py-1 rounded-full">
-                      {event.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <Link
-            href="/events"
-            className="sm:hidden flex items-center justify-center gap-1 text-gold-500 hover:text-gold-400 text-sm font-medium mt-6 transition-colors"
-          >
-            View All Events <ArrowRight size={16} />
-          </Link>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Services Preview */}
       <section className="py-16 sm:py-24 px-4 bg-dark-700/50">
@@ -223,7 +212,6 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* YouTube Embeds */}
           <div className="mb-12">
             <h3 className="text-lg font-semibold text-gold-500 mb-6 flex items-center gap-2">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>
@@ -264,9 +252,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* TikTok & Instagram */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* TikTok */}
             <a
               href="https://www.tiktok.com/@tsakani_sessions?_r=1&_t=ZS-95aeaagWjob"
               target="_blank"
@@ -291,7 +277,6 @@ export default function HomePage() {
               </span>
             </a>
 
-            {/* Instagram */}
             <a
               href="https://instagram.com/tsakani_sessions"
               target="_blank"

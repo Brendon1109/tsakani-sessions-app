@@ -1,38 +1,15 @@
 import Link from "next/link";
 import { Calendar, MapPin, Clock, ArrowRight, Sparkles } from "lucide-react";
+import { getPublishedEvents } from "@/lib/queries";
+import { format, isPast } from "date-fns";
 
-const events = [
-  {
-    id: 1,
-    slug: "sunset-boat-cruise-2026",
-    title: "Tsakani Sessions Sunset Boat Cruise",
-    date: "Coming Soon",
-    time: "4:00 PM - 10:00 PM",
-    venue: "Cape Town Waterfront",
-    description:
-      "Our signature experience. A sunset cruise with the best DJs, incredible views, and the Tsakani vibe on the water.",
-    status: "upcoming" as string,
-    featured: true,
-    ticketStatus: "Tickets Opening Soon",
-  },
-  {
-    id: 2,
-    slug: "tsakani-vol-5",
-    title: "Tsakani Sessions Vol. 5",
-    date: "TBA",
-    time: "TBA",
-    venue: "TBA — Cape Town",
-    description:
-      "The next chapter of Tsakani Sessions. More details coming after our annual planning meeting.",
-    status: "upcoming" as string,
-    featured: false,
-    ticketStatus: "Stay Tuned",
-  },
-];
+export const revalidate = 60;
 
-export default function EventsPage() {
-  const upcomingEvents = events.filter((e) => e.status === "upcoming");
-  const pastEvents = events.filter((e) => e.status === "past");
+export default async function EventsPage() {
+  const events = await getPublishedEvents();
+
+  const upcomingEvents = events.filter((e) => !isPast(new Date(e.date)));
+  const pastEvents = events.filter((e) => isPast(new Date(e.date)));
 
   return (
     <div>
@@ -59,34 +36,36 @@ export default function EventsPage() {
 
           <div className="space-y-6">
             {upcomingEvents.map((event) => (
-              <div
+              <Link
                 key={event.id}
-                className={`group bg-dark-500 border rounded-2xl overflow-hidden transition-all duration-300 ${
-                  event.featured
+                href={`/events/${event.slug}`}
+                className={`group block bg-dark-500 border rounded-2xl overflow-hidden transition-all duration-300 ${
+                  event.is_featured
                     ? "border-gold-500/30 bg-gradient-to-r from-dark-500 to-gold-900/10"
                     : "border-white/10 hover:border-gold-500/20"
                 }`}
               >
                 <div className="p-6 sm:p-8">
                   <div className="flex flex-col sm:flex-row sm:items-start gap-6">
-                    {/* Date badge */}
                     <div className="bg-gold-500/10 rounded-xl p-4 text-center sm:min-w-[100px]">
                       <Calendar
                         size={24}
                         className="text-gold-500 mx-auto mb-1"
                       />
                       <p className="text-gold-500 text-sm font-bold">
-                        {event.date}
+                        {format(new Date(event.date), "MMM d")}
+                      </p>
+                      <p className="text-gold-500/70 text-xs">
+                        {format(new Date(event.date), "yyyy")}
                       </p>
                     </div>
 
-                    {/* Event details */}
                     <div className="flex-1">
                       <div className="flex items-start justify-between gap-4 mb-2">
                         <h3 className="text-xl sm:text-2xl font-bold group-hover:text-gold-500 transition-colors">
                           {event.title}
                         </h3>
-                        {event.featured && (
+                        {event.is_featured && (
                           <span className="shrink-0 bg-gold-gradient text-black text-xs font-bold px-3 py-1 rounded-full">
                             Featured
                           </span>
@@ -94,27 +73,27 @@ export default function EventsPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-4 text-sm text-gray-400 mb-3">
-                        <span className="flex items-center gap-1.5">
-                          <MapPin size={14} />
-                          {event.venue}
-                        </span>
+                        {event.venue_name && (
+                          <span className="flex items-center gap-1.5">
+                            <MapPin size={14} />
+                            {event.venue_name}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1.5">
                           <Clock size={14} />
-                          {event.time}
+                          {format(new Date(event.date), "p")}
                         </span>
                       </div>
 
-                      <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                        {event.description}
-                      </p>
-
-                      <span className="inline-block text-gold-500 text-sm font-medium bg-gold-500/10 px-4 py-1.5 rounded-full">
-                        {event.ticketStatus}
-                      </span>
+                      {event.description && (
+                        <p className="text-gray-400 text-sm leading-relaxed">
+                          {event.description}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -144,11 +123,12 @@ export default function EventsPage() {
                         {event.title}
                       </h3>
                       <p className="text-gray-500 text-sm">
-                        {event.date} &middot; {event.venue}
+                        {format(new Date(event.date), "PPP")}
+                        {event.venue_name && ` · ${event.venue_name}`}
                       </p>
                     </div>
                     <Link
-                      href={`/gallery`}
+                      href={`/gallery/${event.slug}`}
                       className="text-gold-500 text-sm hover:text-gold-400 flex items-center gap-1 transition-colors"
                     >
                       Gallery <ArrowRight size={14} />

@@ -1,23 +1,45 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Camera, Lock, Calendar } from "lucide-react";
+import { getGalleries } from "@/lib/queries";
+import { format } from "date-fns";
+import { createClient } from "@/lib/supabase/server";
 
-// Placeholder data — will be replaced with Supabase queries in production
-const galleries = [
-  {
-    slug: "sunset-cruise-2026",
-    title: "Sunset Boat Cruise 2026",
-    date: "Coming Soon",
-    photoCount: 0,
-    coverImage: null,
-  },
-];
+export const revalidate = 60;
 
-export default function GalleryPage() {
-  const hasGalleries = galleries.some((g) => g.photoCount > 0);
+export default async function GalleryPage() {
+  const galleries = await getGalleries();
+  const supabase = createClient();
+
+  // Get cover images for galleries that have photos
+  const galleriesWithCovers = await Promise.all(
+    galleries.map(async (g) => {
+      if (g.photo_count === 0) return { ...g, coverUrl: null };
+
+      if (!supabase) return { ...g, coverUrl: null };
+
+      const { data: firstPhoto } = await supabase
+        .from("gallery_photos")
+        .select("storage_path")
+        .eq("gallery_id", g.id)
+        .order("sort_order", { ascending: true })
+        .limit(1)
+        .single();
+
+      if (!firstPhoto) return { ...g, coverUrl: null };
+
+      const { data: urlData } = supabase.storage
+        .from("gallery-photos")
+        .getPublicUrl(firstPhoto.storage_path);
+
+      return { ...g, coverUrl: urlData?.publicUrl || null };
+    })
+  );
+
+  const hasGalleries = galleriesWithCovers.some((g) => g.photo_count > 0);
 
   return (
     <div>
-      {/* Header */}
       <section className="py-16 sm:py-24 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
@@ -34,7 +56,6 @@ export default function GalleryPage() {
         </div>
       </section>
 
-      {/* Gallery Grid */}
       <section className="pb-24 px-4">
         <div className="max-w-7xl mx-auto">
           {!hasGalleries ? (
@@ -58,20 +79,22 @@ export default function GalleryPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {galleries
-                .filter((g) => g.photoCount > 0)
+              {galleriesWithCovers
+                .filter((g) => g.photo_count > 0)
                 .map((gallery) => (
                   <Link
                     key={gallery.slug}
                     href={`/gallery/${gallery.slug}`}
                     className="group bg-dark-500 border border-white/10 rounded-2xl overflow-hidden hover:border-gold-500/30 transition-all duration-300"
                   >
-                    <div className="aspect-[4/3] bg-dark-300 flex items-center justify-center">
-                      {gallery.coverImage ? (
-                        <img
-                          src={gallery.coverImage}
+                    <div className="relative aspect-[4/3] bg-dark-300 flex items-center justify-center overflow-hidden">
+                      {gallery.coverUrl ? (
+                        <Image
+                          src={gallery.coverUrl}
                           alt={gallery.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          sizes="(max-width: 768px) 100vw, 33vw"
                         />
                       ) : (
                         <Camera size={40} className="text-gray-600" />
@@ -82,7 +105,10 @@ export default function GalleryPage() {
                         {gallery.title}
                       </h3>
                       <p className="text-gray-500 text-sm mt-1">
-                        {gallery.date} &middot; {gallery.photoCount} photos
+                        {gallery.event?.date
+                          ? format(new Date(gallery.event.date), "PPP")
+                          : "Date TBA"}{" "}
+                        &middot; {gallery.photo_count} photos
                       </p>
                     </div>
                   </Link>
