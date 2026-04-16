@@ -69,13 +69,7 @@ export default function Navbar() {
               height={40}
               className="w-8 h-8 sm:w-10 sm:h-10"
             />
-            <Image
-              src="/images/tsakani-words.png"
-              alt="Tsakani Sessions"
-              width={120}
-              height={30}
-              className="h-5 sm:h-7 w-auto"
-            />
+            <span className="font-bold text-lg text-white">Tsakani <span className="text-gold-500">Sessions</span></span>
           </Link>
 
           {/* Desktop Nav */}

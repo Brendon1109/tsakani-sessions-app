@@ -230,16 +230,21 @@ export default function HomePage() {
               Latest on YouTube
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="aspect-video bg-dark-500 rounded-2xl overflow-hidden border border-white/10">
-                <iframe
-                  src="https://www.youtube.com/embed?listType=user_uploads&list=tsakanisessions"
-                  title="Tsakani Sessions - Latest Video"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full"
-                  loading="lazy"
-                />
-              </div>
+              <a
+                href="https://youtube.com/@tsakanisessions?si=_bLUBTv9sImhsK4R"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group aspect-video bg-dark-500 rounded-2xl overflow-hidden border border-white/10 hover:border-red-500/30 transition-colors flex items-center justify-center relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-transparent" />
+                <div className="text-center z-10">
+                  <div className="bg-red-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="m10 15 5-3-5-3z"/></svg>
+                  </div>
+                  <p className="text-white font-semibold">Watch on YouTube</p>
+                  <p className="text-gray-400 text-sm">@tsakanisessions</p>
+                </div>
+              </a>
               <div className="flex flex-col justify-center bg-dark-500 border border-white/10 rounded-2xl p-6 sm:p-8">
                 <h4 className="text-xl font-bold mb-3">Tsakani Sessions on YouTube</h4>
                 <p className="text-gray-400 text-sm leading-relaxed mb-6">

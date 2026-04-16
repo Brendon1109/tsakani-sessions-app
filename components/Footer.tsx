@@ -16,13 +16,7 @@ export default function Footer() {
                 width={36}
                 height={36}
               />
-              <Image
-                src="/images/tsakani-words.png"
-                alt="Tsakani Sessions"
-                width={100}
-                height={25}
-                className="h-5 w-auto"
-              />
+              <span className="font-bold text-white">Tsakani <span className="text-gold-500">Sessions</span></span>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">
               Two Tales of Happiness, Friendship & Brotherhood. Premium DJ
