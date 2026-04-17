@@ -68,9 +68,50 @@ def update_job(job_id: str, updates: dict):
         print(f"[ERROR] update_job {job_id}: {e}")
 
 
+def run_youtube_upload(video_path, title, description, privacy):
+    """Upload the rendered video to YouTube via youtube_upload.py."""
+    script_path = Path(__file__).parent / "youtube_upload.py"
+    if not script_path.exists():
+        return False, "youtube_upload.py not found"
+    args = [
+        sys.executable, str(script_path),
+        "--file", str(video_path),
+        "--title", title,
+        "--privacy", privacy or "private",
+    ]
+    if description:
+        args += ["--description", description]
+    try:
+        result = subprocess.run(args, capture_output=True, text=True)
+        if result.returncode != 0:
+            return False, result.stderr[-500:]
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
 def process_job(job):
     job_id = job["id"]
-    config = job["config"]
+    config = job.get("config") or {}
+
+    # Upload-only job: YouTube upload of a previously rendered video
+    if config.get("upload_target") == "youtube" and config.get("upload_video_path"):
+        print(f"\n[UPLOAD] YouTube: {config.get('upload_title')}")
+        update_job(job_id, {"status": "running", "progress": 50})
+        ok, err = run_youtube_upload(
+            config["upload_video_path"],
+            config["upload_title"],
+            config.get("upload_description"),
+            config.get("upload_privacy", "private"),
+        )
+        if ok:
+            update_job(job_id, {"status": "done", "progress": 100})
+            print(f"[DONE] YouTube upload for job {job_id}")
+        else:
+            update_job(job_id, {"status": "failed", "error_message": err or "Upload failed"})
+            print(f"[FAIL] {err}")
+        return
+
     print(f"\n[JOB] Processing {job_id}")
 
     update_job(job_id, {"status": "running", "progress": 0})

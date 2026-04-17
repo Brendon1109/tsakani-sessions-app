@@ -12,7 +12,9 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  ListChecks,
 } from "lucide-react";
+import VideoJobsPanel from "@/components/VideoJobsPanel";
 
 type SyncMode = "replace" | "align" | "offset";
 
@@ -187,6 +189,15 @@ export default function AdminVideoPage() {
         <p className="text-gray-400 mt-1">
           Build the clip sequence, configure audio sync, and trigger the merge
         </p>
+      </div>
+
+      {/* Live Job Queue */}
+      <div className="mb-8">
+        <h2 className="font-bold mb-3 flex items-center gap-2">
+          <ListChecks size={18} className="text-gold-500" />
+          Job Queue
+        </h2>
+        <VideoJobsPanel />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
