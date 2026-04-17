@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getFeaturedEvents } from "@/lib/queries";
+import { getLatestYouTubeVideos } from "@/lib/youtube";
 import { format } from "date-fns";
 
 export const revalidate = 60; // Cache for 1 minute, reduces DB hits
@@ -38,7 +39,10 @@ const services = [
 ];
 
 export default async function HomePage() {
-  const events = await getFeaturedEvents();
+  const [events, videos] = await Promise.all([
+    getFeaturedEvents(),
+    getLatestYouTubeVideos(4),
+  ]);
 
   return (
     <div>
@@ -213,43 +217,74 @@ export default async function HomePage() {
           </div>
 
           <div className="mb-12">
-            <h3 className="text-lg font-semibold text-gold-500 mb-6 flex items-center gap-2">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>
-              Latest on YouTube
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gold-500 flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>
+                Latest on YouTube
+              </h3>
               <a
                 href="https://youtube.com/@tsakanisessions?si=_bLUBTv9sImhsK4R"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group aspect-video bg-dark-500 rounded-2xl overflow-hidden border border-white/10 hover:border-red-500/30 transition-colors flex items-center justify-center relative"
+                className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors flex items-center gap-2"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-transparent" />
-                <div className="text-center z-10">
-                  <div className="bg-red-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="m10 15 5-3-5-3z"/></svg>
-                  </div>
-                  <p className="text-white font-semibold">Watch on YouTube</p>
-                  <p className="text-gray-400 text-sm">@tsakanisessions</p>
-                </div>
+                Subscribe
               </a>
-              <div className="flex flex-col justify-center bg-dark-500 border border-white/10 rounded-2xl p-6 sm:p-8">
-                <h4 className="text-xl font-bold mb-3">Tsakani Sessions on YouTube</h4>
-                <p className="text-gray-400 text-sm leading-relaxed mb-6">
-                  Aftermovies, DJ sets, highlights, and behind-the-scenes
-                  content. Subscribe to catch every moment from our events.
-                </p>
+            </div>
+
+            {videos.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {videos.map((video) => (
+                  <a
+                    key={video.id}
+                    href={video.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group bg-dark-500 border border-white/10 rounded-xl overflow-hidden hover:border-red-500/40 transition-all duration-300"
+                  >
+                    <div className="relative aspect-video bg-dark-300 overflow-hidden">
+                      <Image
+                        src={video.thumbnail}
+                        alt={video.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        sizes="(max-width: 768px) 100vw, 25vw"
+                      />
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-red-600 w-14 h-14 rounded-full flex items-center justify-center shadow-lg">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <path d="m10 15 5-3-5-3z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h4 className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-red-400 transition-colors">
+                        {video.title}
+                      </h4>
+                      {video.views !== null && (
+                        <p className="text-gray-500 text-xs mt-2">
+                          {video.views.toLocaleString()} views
+                        </p>
+                      )}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-dark-500 border border-white/10 rounded-2xl p-10 text-center">
+                <p className="text-gray-400 mb-4">Visit our YouTube channel for the latest mixes.</p>
                 <a
                   href="https://youtube.com/@tsakanisessions?si=_bLUBTv9sImhsK4R"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-full transition-colors w-fit flex items-center gap-2"
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-full transition-colors inline-flex items-center gap-2"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>
-                  Subscribe on YouTube
+                  Watch on YouTube
                 </a>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
