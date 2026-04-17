@@ -45,4 +45,8 @@ scripts/output/
 scripts/temp_merge/
 venv/
 
+# supabase
+supabase/.temp/
+supabase/.branches/
+
 .vercel

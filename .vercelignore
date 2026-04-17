@@ -1,0 +1,11 @@
+.next/
+node_modules/
+supabase/.temp/
+.env.local
+.env
+*.log
+scripts/footage/
+scripts/output/
+scripts/temp_merge/
+venv/
+__pycache__/
