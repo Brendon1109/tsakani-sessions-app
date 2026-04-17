@@ -34,8 +34,41 @@ export const metadata: Metadata = {
   ],
   manifest: "/manifest.json",
   icons: {
-    icon: "/images/tsakani-logo.png",
-    apple: "/images/tsakani-logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
+      { url: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+  },
+  openGraph: {
+    title: "Tsakani Sessions",
+    description:
+      "Two Tales of Happiness, Friendship & Brotherhood. Premium DJ entertainment and content creation — Cape Town.",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://tsakani-sessions-app.vercel.app",
+    siteName: "Tsakani Sessions",
+    images: [
+      {
+        url: "/icons/icon-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "Tsakani Sessions",
+      },
+    ],
+    locale: "en_ZA",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Tsakani Sessions",
+    description:
+      "Two Tales of Happiness, Friendship & Brotherhood. Cape Town DJ entertainment.",
+    images: ["/icons/icon-512x512.png"],
   },
 };
 

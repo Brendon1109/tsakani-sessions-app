@@ -1,5 +1,5 @@
 // Tsakani Sessions service worker — minimal cache-first with offline fallback
-const CACHE_NAME = "tsakani-v1";
+const CACHE_NAME = "tsakani-v2";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   "/",
@@ -8,7 +8,10 @@ const PRECACHE_URLS = [
   "/events",
   "/gallery",
   "/offline",
-  "/images/tsakani-logo.png",
+  "/favicon.ico",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
+  "/icons/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (event) => {
