@@ -24,23 +24,27 @@ export default function Navbar() {
     const supabase = createClient();
     if (!supabase) return;
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-      if (user) {
-        supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single()
-          .then(({ data }) => {
-            setIsAdmin(data?.role === "admin");
-          });
+    async function refreshUserAndRole(currentUser: User | null) {
+      setUser(currentUser);
+      if (!currentUser) {
+        setIsAdmin(false);
+        return;
       }
+      const { data } = await supabase!
+        .from("profiles")
+        .select("role")
+        .eq("id", currentUser.id)
+        .single();
+      setIsAdmin(data?.role === "admin");
+    }
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      refreshUserAndRole(user);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setUser(session?.user ?? null);
+        refreshUserAndRole(session?.user ?? null);
       }
     );
 
