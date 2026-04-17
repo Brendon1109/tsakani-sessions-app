@@ -1,32 +1,55 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { rateLimit } from "@/lib/rate-limit";
+import { verifyTurnstile } from "@/lib/captcha";
+import { sendAdminOrderAlert } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { ticket_id, buyer_name, buyer_email, buyer_phone, quantity } = body;
+  // Rate limit: 3 ticket purchases per minute per IP
+  const limited = await rateLimit(request, "tickets", 3, 60);
+  if (limited) return limited;
 
-  if (!ticket_id || !buyer_name || !buyer_email || !quantity) {
+  const body = await request.json();
+  const {
+    ticket_id,
+    buyer_name,
+    buyer_email,
+    buyer_phone,
+    quantity,
+    captcha_token,
+  } = body;
+
+  if (!ticket_id || !buyer_name || !buyer_email || !Number.isInteger(quantity)) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+  if (quantity < 1 || quantity > 20) {
+    return NextResponse.json({ error: "Quantity must be 1-20" }, { status: 400 });
+  }
+
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const captchaOk = await verifyTurnstile(captcha_token, ip);
+  if (!captchaOk) {
+    return NextResponse.json({ error: "CAPTCHA failed" }, { status: 400 });
   }
 
   const supabase = createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
-  const { data: ticket, error: ticketError } = await supabase
-    .from("tickets")
-    .select("*")
-    .eq("id", ticket_id)
-    .single();
+  // Atomic reservation via DB function (prevents race condition)
+  const { data: ticket, error: reserveError } = await supabase.rpc("reserve_tickets", {
+    p_ticket_id: ticket_id,
+    p_quantity: quantity,
+  });
 
-  if (ticketError || !ticket) {
-    return NextResponse.json({ error: "Ticket type not found" }, { status: 404 });
+  if (reserveError || !ticket) {
+    return NextResponse.json(
+      { error: reserveError?.message || "Not enough tickets available" },
+      { status: 400 }
+    );
   }
 
-  if (ticket.quantity_sold + quantity > ticket.quantity_total) {
-    return NextResponse.json({ error: "Not enough tickets available" }, { status: 400 });
-  }
-
+  // Price from DB, not from client
   const total_zar = ticket.price_zar * quantity;
   const qr_code = randomUUID();
 
@@ -36,7 +59,7 @@ export async function POST(request: NextRequest) {
       ticket_id,
       buyer_name,
       buyer_email,
-      buyer_phone,
+      buyer_phone: buyer_phone || null,
       quantity,
       total_zar,
       qr_code,
@@ -47,13 +70,24 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (orderError) {
+    // Rollback the reservation
+    await supabase.rpc("release_tickets", {
+      p_ticket_id: ticket_id,
+      p_quantity: quantity,
+    });
     return NextResponse.json({ error: orderError.message }, { status: 500 });
   }
 
-  await supabase
-    .from("tickets")
-    .update({ quantity_sold: ticket.quantity_sold + quantity })
-    .eq("id", ticket_id);
+  // Notify admin
+  sendAdminOrderAlert({
+    type: "ticket",
+    customerName: buyer_name,
+    customerPhone: buyer_phone || "N/A",
+    customerEmail: buyer_email,
+    summary: `${quantity} x ${ticket.name} ticket(s)`,
+    total: total_zar / 100,
+    orderId: order.id,
+  }).catch(() => {});
 
-  return NextResponse.json(order);
+  return NextResponse.json({ ...order, validated_total_zar: total_zar });
 }

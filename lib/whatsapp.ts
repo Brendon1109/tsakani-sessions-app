@@ -1,4 +1,4 @@
-const WHATSAPP_NUMBER = "27769961477";
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "27769961477";
 
 export interface BookingData {
   name: string;
