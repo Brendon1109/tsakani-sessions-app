@@ -56,3 +56,15 @@ export async function PATCH(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+export async function DELETE(request: NextRequest) {
+  const { supabase, user } = await requireAdmin();
+  if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
+  if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { type, id } = await request.json();
+  const table = type === "member" ? "team_members" : "team_tasks";
+  const { error } = await supabase.from(table).delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

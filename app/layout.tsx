@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Dancing_Script } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PWARegister from "@/components/PWARegister";
 import "./globals.css";
 
 const inter = Inter({
@@ -56,6 +57,7 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1 pt-16 sm:pt-20">{children}</main>
         <Footer />
+        <PWARegister />
       </body>
     </html>
   );

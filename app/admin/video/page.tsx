@@ -141,26 +141,26 @@ export default function AdminVideoPage() {
     const config = buildConfig();
 
     try {
-      const response = await fetch("/api/admin/video", {
+      const response = await fetch("/api/admin/video-jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: `Tsakani Merge ${new Date().toLocaleDateString()}`,
-          status: "processing",
-          source_files: config,
-        }),
+        body: JSON.stringify({ config }),
       });
 
       if (response.ok) {
         setResult({
           status: "queued",
-          output_file: "Processing... Run the merge script with the config below.",
+          output_file:
+            "Job queued. Run scripts/video_worker.py on a machine with your footage and FFmpeg.",
           duration_seconds: 0,
           size_mb: 0,
         });
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to queue job");
       }
     } catch {
-      alert("Failed to save project. Check your connection.");
+      alert("Failed to queue job. Check your connection.");
     } finally {
       setProcessing(false);
     }
@@ -483,12 +483,12 @@ export default function AdminVideoPage() {
             {processing ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
-                Saving Project...
+                Queueing Job...
               </>
             ) : (
               <>
                 <Play size={18} />
-                Save & Generate Config
+                Queue for Worker
               </>
             )}
           </button>
