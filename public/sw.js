@@ -1,5 +1,5 @@
 // Tsakani Sessions service worker — minimal cache-first with offline fallback
-const CACHE_NAME = "tsakani-v2";
+const CACHE_NAME = "tsakani-v3";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   "/",
