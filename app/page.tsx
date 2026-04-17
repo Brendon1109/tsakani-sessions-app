@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { getFeaturedEvents } from "@/lib/queries";
 import { getLatestYouTubeVideos } from "@/lib/youtube";
+import { getFeaturedPosts } from "@/lib/social";
 import { format } from "date-fns";
 
 export const revalidate = 60; // Cache for 1 minute, reduces DB hits
@@ -39,9 +40,11 @@ const services = [
 ];
 
 export default async function HomePage() {
-  const [events, videos] = await Promise.all([
+  const [events, videos, tiktokPosts, instagramPosts] = await Promise.all([
     getFeaturedEvents(),
     getLatestYouTubeVideos(4),
+    getFeaturedPosts("tiktok"),
+    getFeaturedPosts("instagram"),
   ]);
 
   return (
@@ -287,54 +290,154 @@ export default async function HomePage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <a
-              href="https://www.tiktok.com/@tsakani_sessions?_r=1&_t=ZS-95aeaagWjob"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-dark-500 border border-white/10 rounded-2xl p-6 sm:p-8 hover:border-gold-500/30 transition-all duration-300"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="bg-white/10 p-2.5 rounded-xl group-hover:bg-white/15 transition-colors">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
-                </div>
-                <div>
-                  <h4 className="font-bold group-hover:text-gold-500 transition-colors">TikTok</h4>
-                  <p className="text-gray-500 text-sm">@tsakani_sessions</p>
-                </div>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                Short-form event highlights, DJ clips, transitions, and
-                behind-the-scenes content. Quick hits of the Tsakani vibe.
-              </p>
-              <span className="text-gold-500 text-sm font-medium group-hover:underline flex items-center gap-1">
-                Follow on TikTok <ArrowRight size={14} />
-              </span>
-            </a>
+          {/* TikTok */}
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
+                Latest on TikTok
+              </h3>
+              <a
+                href="https://www.tiktok.com/@tsakani_sessions?_r=1&_t=ZS-95aeaagWjob"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white hover:bg-gray-200 text-black text-sm font-semibold px-4 py-2 rounded-full transition-colors"
+              >
+                Follow
+              </a>
+            </div>
 
-            <a
-              href="https://instagram.com/tsakani_sessions"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-dark-500 border border-white/10 rounded-2xl p-6 sm:p-8 hover:border-gold-500/30 transition-all duration-300"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="bg-gradient-to-br from-purple-600/20 to-orange-500/20 p-2.5 rounded-xl group-hover:from-purple-600/30 group-hover:to-orange-500/30 transition-colors">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-                </div>
-                <div>
-                  <h4 className="font-bold group-hover:text-gold-500 transition-colors">Instagram</h4>
-                  <p className="text-gray-500 text-sm">@tsakani_sessions</p>
-                </div>
+            {tiktokPosts.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {tiktokPosts.slice(0, 4).map((post) => (
+                  <a
+                    key={post.id}
+                    href={post.post_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group bg-dark-500 border border-white/10 rounded-xl overflow-hidden hover:border-white/40 transition-all duration-300"
+                  >
+                    <div className="relative aspect-[9/16] bg-dark-300 overflow-hidden">
+                      {post.thumbnail_url ? (
+                        <Image
+                          src={post.thumbnail_url}
+                          alt={post.caption || "TikTok post"}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          sizes="(max-width: 768px) 50vw, 25vw"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-black flex items-center justify-center">
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+                    </div>
+                    {post.caption && (
+                      <div className="p-3">
+                        <p className="text-sm line-clamp-2 text-gray-300">{post.caption}</p>
+                      </div>
+                    )}
+                  </a>
+                ))}
               </div>
-              <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                Event photos, stories, Reels, and announcements. The main hub
-                for all Tsakani Sessions visual content.
-              </p>
-              <span className="text-gold-500 text-sm font-medium group-hover:underline flex items-center gap-1">
-                Follow on Instagram <ArrowRight size={14} />
-              </span>
-            </a>
+            ) : (
+              <a
+                href="https://www.tiktok.com/@tsakani_sessions?_r=1&_t=ZS-95aeaagWjob"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group bg-dark-500 border border-white/10 rounded-2xl p-6 sm:p-8 hover:border-white/40 transition-all duration-300 flex items-center gap-4 block"
+              >
+                <div className="bg-black border border-white/20 p-3 rounded-xl">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold">Watch on TikTok</h4>
+                  <p className="text-gray-500 text-sm">@tsakani_sessions · Short-form event highlights, DJ clips, and BTS content</p>
+                </div>
+                <ArrowRight size={20} className="text-gray-400 group-hover:text-white transition-colors" />
+              </a>
+            )}
+          </div>
+
+          {/* Instagram */}
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2 bg-gradient-to-r from-purple-400 to-orange-400 bg-clip-text text-transparent">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="url(#ig-grad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <defs>
+                    <linearGradient id="ig-grad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#a855f7" />
+                      <stop offset="100%" stopColor="#f97316" />
+                    </linearGradient>
+                  </defs>
+                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                  <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                </svg>
+                Latest on Instagram
+              </h3>
+              <a
+                href="https://instagram.com/tsakani_sessions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-gradient-to-br from-purple-600 to-orange-500 hover:opacity-90 text-white text-sm font-semibold px-4 py-2 rounded-full transition-opacity"
+              >
+                Follow
+              </a>
+            </div>
+
+            {instagramPosts.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {instagramPosts.slice(0, 4).map((post) => (
+                  <a
+                    key={post.id}
+                    href={post.post_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group bg-dark-500 border border-white/10 rounded-xl overflow-hidden hover:border-purple-500/40 transition-all duration-300"
+                  >
+                    <div className="relative aspect-square bg-dark-300 overflow-hidden">
+                      {post.thumbnail_url ? (
+                        <Image
+                          src={post.thumbnail_url}
+                          alt={post.caption || "Instagram post"}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          sizes="(max-width: 768px) 50vw, 25vw"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-600 to-orange-500 flex items-center justify-center">
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                    </div>
+                    {post.caption && (
+                      <div className="p-3">
+                        <p className="text-sm line-clamp-2 text-gray-300">{post.caption}</p>
+                      </div>
+                    )}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <a
+                href="https://instagram.com/tsakani_sessions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group bg-dark-500 border border-white/10 rounded-2xl p-6 sm:p-8 hover:border-purple-500/40 transition-all duration-300 flex items-center gap-4 block"
+              >
+                <div className="bg-gradient-to-br from-purple-600 to-orange-500 p-3 rounded-xl">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold">Follow on Instagram</h4>
+                  <p className="text-gray-500 text-sm">@tsakani_sessions · Event photos, stories, Reels, and announcements</p>
+                </div>
+                <ArrowRight size={20} className="text-gray-400 group-hover:text-white transition-colors" />
+              </a>
+            )}
           </div>
         </div>
       </section>

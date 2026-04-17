@@ -5,8 +5,7 @@ BEGIN
   IF NEW.email IN (
     'mapindabrendon@gmail.com',
     'tsakanisessions@gmail.com',
-    'brendon@automationarchitects.ai',
-    'bmapinda303@gmail.com'
+    'pwilliamson@sh9keit.com'
   ) THEN
     NEW.role := 'admin';
   END IF;
@@ -20,12 +19,20 @@ CREATE TRIGGER promote_admins_trigger
   FOR EACH ROW
   EXECUTE FUNCTION promote_admins_on_signup();
 
--- Promote any existing profiles with these emails
+-- Sync current admin list:
+-- 1) Promote the allowed emails
 UPDATE profiles
 SET role = 'admin'
 WHERE email IN (
   'mapindabrendon@gmail.com',
   'tsakanisessions@gmail.com',
+  'pwilliamson@sh9keit.com'
+);
+
+-- 2) Revoke admin from removed emails
+UPDATE profiles
+SET role = 'user'
+WHERE email IN (
   'brendon@automationarchitects.ai',
   'bmapinda303@gmail.com'
 );

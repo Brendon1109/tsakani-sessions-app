@@ -13,6 +13,7 @@ import {
   CalendarDays,
   Video,
   Share2,
+  Pin,
   UserCheck,
   ChevronLeft,
   Menu,
@@ -30,6 +31,7 @@ const adminNav = [
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/admin/video", label: "Video", icon: Video },
   { href: "/admin/social", label: "Social Uploads", icon: Share2 },
+  { href: "/admin/featured-posts", label: "Featured Posts", icon: Pin },
   { href: "/admin/leads", label: "Leads", icon: UserCheck },
 ];
 

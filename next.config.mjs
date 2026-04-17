@@ -30,6 +30,38 @@ const nextConfig = {
         protocol: "https",
         hostname: "i4.ytimg.com",
       },
+      {
+        protocol: "https",
+        hostname: "*.tiktokcdn.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.tiktokcdn-us.com",
+      },
+      {
+        protocol: "https",
+        hostname: "p16-sign-va.tiktokcdn.com",
+      },
+      {
+        protocol: "https",
+        hostname: "p16-sign.tiktokcdn-us.com",
+      },
+      {
+        protocol: "https",
+        hostname: "p19-common-sign-useast1a.tiktokcdn-us.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.cdninstagram.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.fbcdn.net",
+      },
+      {
+        protocol: "https",
+        hostname: "scontent.cdninstagram.com",
+      },
     ],
   },
   async headers() {
