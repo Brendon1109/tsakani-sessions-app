@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { ShoppingBag, MessageCircle, Minus, Plus } from "lucide-react";
-import { createOrderMessage, openWhatsApp } from "@/lib/whatsapp";
+import { createOrderMessage } from "@/lib/whatsapp";
 import Turnstile from "@/components/Turnstile";
 import type { Product } from "@/lib/types";
+
+const PENDING_ORDER_KEY = "tsakani_pending_order_v1";
 
 interface CartItem {
   productId: string;
@@ -20,6 +23,7 @@ interface CartItem {
 const CART_STORAGE_KEY = "tsakani_cart_v1";
 
 export default function ShopClient({ products }: { products: Product[] }) {
+  const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
   const [selectedSizes, setSelectedSizes] = useState<Record<string, string>>({});
@@ -154,13 +158,27 @@ export default function ShopClient({ products }: { products: Product[] }) {
         total: cartTotal,
       });
 
-      openWhatsApp(message);
+      // Stash the WhatsApp payload so the success page can offer a deliberate
+      // "Send via WhatsApp" button instead of opening it automatically and
+      // losing context if the user closes the tab.
+      try {
+        sessionStorage.setItem(
+          PENDING_ORDER_KEY,
+          JSON.stringify({ message, total: cartTotal })
+        );
+      } catch {
+        // ignore quota errors — success page will degrade gracefully
+      }
+
       setCart([]);
       setShowCart(false);
       setCustomerName("");
       setCustomerPhone("");
       setCustomerEmail("");
       setCaptchaToken("");
+      router.push(
+        `/shop/success?orderId=${encodeURIComponent(data.id)}&total=${cartTotal}`
+      );
     } catch {
       alert("Something went wrong. Please check your connection and try again.");
     } finally {

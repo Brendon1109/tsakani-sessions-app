@@ -12,9 +12,20 @@ import { NextRequest, NextResponse } from "next/server";
 
 function isAuthorized(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // no secret configured = allow (dev-friendly)
-
   const auth = request.headers.get("authorization");
+
+  if (!secret) {
+    // Fail closed in production: no secret set means nobody can call this.
+    // In dev, allow unauthenticated calls so it's easy to exercise locally.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "[cron/cleanup-orders] CRON_SECRET is not set in production — rejecting request. Set the env var in Vercel."
+      );
+      return false;
+    }
+    return true;
+  }
+
   return auth === `Bearer ${secret}`;
 }
 

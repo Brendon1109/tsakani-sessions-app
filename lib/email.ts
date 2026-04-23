@@ -3,9 +3,19 @@ import { Resend } from "resend";
 const FROM = process.env.RESEND_FROM_EMAIL || "Tsakani Sessions <onboarding@resend.dev>";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "tsakanisessions@gmail.com";
 
+let warnedMissingKey = false;
+
 function getClient() {
   const key = process.env.RESEND_API_KEY;
-  if (!key) return null;
+  if (!key) {
+    if (!warnedMissingKey) {
+      console.warn(
+        "[email] RESEND_API_KEY is not set — order confirmations and admin alerts will be skipped. Set it in your environment to enable transactional email."
+      );
+      warnedMissingKey = true;
+    }
+    return null;
+  }
   return new Resend(key);
 }
 

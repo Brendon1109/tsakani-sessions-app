@@ -8,10 +8,19 @@ export async function POST(request: NextRequest) {
   const limited = await rateLimit(request, "newsletter", 3, 600);
   if (limited) return limited;
 
-  const { email, captcha_token } = await request.json();
+  const { email, captcha_token, consent_events, consent_merch } = await request.json();
 
   if (!email || typeof email !== "string" || !email.includes("@") || email.length > 254) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 });
+  }
+
+  const wantsEvents = consent_events === true;
+  const wantsMerch = consent_merch === true;
+  if (!wantsEvents && !wantsMerch) {
+    return NextResponse.json(
+      { error: "Tick at least one box so we know what to send you" },
+      { status: 400 }
+    );
   }
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
@@ -26,7 +35,15 @@ export async function POST(request: NextRequest) {
   const { error } = await supabase
     .from("newsletter_subscribers")
     .upsert(
-      { email: email.toLowerCase().trim(), source: "website", is_active: true },
+      {
+        email: email.toLowerCase().trim(),
+        source: "website",
+        is_active: true,
+        consent_events: wantsEvents,
+        consent_merch: wantsMerch,
+        consent_at: new Date().toISOString(),
+        consent_ip: ip || null,
+      },
       { onConflict: "email" }
     );
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Phone, Mail, MessageCircle } from "lucide-react";
+import NewsletterForm from "@/components/NewsletterForm";
 
 export default function Footer() {
   return (
@@ -48,15 +49,26 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Services */}
+          {/* Legal */}
           <div>
             <h3 className="text-gold-500 font-semibold text-sm uppercase tracking-wider mb-4">
-              Services
+              Legal
             </h3>
             <ul className="space-y-2.5">
-              <li className="text-gray-400 text-sm">Full Tsakani Experience</li>
-              <li className="text-gray-400 text-sm">DJ & Live Performance</li>
-              <li className="text-gray-400 text-sm">Content & Documentation</li>
+              {[
+                { href: "/privacy", label: "Privacy Policy" },
+                { href: "/terms", label: "Terms of Service" },
+                { href: "/refund-policy", label: "Refund Policy" },
+              ].map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-gray-400 hover:text-gold-500 text-sm transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -127,6 +139,20 @@ export default function Footer() {
               </a>
             </div>
           </div>
+        </div>
+
+        {/* Newsletter */}
+        <div className="mt-12 pt-10 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
+          <div>
+            <h3 className="text-lg font-bold mb-2">
+              Stay in the <span className="text-gold-500">loop</span>
+            </h3>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Tick what you want to hear about &mdash; events, merch, or both.
+              No spam, unsubscribe any time.
+            </p>
+          </div>
+          <NewsletterForm />
         </div>
 
         {/* Bottom Bar */}
