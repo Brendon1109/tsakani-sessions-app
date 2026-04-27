@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Camera, Lock, Calendar } from "lucide-react";
@@ -5,6 +6,26 @@ import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Gallery — Event Photos & Highlights",
+  description:
+    "Photo galleries from Tsakani Sessions events across Cape Town. Browse highlights, behind-the-scenes shots, and the energy of every night.",
+  alternates: { canonical: "/gallery" },
+  openGraph: {
+    title: "Tsakani Sessions Gallery — Event Photos & Highlights",
+    description:
+      "Event photos and highlights from Tsakani Sessions nights across Cape Town.",
+    url: "/gallery",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tsakani Sessions Gallery — Event Photos & Highlights",
+    description:
+      "Event photos and highlights from Tsakani Sessions nights across Cape Town.",
+  },
+};
 
 interface GallerySummary {
   id: string;

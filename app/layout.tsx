@@ -17,13 +17,17 @@ const dancingScript = Dancing_Script({
   display: "swap",
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://tsakanisessions.co.za";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "Tsakani Sessions | DJ Entertainment & Content Creation",
+    default: "Tsakani Sessions — DJ & Live Entertainment in Cape Town",
     template: "%s | Tsakani Sessions",
   },
   description:
-    "Two Tales of Happiness, Friendship & Brotherhood. Premium DJ entertainment and content creation based in Cape Town.",
+    "Tsakani Sessions delivers premium DJ entertainment, live performance, and event content creation across Cape Town and South Africa. Book your next experience.",
   keywords: [
     "Tsakani Sessions",
     "Cape Town DJ",
@@ -31,7 +35,13 @@ export const metadata: Metadata = {
     "content creation",
     "events",
     "South Africa",
+    "amapiano",
+    "house music",
+    "event videography",
   ],
+  alternates: {
+    canonical: "/",
+  },
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -47,28 +57,28 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   openGraph: {
-    title: "Tsakani Sessions",
+    title: "Tsakani Sessions — DJ & Live Entertainment in Cape Town",
     description:
-      "Two Tales of Happiness, Friendship & Brotherhood. Premium DJ entertainment and content creation — Cape Town.",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "https://tsakani-sessions-app.vercel.app",
+      "Premium DJ entertainment, live performance, and event content creation across Cape Town and South Africa.",
+    url: siteUrl,
     siteName: "Tsakani Sessions",
     images: [
       {
-        url: "/icons/icon-512x512.png",
-        width: 512,
-        height: 512,
-        alt: "Tsakani Sessions",
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Tsakani Sessions — DJ & Live Entertainment in Cape Town",
       },
     ],
     locale: "en_ZA",
     type: "website",
   },
   twitter: {
-    card: "summary",
-    title: "Tsakani Sessions",
+    card: "summary_large_image",
+    title: "Tsakani Sessions — DJ & Live Entertainment in Cape Town",
     description:
-      "Two Tales of Happiness, Friendship & Brotherhood. Cape Town DJ entertainment.",
-    images: ["/icons/icon-512x512.png"],
+      "Premium DJ entertainment, live performance, and event content creation — Cape Town.",
+    images: ["/og-image.jpg"],
   },
 };
 

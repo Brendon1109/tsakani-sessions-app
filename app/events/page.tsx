@@ -1,9 +1,30 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Calendar, MapPin, Clock, ArrowRight, Sparkles } from "lucide-react";
 import { getPublishedEvents } from "@/lib/queries";
 import { format, isPast } from "date-fns";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Upcoming Events & Past Highlights",
+  description:
+    "Browse upcoming Tsakani Sessions events in Cape Town and relive past nights. Amapiano, house, and live DJ experiences across South Africa.",
+  alternates: { canonical: "/events" },
+  openGraph: {
+    title: "Tsakani Sessions Events — Cape Town DJ Experiences",
+    description:
+      "Upcoming Tsakani Sessions events and past highlights. Cape Town DJ entertainment, amapiano, and house nights.",
+    url: "/events",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tsakani Sessions Events — Cape Town DJ Experiences",
+    description:
+      "Upcoming Tsakani Sessions events and past highlights across South Africa.",
+  },
+};
 
 export default async function EventsPage() {
   const events = await getPublishedEvents();
