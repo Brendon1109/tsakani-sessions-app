@@ -17,6 +17,13 @@ interface EventForm {
   is_featured: boolean;
 }
 
+function utcIsoToLocalInput(iso: string): string {
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+}
+
 const emptyForm: EventForm = {
   title: "",
   slug: "",
@@ -57,7 +64,7 @@ export default function AdminEventsPage() {
       id: event.id,
       title: event.title,
       slug: event.slug,
-      date: event.date.slice(0, 16), // ISO -> "YYYY-MM-DDTHH:MM"
+      date: utcIsoToLocalInput(event.date),
       venue_name: event.venue_name || "",
       venue_address: event.venue_address || "",
       description: event.description || "",
@@ -71,7 +78,10 @@ export default function AdminEventsPage() {
     e.preventDefault();
     setSaving(true);
     const method = form.id ? "PATCH" : "POST";
-    const body = form.id ? form : { ...form, slug: form.slug || undefined };
+    const dateUtc = new Date(form.date).toISOString();
+    const body = form.id
+      ? { ...form, date: dateUtc }
+      : { ...form, date: dateUtc, slug: form.slug || undefined };
     const res = await fetch("/api/admin/events", {
       method,
       headers: { "Content-Type": "application/json" },
