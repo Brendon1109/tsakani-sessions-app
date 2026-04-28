@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, Plus, Edit, Trash2, X, Loader2, Star } from "lucide-react";
+import Image from "next/image";
+import { Calendar, Plus, Edit, Trash2, X, Loader2, Star, Upload } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { Event } from "@/lib/types";
 
@@ -15,6 +16,7 @@ interface EventForm {
   description: string;
   status: "draft" | "published" | "past";
   is_featured: boolean;
+  cover_image_url: string;
 }
 
 function utcIsoToLocalInput(iso: string): string {
@@ -33,6 +35,7 @@ const emptyForm: EventForm = {
   description: "",
   status: "draft",
   is_featured: false,
+  cover_image_url: "",
 };
 
 export default function AdminEventsPage() {
@@ -41,6 +44,7 @@ export default function AdminEventsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<EventForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,8 +74,29 @@ export default function AdminEventsPage() {
       description: event.description || "",
       status: event.status,
       is_featured: event.is_featured,
+      cover_image_url: event.cover_image_url || "",
     });
     setShowForm(true);
+  }
+
+  async function handleCoverUpload(file: File) {
+    setUploadingCover(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/admin/events/upload-cover", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Upload failed");
+        return;
+      }
+      setForm((f) => ({ ...f, cover_image_url: data.url }));
+    } finally {
+      setUploadingCover(false);
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -228,6 +253,55 @@ export default function AdminEventsPage() {
                   placeholder="sunset-boat-cruise-2026"
                   className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-gold-500 focus:outline-none"
                 />
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 block mb-1">Poster / Cover Image</label>
+                {form.cover_image_url ? (
+                  <div className="relative bg-dark-300 border border-white/10 rounded-lg overflow-hidden">
+                    <Image
+                      src={form.cover_image_url}
+                      alt="Cover"
+                      width={600}
+                      height={400}
+                      className="w-full h-48 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, cover_image_url: "" })}
+                      className="absolute top-2 right-2 bg-black/70 hover:bg-black text-white p-1.5 rounded-full"
+                      aria-label="Remove cover image"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center gap-2 bg-dark-300 border border-dashed border-white/20 hover:border-gold-500/40 rounded-lg p-6 cursor-pointer transition-colors">
+                    {uploadingCover ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin text-gold-500" />
+                        <span className="text-sm text-gray-400">Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={16} className="text-gray-400" />
+                        <span className="text-sm text-gray-400">
+                          Click to upload (max 8MB, jpg/png/webp)
+                        </span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingCover}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleCoverUpload(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
               </div>
               <div>
                 <label className="text-sm text-gray-400 block mb-1">Date & Time *</label>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { Calendar, MapPin, Clock, ArrowRight, Sparkles } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Sparkles } from "lucide-react";
 import { getPublishedEvents } from "@/lib/queries";
 import { format, isPast } from "date-fns";
 
@@ -49,70 +50,82 @@ export default async function EventsPage() {
 
       {/* Upcoming Events */}
       <section className="pb-16 sm:pb-24 px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-bold mb-8 flex items-center gap-2">
             <Sparkles size={20} className="text-gold-500" />
             Upcoming
           </h2>
 
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {upcomingEvents.map((event) => (
               <Link
                 key={event.id}
                 href={`/events/${event.slug}`}
                 className={`group block bg-dark-500 border rounded-2xl overflow-hidden transition-all duration-300 ${
                   event.is_featured
-                    ? "border-gold-500/30 bg-gradient-to-r from-dark-500 to-gold-900/10"
-                    : "border-white/10 hover:border-gold-500/20"
+                    ? "border-gold-500/40 hover:border-gold-500/70 shadow-lg shadow-gold-500/5"
+                    : "border-white/10 hover:border-gold-500/30"
                 }`}
               >
-                <div className="p-6 sm:p-8">
-                  <div className="flex flex-col sm:flex-row sm:items-start gap-6">
-                    <div className="bg-gold-500/10 rounded-xl p-4 text-center sm:min-w-[100px]">
-                      <Calendar
-                        size={24}
-                        className="text-gold-500 mx-auto mb-1"
-                      />
-                      <p className="text-gold-500 text-sm font-bold">
-                        {format(new Date(event.date), "MMM d")}
-                      </p>
-                      <p className="text-gold-500/70 text-xs">
-                        {format(new Date(event.date), "yyyy")}
-                      </p>
+                <div className="relative aspect-[4/3] bg-gradient-to-br from-gold-900/20 via-dark-500 to-dark-700 overflow-hidden">
+                  {event.cover_image_url ? (
+                    <Image
+                      src={event.cover_image_url}
+                      alt={event.title}
+                      fill
+                      sizes="(min-width: 640px) 50vw, 100vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gold-500/30">
+                      <Calendar size={64} strokeWidth={1.5} />
                     </div>
-
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <h3 className="text-xl sm:text-2xl font-bold group-hover:text-gold-500 transition-colors">
-                          {event.title}
-                        </h3>
-                        {event.is_featured && (
-                          <span className="shrink-0 bg-gold-gradient text-black text-xs font-bold px-3 py-1 rounded-full">
-                            Featured
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-400 mb-3">
-                        {event.venue_name && (
-                          <span className="flex items-center gap-1.5">
-                            <MapPin size={14} />
-                            {event.venue_name}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1.5">
-                          <Clock size={14} />
-                          {format(new Date(event.date), "p")}
-                        </span>
-                      </div>
-
-                      {event.description && (
-                        <p className="text-gray-400 text-sm leading-relaxed">
-                          {event.description}
-                        </p>
-                      )}
-                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-dark-700/90 via-dark-700/20 to-transparent" />
+                  <div className="absolute top-4 left-4 bg-gold-gradient text-black px-3 py-1.5 rounded-lg shadow-lg">
+                    <p className="text-xs font-bold uppercase tracking-wide">
+                      {format(new Date(event.date), "MMM")}
+                    </p>
+                    <p className="text-2xl font-bold leading-none">
+                      {format(new Date(event.date), "d")}
+                    </p>
                   </div>
+                  {event.is_featured && (
+                    <span className="absolute top-4 right-4 bg-gold-gradient text-black text-xs font-bold px-3 py-1 rounded-full inline-flex items-center gap-1">
+                      <Sparkles size={12} />
+                      Featured
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-5 sm:p-6">
+                  <p className="text-gold-500/70 text-xs font-semibold uppercase tracking-wide mb-2">
+                    {format(new Date(event.date), "EEEE, d MMMM yyyy")}
+                    {" · "}
+                    {format(new Date(event.date), "p")}
+                  </p>
+
+                  <h3 className="text-xl sm:text-2xl font-bold group-hover:text-gold-500 transition-colors mb-3">
+                    {event.title}
+                  </h3>
+
+                  {event.venue_name && (
+                    <p className="flex items-center gap-1.5 text-sm text-gray-400 mb-3">
+                      <MapPin size={14} className="shrink-0 text-gold-500/70" />
+                      <span className="truncate">{event.venue_name}</span>
+                    </p>
+                  )}
+
+                  {event.description && (
+                    <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">
+                      {event.description}
+                    </p>
+                  )}
+
+                  <span className="inline-flex items-center gap-1 text-gold-500 text-sm font-semibold mt-4 group-hover:gap-2 transition-all">
+                    View details
+                    <ArrowRight size={14} />
+                  </span>
                 </div>
               </Link>
             ))}
