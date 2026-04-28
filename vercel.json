@@ -7,14 +7,25 @@
   ],
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/",
       "has": [
         {
           "type": "host",
           "value": "www.tsakanisessions.co.za"
         }
       ],
-      "destination": "https://tsakanisessions.co.za/:path*",
+      "destination": "https://tsakanisessions.co.za/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.tsakanisessions.co.za"
+        }
+      ],
+      "destination": "https://tsakanisessions.co.za/:path+",
       "permanent": true
     }
   ]
