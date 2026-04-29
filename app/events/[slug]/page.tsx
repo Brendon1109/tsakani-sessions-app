@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { format, isPast } from "date-fns";
+import { isPast } from "date-fns";
+import { eventDateShort, eventTime } from "@/lib/date";
 import {
   Calendar,
   Clock,
@@ -34,7 +35,7 @@ export async function generateMetadata({
     };
   }
 
-  const dateLabel = format(new Date(event.date), "PPP");
+  const dateLabel = eventDateShort(event.date);
   const venue = event.venue_name ? ` · ${event.venue_name}` : "";
   const description =
     event.description ||
@@ -75,9 +76,8 @@ export default async function EventDetailPage({
   const past = isPast(eventDate) || event.status === "past";
 
   const inquiryMessage = encodeURIComponent(
-    `Hi Tsakani Sessions! I'd like to know more about "${event.title}" on ${format(
-      eventDate,
-      "PPP"
+    `Hi Tsakani Sessions! I'd like to know more about "${event.title}" on ${eventDateShort(
+      event.date
     )}.`
   );
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${inquiryMessage}`;
@@ -141,7 +141,7 @@ export default async function EventDetailPage({
                       Date
                     </dt>
                     <dd className="text-sm text-gray-200">
-                      {format(eventDate, "PPP")}
+                      {eventDateShort(event.date)}
                     </dd>
                   </div>
                 </div>
@@ -153,7 +153,7 @@ export default async function EventDetailPage({
                       Time
                     </dt>
                     <dd className="text-sm text-gray-200">
-                      {format(eventDate, "p")}
+                      {eventTime(event.date)}
                     </dd>
                   </div>
                 </div>

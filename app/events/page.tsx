@@ -3,7 +3,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { Calendar, MapPin, ArrowRight, Sparkles } from "lucide-react";
 import { getPublishedEvents } from "@/lib/queries";
-import { format, isPast } from "date-fns";
+import { isPast } from "date-fns";
+import {
+  eventDateLong,
+  eventDateShort,
+  eventTime,
+  eventDayNumber,
+  eventMonthShort,
+} from "@/lib/date";
 
 export const revalidate = 60;
 
@@ -84,10 +91,10 @@ export default async function EventsPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-dark-700/90 via-dark-700/20 to-transparent" />
                   <div className="absolute top-4 left-4 bg-gold-gradient text-black px-3 py-1.5 rounded-lg shadow-lg">
                     <p className="text-xs font-bold uppercase tracking-wide">
-                      {format(new Date(event.date), "MMM")}
+                      {eventMonthShort(event.date)}
                     </p>
                     <p className="text-2xl font-bold leading-none">
-                      {format(new Date(event.date), "d")}
+                      {eventDayNumber(event.date)}
                     </p>
                   </div>
                   {event.is_featured && (
@@ -100,9 +107,9 @@ export default async function EventsPage() {
 
                 <div className="p-5 sm:p-6">
                   <p className="text-gold-500/70 text-xs font-semibold uppercase tracking-wide mb-2">
-                    {format(new Date(event.date), "EEEE, d MMMM yyyy")}
+                    {eventDateLong(event.date)}
                     {" · "}
-                    {format(new Date(event.date), "p")}
+                    {eventTime(event.date)}
                   </p>
 
                   <h3 className="text-xl sm:text-2xl font-bold group-hover:text-gold-500 transition-colors mb-3">
@@ -157,7 +164,7 @@ export default async function EventsPage() {
                         {event.title}
                       </h3>
                       <p className="text-gray-500 text-sm">
-                        {format(new Date(event.date), "PPP")}
+                        {eventDateShort(event.date)}
                         {event.venue_name && ` · ${event.venue_name}`}
                       </p>
                     </div>

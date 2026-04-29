@@ -11,7 +11,7 @@ import {
 import { getFeaturedEvents } from "@/lib/queries";
 import { getLatestYouTubeVideos } from "@/lib/youtube";
 import { getFeaturedPosts } from "@/lib/social";
-import { format } from "date-fns";
+import { eventDateShort } from "@/lib/date";
 
 export const revalidate = 60; // Cache for 1 minute, reduces DB hits
 
@@ -181,7 +181,7 @@ export default async function HomePage() {
                         {event.title}
                       </h3>
                       <p className="text-gray-400 text-sm mb-1">
-                        {format(new Date(event.date), "PPP")}
+                        {eventDateShort(event.date)}
                       </p>
                       {event.venue_name && (
                         <p className="text-gray-500 text-sm">{event.venue_name}</p>
