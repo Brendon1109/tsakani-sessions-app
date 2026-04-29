@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { Camera, Lock, Calendar } from "lucide-react";
-import { format } from "date-fns";
+import { Camera, Calendar, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { eventDateShort } from "@/lib/date";
 
 export const revalidate = 60;
 
@@ -27,74 +27,94 @@ export const metadata: Metadata = {
   },
 };
 
-interface GallerySummary {
+interface PhotoRow {
+  id: string;
+  storage_path: string;
+  caption: string | null;
+  sort_order: number;
+}
+
+interface GalleryRow {
   id: string;
   title: string;
   slug: string;
-  description: string | null;
-  photo_count: number;
-  cover_path: string | null;
-  event_title: string | null;
-  event_date: string | null;
-  is_public: boolean;
+  drive_url: string | null;
+  event: { date: string } | null;
+  photos: PhotoRow[];
 }
 
 export default async function GalleryPage() {
   const supabase = createClient();
-  let galleries: GallerySummary[] = [];
-  const coverUrls: Record<string, string> = {};
+  const sections: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    drive_url: string | null;
+    eventDate: string | null;
+    photos: Array<{ id: string; url: string; caption: string | null }>;
+  }> = [];
 
   if (supabase) {
-    // Single query using gallery_summaries view — no N+1
     const { data } = await supabase
-      .from("gallery_summaries")
-      .select("*")
-      .order("event_date", { ascending: false, nullsFirst: false });
+      .from("galleries")
+      .select(
+        "id, title, slug, drive_url, event:events(date), photos:gallery_photos(id, storage_path, caption, sort_order)",
+      )
+      .eq("is_public", true)
+      .order("created_at", { ascending: false });
 
-    galleries = (data as GallerySummary[]) || [];
-
-    // Batch-compute public URLs for covers (pure client-side transformation)
-    for (const g of galleries) {
-      if (g.cover_path) {
-        const { data: urlData } = supabase.storage
-          .from("gallery-photos")
-          .getPublicUrl(g.cover_path);
-        if (urlData?.publicUrl) coverUrls[g.id] = urlData.publicUrl;
-      }
+    const rows = (data as GalleryRow[] | null) || [];
+    for (const g of rows) {
+      const sorted = [...(g.photos || [])].sort((a, b) => a.sort_order - b.sort_order);
+      const photos = sorted
+        .map((p) => {
+          const { data: urlData } = supabase.storage
+            .from("gallery-photos")
+            .getPublicUrl(p.storage_path);
+          return urlData?.publicUrl
+            ? { id: p.id, url: urlData.publicUrl, caption: p.caption }
+            : null;
+        })
+        .filter((x): x is { id: string; url: string; caption: string | null } => x !== null);
+      if (photos.length === 0) continue;
+      sections.push({
+        id: g.id,
+        title: g.title,
+        slug: g.slug,
+        drive_url: g.drive_url,
+        eventDate: g.event?.date || null,
+        photos,
+      });
     }
   }
 
-  const hasGalleries = galleries.some((g) => g.photo_count > 0);
+  const hasContent = sections.length > 0;
 
   return (
     <div>
-      <section className="py-16 sm:py-24 px-4">
+      <section className="py-16 sm:py-20 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
             Event <span className="text-gold-gradient">Gallery</span>
           </h1>
           <p className="text-gray-400 max-w-xl mx-auto text-lg">
-            Browse photos from our events. Sign in with Google to view full galleries.
+            A few moments from our nights. Tap any photo to view full size, or
+            grab the full album on Google Drive.
           </p>
-          <div className="flex items-center justify-center gap-2 text-gray-500 text-sm mt-4">
-            <Lock size={14} aria-hidden="true" />
-            Google sign-in required to view individual galleries
-          </div>
         </div>
       </section>
 
       <section className="pb-24 px-4">
         <div className="max-w-7xl mx-auto">
-          {!hasGalleries ? (
+          {!hasContent ? (
             <div className="max-w-2xl mx-auto bg-dark-500 border border-white/10 rounded-2xl p-12 text-center">
               <div className="bg-gold-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Camera size={36} className="text-gold-500" aria-hidden="true" />
               </div>
               <h2 className="text-2xl font-bold mb-3">Galleries Coming Soon</h2>
               <p className="text-gray-400 mb-6 leading-relaxed">
-                Photos from upcoming events will appear here. Each event gets
-                its own gallery accessible via QR code at the venue or from this
-                page.
+                Photos from upcoming events will appear here. The full albums
+                will be on Google Drive for download.
               </p>
               <Link
                 href="/events"
@@ -105,41 +125,56 @@ export default async function GalleryPage() {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {galleries
-                .filter((g) => g.photo_count > 0)
-                .map((gallery) => (
-                  <Link
-                    key={gallery.id}
-                    href={`/gallery/${gallery.slug}`}
-                    className="group bg-dark-500 border border-white/10 rounded-2xl overflow-hidden hover:border-gold-500/30 transition-all duration-300"
-                  >
-                    <div className="relative aspect-[4/3] bg-dark-300 flex items-center justify-center overflow-hidden">
-                      {coverUrls[gallery.id] ? (
-                        <Image
-                          src={coverUrls[gallery.id]}
-                          alt={gallery.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          sizes="(max-width: 768px) 100vw, 33vw"
-                        />
-                      ) : (
-                        <Camera size={40} className="text-gray-600" aria-hidden="true" />
-                      )}
-                    </div>
-                    <div className="p-5">
-                      <h3 className="font-bold group-hover:text-gold-500 transition-colors">
-                        {gallery.title}
-                      </h3>
+            <div className="space-y-16">
+              {sections.map((section) => (
+                <div key={section.id}>
+                  <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6 pb-4 border-b border-white/10">
+                    <div>
+                      <h2 className="text-2xl sm:text-3xl font-bold">
+                        <span className="text-gold-gradient">{section.title}</span>
+                      </h2>
                       <p className="text-gray-500 text-sm mt-1">
-                        {gallery.event_date
-                          ? format(new Date(gallery.event_date), "PPP")
-                          : "Date TBA"}{" "}
-                        &middot; {gallery.photo_count} photos
+                        {section.eventDate ? eventDateShort(section.eventDate) : null}
+                        {section.eventDate && " · "}
+                        {section.photos.length} photo
+                        {section.photos.length === 1 ? "" : "s"}
                       </p>
                     </div>
-                  </Link>
-                ))}
+                    {section.drive_url && (
+                      <a
+                        href={section.drive_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-gold-gradient text-black font-semibold px-5 py-2.5 rounded-full inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity whitespace-nowrap"
+                      >
+                        Full album on Drive
+                        <ExternalLink size={14} />
+                      </a>
+                    )}
+                  </header>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                    {section.photos.map((photo) => (
+                      <a
+                        key={photo.id}
+                        href={photo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative aspect-square overflow-hidden rounded-lg bg-dark-300"
+                      >
+                        <Image
+                          src={photo.url}
+                          alt={photo.caption || section.title}
+                          fill
+                          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
