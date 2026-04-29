@@ -12,6 +12,7 @@ import {
   ArrowRight,
   MessageCircle,
   Sparkles,
+  Ticket as TicketIcon,
 } from "lucide-react";
 import { getEventBySlug } from "@/lib/queries";
 import EventJsonLd from "@/components/EventJsonLd";
@@ -186,6 +187,90 @@ export default async function EventDetailPage({
                 </div>
               )}
 
+              {/* Tickets */}
+              {!past && event.tickets && event.tickets.length > 0 && (
+                <div className="mb-8">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <TicketIcon size={18} className="text-gold-500" />
+                    Tickets
+                  </h2>
+                  <div className="space-y-3">
+                    {event.tickets.map((ticket) => {
+                      const remaining = Math.max(
+                        0,
+                        ticket.quantity_total - (ticket.quantity_sold || 0),
+                      );
+                      const soldOut = remaining === 0;
+                      const buyMessage = encodeURIComponent(
+                        `Hi Tsakani Sessions! I'd like to buy ${ticket.name} (R${ticket.price_zar}) for "${event.title}" on ${eventDateShort(
+                          event.date,
+                        )}.`,
+                      );
+                      const buyUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${buyMessage}`;
+                      return (
+                        <div
+                          key={ticket.id}
+                          className="bg-dark-700 border border-white/10 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h3 className="font-semibold text-white">{ticket.name}</h3>
+                              {soldOut && (
+                                <span className="text-xs font-bold uppercase tracking-wide text-red-400 bg-red-400/10 px-2 py-0.5 rounded">
+                                  Sold out
+                                </span>
+                              )}
+                              {!soldOut && remaining <= 10 && (
+                                <span className="text-xs font-bold uppercase tracking-wide text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                                  Only {remaining} left
+                                </span>
+                              )}
+                            </div>
+                            {ticket.description && (
+                              <p className="text-sm text-gray-400 mb-1">
+                                {ticket.description}
+                              </p>
+                            )}
+                            <p className="text-gold-500 text-lg font-bold">
+                              R{ticket.price_zar.toLocaleString("en-ZA")}
+                            </p>
+                          </div>
+                          {soldOut ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="bg-white/5 text-gray-500 font-semibold px-5 py-2.5 rounded-full cursor-not-allowed"
+                            >
+                              Sold out
+                            </button>
+                          ) : (
+                            <a
+                              href={buyUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-gold-gradient text-black font-semibold px-5 py-2.5 rounded-full inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity whitespace-nowrap"
+                            >
+                              <MessageCircle size={14} />
+                              Buy on WhatsApp
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3 italic">
+                    Tickets are confirmed via WhatsApp. We&apos;ll send your order details and payment instructions there.
+                  </p>
+                </div>
+              )}
+
+              {!past && (!event.tickets || event.tickets.length === 0) && (
+                <div className="mb-8 bg-gold-500/5 border border-gold-500/20 rounded-xl p-4 text-center">
+                  <p className="text-gold-500 font-semibold">Free Entry</p>
+                  <p className="text-xs text-gray-400 mt-1">No ticket required &mdash; just pull up.</p>
+                </div>
+              )}
+
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-white/10">
                 {past ? (
@@ -201,16 +286,16 @@ export default async function EventDetailPage({
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-gold-gradient text-black font-semibold px-6 py-3 rounded-full inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                    className="border border-gold-500/40 text-gold-500 font-semibold px-6 py-3 rounded-full inline-flex items-center justify-center gap-2 hover:bg-gold-500/10 transition-colors"
                   >
                     <MessageCircle size={16} />
-                    Enquire on WhatsApp
+                    General enquiry
                   </a>
                 )}
 
                 <Link
                   href="/events"
-                  className="border border-gold-500/40 text-gold-500 font-semibold px-6 py-3 rounded-full inline-flex items-center justify-center gap-2 hover:bg-gold-500/10 transition-colors"
+                  className="border border-white/10 text-gray-300 font-semibold px-6 py-3 rounded-full inline-flex items-center justify-center gap-2 hover:bg-white/5 transition-colors"
                 >
                   Other events
                 </Link>

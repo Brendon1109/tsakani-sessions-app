@@ -64,7 +64,11 @@ export default async function EventsPage() {
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {upcomingEvents.map((event) => (
+            {upcomingEvents.map((event) => {
+              const minPrice = event.tickets && event.tickets.length > 0
+                ? Math.min(...event.tickets.map((t) => t.price_zar))
+                : null;
+              return (
               <Link
                 key={event.id}
                 href={`/events/${event.slug}`}
@@ -129,13 +133,25 @@ export default async function EventsPage() {
                     </p>
                   )}
 
-                  <span className="inline-flex items-center gap-1 text-gold-500 text-sm font-semibold mt-4 group-hover:gap-2 transition-all">
-                    View details
-                    <ArrowRight size={14} />
-                  </span>
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                    <span className="text-sm font-bold">
+                      {minPrice === null ? (
+                        <span className="text-gold-500">Free Entry</span>
+                      ) : (
+                        <span className="text-white">
+                          From <span className="text-gold-500">R{minPrice.toLocaleString("en-ZA")}</span>
+                        </span>
+                      )}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-gold-500 text-sm font-semibold group-hover:gap-2 transition-all">
+                      {minPrice === null ? "Details" : "Buy tickets"}
+                      <ArrowRight size={14} />
+                    </span>
+                  </div>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
 
           {upcomingEvents.length === 0 && (

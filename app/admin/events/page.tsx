@@ -2,9 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Calendar, Plus, Edit, Trash2, X, Loader2, Star, Upload } from "lucide-react";
+import { Calendar, Plus, Edit, Trash2, X, Loader2, Star, Upload, Ticket } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import type { Event } from "@/lib/types";
+import type { Event, Ticket as TicketType } from "@/lib/types";
+
+interface TicketForm {
+  id?: string;
+  name: string;
+  price_zar: number;
+  quantity_total: number;
+  description: string;
+}
+
+interface EventWithTickets extends Event {
+  tickets?: TicketType[];
+}
 
 interface EventForm {
   id?: string;
@@ -17,6 +29,7 @@ interface EventForm {
   status: "draft" | "published" | "past";
   is_featured: boolean;
   cover_image_url: string;
+  tickets: TicketForm[];
 }
 
 function utcIsoToLocalInput(iso: string): string {
@@ -36,10 +49,18 @@ const emptyForm: EventForm = {
   status: "draft",
   is_featured: false,
   cover_image_url: "",
+  tickets: [],
+};
+
+const emptyTicket: TicketForm = {
+  name: "",
+  price_zar: 0,
+  quantity_total: 100,
+  description: "",
 };
 
 export default function AdminEventsPage() {
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<EventWithTickets[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<EventForm>(emptyForm);
@@ -63,7 +84,7 @@ export default function AdminEventsPage() {
     setShowForm(true);
   }
 
-  function startEdit(event: Event) {
+  function startEdit(event: EventWithTickets) {
     setForm({
       id: event.id,
       title: event.title,
@@ -75,8 +96,33 @@ export default function AdminEventsPage() {
       status: event.status,
       is_featured: event.is_featured,
       cover_image_url: event.cover_image_url || "",
+      tickets: (event.tickets || []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        price_zar: t.price_zar,
+        quantity_total: t.quantity_total,
+        description: t.description || "",
+      })),
     });
     setShowForm(true);
+  }
+
+  function addTicket() {
+    setForm((f) => ({ ...f, tickets: [...f.tickets, { ...emptyTicket }] }));
+  }
+
+  function updateTicket(idx: number, patch: Partial<TicketForm>) {
+    setForm((f) => ({
+      ...f,
+      tickets: f.tickets.map((t, i) => (i === idx ? { ...t, ...patch } : t)),
+    }));
+  }
+
+  function removeTicket(idx: number) {
+    setForm((f) => ({
+      ...f,
+      tickets: f.tickets.filter((_, i) => i !== idx),
+    }));
   }
 
   async function handleCoverUpload(file: File) {
@@ -339,6 +385,91 @@ export default function AdminEventsPage() {
                   rows={3}
                   className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-gold-500 focus:outline-none resize-none"
                 />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm text-gray-400 flex items-center gap-1.5">
+                    <Ticket size={14} />
+                    Tickets
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addTicket}
+                    className="text-xs text-gold-500 hover:text-gold-400 flex items-center gap-1"
+                  >
+                    <Plus size={12} />
+                    Add ticket
+                  </button>
+                </div>
+                {form.tickets.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic bg-dark-300 border border-white/10 rounded-lg px-3 py-3">
+                    No tickets &mdash; this event will display as <span className="text-gold-500/80">Free Entry</span>.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {form.tickets.map((ticket, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-dark-300 border border-white/10 rounded-lg p-3 space-y-2"
+                      >
+                        <div className="flex items-start gap-2">
+                          <input
+                            type="text"
+                            placeholder="Ticket name (e.g., General Admission)"
+                            value={ticket.name}
+                            onChange={(e) => updateTicket(idx, { name: e.target.value })}
+                            className="flex-1 bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeTicket(idx)}
+                            className="text-gray-500 hover:text-red-400 p-1.5"
+                            aria-label="Remove ticket"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Price (R)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={ticket.price_zar}
+                              onChange={(e) =>
+                                updateTicket(idx, { price_zar: Number(e.target.value) || 0 })
+                              }
+                              className="w-full bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 block mb-1">Quantity</label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={ticket.quantity_total}
+                              onChange={(e) =>
+                                updateTicket(idx, {
+                                  quantity_total: Number(e.target.value) || 1,
+                                })
+                              }
+                              className="w-full bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Description (optional)"
+                          value={ticket.description}
+                          onChange={(e) => updateTicket(idx, { description: e.target.value })}
+                          className="w-full bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">

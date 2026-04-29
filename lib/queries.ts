@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Event, Product, Gallery, GalleryPhoto } from "@/lib/types";
+import type { Event, Product, Gallery, GalleryPhoto, Ticket } from "@/lib/types";
+
+export type EventWithTickets = Event & { tickets: Ticket[] };
 
 /**
  * Shared data-fetching functions for server components.
@@ -7,45 +9,56 @@ import type { Event, Product, Gallery, GalleryPhoto } from "@/lib/types";
  * Returns empty arrays/null gracefully when Supabase isn't configured.
  */
 
-export async function getPublishedEvents(): Promise<Event[]> {
+export async function getPublishedEvents(): Promise<EventWithTickets[]> {
   const supabase = createClient();
   if (!supabase) return [];
 
   const { data } = await supabase
     .from("events")
-    .select("*")
+    .select("*, tickets(*)")
     .eq("status", "published")
     .order("date", { ascending: true });
 
-  return (data as Event[]) || [];
+  if (!data) return [];
+  return (data as EventWithTickets[]).map((e) => ({
+    ...e,
+    tickets: (e.tickets || []).filter((t) => t.is_active),
+  }));
 }
 
-export async function getFeaturedEvents(): Promise<Event[]> {
+export async function getFeaturedEvents(): Promise<EventWithTickets[]> {
   const supabase = createClient();
   if (!supabase) return [];
 
   const { data } = await supabase
     .from("events")
-    .select("*")
+    .select("*, tickets(*)")
     .eq("status", "published")
     .order("is_featured", { ascending: false })
     .order("date", { ascending: true })
     .limit(4);
 
-  return (data as Event[]) || [];
+  if (!data) return [];
+  return (data as EventWithTickets[]).map((e) => ({
+    ...e,
+    tickets: (e.tickets || []).filter((t) => t.is_active),
+  }));
 }
 
-export async function getEventBySlug(slug: string): Promise<Event | null> {
+export async function getEventBySlug(slug: string): Promise<EventWithTickets | null> {
   const supabase = createClient();
   if (!supabase) return null;
 
   const { data } = await supabase
     .from("events")
-    .select("*")
+    .select("*, tickets(*)")
     .eq("slug", slug)
     .single();
 
-  return data as Event | null;
+  if (!data) return null;
+  const event = data as EventWithTickets;
+  event.tickets = (event.tickets || []).filter((t) => t.is_active);
+  return event;
 }
 
 export async function getActiveProducts(): Promise<Product[]> {

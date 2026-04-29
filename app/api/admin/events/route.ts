@@ -26,6 +26,62 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+interface TicketInput {
+  id?: string;
+  name?: string;
+  price_zar?: number;
+  quantity_total?: number;
+  description?: string;
+}
+
+async function syncTickets(
+  supabase: ReturnType<typeof createClient>,
+  eventId: string,
+  tickets: TicketInput[],
+): Promise<{ error?: string }> {
+  if (!supabase) return {};
+
+  const valid = tickets.filter(
+    (t) => t.name && t.name.trim() && Number.isFinite(t.price_zar) && Number.isFinite(t.quantity_total),
+  );
+
+  const { data: existing } = await supabase
+    .from("tickets")
+    .select("id")
+    .eq("event_id", eventId);
+
+  const incomingIds = new Set(valid.filter((t) => t.id).map((t) => t.id as string));
+  const toDelete = (existing || []).filter((row) => !incomingIds.has(row.id)).map((row) => row.id);
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase.from("tickets").delete().in("id", toDelete);
+    if (error) return { error: error.message };
+  }
+
+  for (const ticket of valid) {
+    const payload = {
+      event_id: eventId,
+      name: ticket.name!.trim(),
+      price_zar: Math.max(0, Math.floor(ticket.price_zar!)),
+      quantity_total: Math.max(1, Math.floor(ticket.quantity_total!)),
+      description: ticket.description?.trim() || null,
+    };
+    if (ticket.id) {
+      const { error } = await supabase
+        .from("tickets")
+        .update(payload)
+        .eq("id", ticket.id)
+        .eq("event_id", eventId);
+      if (error) return { error: error.message };
+    } else {
+      const { error } = await supabase.from("tickets").insert(payload);
+      if (error) return { error: error.message };
+    }
+  }
+
+  return {};
+}
+
 export async function GET() {
   const { supabase, user } = await requireAdmin();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
@@ -73,6 +129,11 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  if (Array.isArray(body.tickets) && body.tickets.length > 0) {
+    const sync = await syncTickets(supabase, data.id, body.tickets);
+    if (sync.error) return NextResponse.json({ error: sync.error }, { status: 500 });
+  }
+
   await logAudit(supabase, {
     user_id: user.id,
     user_email: email,
@@ -90,7 +151,7 @@ export async function PATCH(request: NextRequest) {
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
   if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { id, ...updates } = await request.json();
+  const { id, tickets, ...updates } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   if (typeof updates.slug === "string") {
@@ -107,6 +168,11 @@ export async function PATCH(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (Array.isArray(tickets)) {
+    const sync = await syncTickets(supabase, id, tickets);
+    if (sync.error) return NextResponse.json({ error: sync.error }, { status: 500 });
+  }
 
   await logAudit(supabase, {
     user_id: user.id,
