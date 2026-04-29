@@ -52,7 +52,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "title and date required" }, { status: 400 });
   }
 
-  const slug = body.slug || `${slugify(title)}-${Date.now().toString(36)}`;
+  const cleaned = body.slug ? slugify(body.slug) : "";
+  const slug = cleaned || `${slugify(title)}-${Date.now().toString(36)}`;
 
   const { data, error } = await supabase
     .from("events")
@@ -91,6 +92,12 @@ export async function PATCH(request: NextRequest) {
 
   const { id, ...updates } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  if (typeof updates.slug === "string") {
+    const cleaned = slugify(updates.slug);
+    if (cleaned) updates.slug = cleaned;
+    else delete updates.slug;
+  }
 
   const { data, error } = await supabase
     .from("events")
