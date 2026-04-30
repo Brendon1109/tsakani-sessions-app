@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getGalleryBySlug } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
-import { format } from "date-fns";
+import { eventDateShort } from "@/lib/date";
 import GalleryClient from "./GalleryClient";
 
 export const revalidate = 30;
@@ -11,19 +11,21 @@ export default async function GallerySlugPage({
 }: {
   params: { slug: string };
 }) {
+  const supabase = createClient();
+  const user = supabase ? (await supabase.auth.getUser()).data.user : null;
+
+  if (!user) {
+    redirect(`/auth/signin?redirectTo=/gallery/${params.slug}`);
+  }
+
   const data = await getGalleryBySlug(params.slug);
   if (!data) return notFound();
 
-  // Track view for lead capture
-  const supabase = createClient();
   if (supabase) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("gallery_views").insert({
-        gallery_id: data.gallery.id,
-        user_id: user.id,
-      });
-    }
+    await supabase.from("gallery_views").insert({
+      gallery_id: data.gallery.id,
+      user_id: user.id,
+    });
   }
 
   const photos = (data.photos as unknown as { url: string; caption: string | null }[]).map(
@@ -35,7 +37,7 @@ export default async function GallerySlugPage({
       slug={params.slug}
       title={data.gallery.title}
       description={data.gallery.description}
-      date={data.event?.date ? format(new Date(data.event.date), "PPP") : null}
+      date={data.event?.date ? eventDateShort(data.event.date) : null}
       photos={photos}
     />
   );
