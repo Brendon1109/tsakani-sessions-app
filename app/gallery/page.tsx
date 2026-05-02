@@ -63,20 +63,21 @@ export default async function GalleryPage() {
   }> = [];
 
   if (supabase) {
-    let { data: rawData, error: rawError } = await supabase
+    const primary = await supabase
       .from("galleries")
       .select(SELECT_WITH_DRIVE)
       .eq("is_public", true)
       .order("created_at", { ascending: false });
 
-    if (rawError) {
-      const fallback = await supabase
-        .from("galleries")
-        .select(SELECT_WITHOUT_DRIVE)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
-      rawData = fallback.data as unknown as typeof rawData;
-    }
+    const rawData = primary.error
+      ? (
+          await supabase
+            .from("galleries")
+            .select(SELECT_WITHOUT_DRIVE)
+            .eq("is_public", true)
+            .order("created_at", { ascending: false })
+        ).data
+      : primary.data;
 
     const rows = (rawData as unknown as GalleryRow[] | null) || [];
     for (const g of rows) {
