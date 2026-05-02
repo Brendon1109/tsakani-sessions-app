@@ -3,13 +3,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { Calendar, MapPin, ArrowRight, Sparkles } from "lucide-react";
 import { getPublishedEvents } from "@/lib/queries";
-import { isPast } from "date-fns";
 import {
   eventDateLong,
   eventDateShort,
   eventTime,
   eventDayNumber,
   eventMonthShort,
+  isEventPast,
 } from "@/lib/date";
 
 export const revalidate = 60;
@@ -37,8 +37,8 @@ export const metadata: Metadata = {
 export default async function EventsPage() {
   const events = await getPublishedEvents();
 
-  const upcomingEvents = events.filter((e) => !isPast(new Date(e.date)));
-  const pastEvents = events.filter((e) => isPast(new Date(e.date)));
+  const upcomingEvents = events.filter((e) => !isEventPast(e.date));
+  const pastEvents = events.filter((e) => isEventPast(e.date));
 
   return (
     <div>

@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isPast } from "date-fns";
-import { eventDateShort, eventTime } from "@/lib/date";
+import { eventDateShort, eventTime, isEventPast } from "@/lib/date";
 import {
   Calendar,
   Clock,
@@ -73,8 +72,7 @@ export default async function EventDetailPage({
   const event = await getEventBySlug(params.slug);
   if (!event) notFound();
 
-  const eventDate = new Date(event.date);
-  const past = isPast(eventDate) || event.status === "past";
+  const past = isEventPast(event.date) || event.status === "past";
 
   const inquiryMessage = encodeURIComponent(
     `Hi Tsakani Sessions! I'd like to know more about "${event.title}" on ${eventDateShort(
