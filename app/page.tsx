@@ -11,7 +11,7 @@ import {
 import { getFeaturedEvents } from "@/lib/queries";
 import { getLatestYouTubeVideos } from "@/lib/youtube";
 import { getFeaturedPosts } from "@/lib/social";
-import { eventDateShort } from "@/lib/date";
+import { eventDateShort, isEventPast } from "@/lib/date";
 
 export const revalidate = 60; // Cache for 1 minute, reduces DB hits
 
@@ -71,12 +71,14 @@ const services = [
 ];
 
 export default async function HomePage() {
-  const [events, videos, tiktokPosts, instagramPosts] = await Promise.all([
+  const [allFeaturedEvents, videos, tiktokPosts, instagramPosts] = await Promise.all([
     getFeaturedEvents(),
     getLatestYouTubeVideos(4),
     getFeaturedPosts("tiktok"),
     getFeaturedPosts("instagram"),
   ]);
+
+  const events = allFeaturedEvents.filter((e) => !isEventPast(e.date));
 
   return (
     <div>
