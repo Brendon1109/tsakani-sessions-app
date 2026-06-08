@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  BarChart3,
   Calendar,
   Image as ImageIcon,
   ShoppingBag,
@@ -22,6 +23,7 @@ import { useState } from "react";
 
 const adminNav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/events", label: "Events", icon: Calendar },
   { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
   { href: "/admin/tickets", label: "Tickets", icon: Ticket },

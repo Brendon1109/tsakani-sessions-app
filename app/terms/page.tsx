@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Terms of Service",
   description:
     "The terms that apply when you use the Tsakani Sessions website, buy merch, book tickets, or book a service.",
+  alternates: { canonical: "/terms" },
 };
 
 const LAST_UPDATED = "23 April 2026";

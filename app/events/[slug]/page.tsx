@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { getEventBySlug } from "@/lib/queries";
 import EventJsonLd from "@/components/EventJsonLd";
+import BreadcrumbJsonLd from "@/components/BreadcrumbJsonLd";
 
 export const revalidate = 60;
 
@@ -84,6 +85,13 @@ export default async function EventDetailPage({
   return (
     <>
       <EventJsonLd event={event} baseUrl={SITE_URL} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", path: "/" },
+          { name: "Events", path: "/events" },
+          { name: event.title, path: `/events/${event.slug}` },
+        ]}
+      />
 
       <article>
         {/* Hero */}
@@ -246,6 +254,12 @@ export default async function EventDetailPage({
                               href={buyUrl}
                               target="_blank"
                               rel="noopener noreferrer"
+                              data-track="ticket_buy_click"
+                              data-track-props={JSON.stringify({
+                                event: event.slug,
+                                ticket: ticket.name,
+                                price: ticket.price_zar,
+                              })}
                               className="bg-gold-gradient text-black font-semibold px-5 py-2.5 rounded-full inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity whitespace-nowrap"
                             >
                               <MessageCircle size={14} />
@@ -284,6 +298,8 @@ export default async function EventDetailPage({
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    data-track="event_enquiry"
+                    data-track-props={JSON.stringify({ event: event.slug })}
                     className="border border-gold-500/40 text-gold-500 font-semibold px-6 py-3 rounded-full inline-flex items-center justify-center gap-2 hover:bg-gold-500/10 transition-colors"
                   >
                     <MessageCircle size={16} />

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getActiveProducts } from "@/lib/queries";
 import ShopClient from "./ShopClient";
+import ProductJsonLd from "@/components/ProductJsonLd";
 
 export const revalidate = 300; // Cache 5 minutes — products don't change often
 
@@ -25,5 +26,10 @@ export const metadata: Metadata = {
 
 export default async function ShopPage() {
   const products = await getActiveProducts();
-  return <ShopClient products={products} />;
+  return (
+    <>
+      <ProductJsonLd products={products} />
+      <ShopClient products={products} />
+    </>
+  );
 }

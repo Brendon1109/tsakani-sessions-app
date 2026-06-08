@@ -10,6 +10,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { createBookingMessage, openWhatsApp, type BookingData } from "@/lib/whatsapp";
+import { track } from "@/lib/analytics";
 
 const services = [
   {
@@ -85,15 +86,15 @@ export default function ServicesPage() {
 
   const handleBook = (serviceId: string) => {
     setSelectedService(serviceId);
-    setFormData((prev) => ({
-      ...prev,
-      eventType: services.find((s) => s.id === serviceId)?.title || "",
-    }));
+    const service = services.find((s) => s.id === serviceId)?.title || "";
+    setFormData((prev) => ({ ...prev, eventType: service }));
     setShowBooking(true);
+    track("open_booking_modal", { service });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    track("submit_booking", { service: formData.eventType });
     const message = createBookingMessage(formData);
     openWhatsApp(message);
     setShowBooking(false);

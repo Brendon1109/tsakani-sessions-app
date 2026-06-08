@@ -183,6 +183,21 @@ export interface NewsletterSubscriber {
   is_active: boolean;
 }
 
+export interface AnalyticsEvent {
+  id: string;
+  site: "app" | "static";
+  event_name: string;
+  path: string | null;
+  referrer_host: string | null;
+  session_id: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  device: string | null;
+  props: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface VideoProject {
   id: string;
   event_id: string | null;

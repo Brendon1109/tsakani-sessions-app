@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Mail, Check } from "lucide-react";
 import Turnstile from "@/components/Turnstile";
+import { track } from "@/lib/analytics";
 
 export default function NewsletterForm() {
   const [email, setEmail] = useState("");
@@ -45,6 +46,10 @@ export default function NewsletterForm() {
         return;
       }
 
+      track("newsletter_submit", {
+        events: consentEvents,
+        merch: consentMerch,
+      });
       setMessage({ kind: "ok", text: "You're in. Thanks for signing up." });
       setEmail("");
       setConsentEvents(false);

@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
     "How Tsakani Sessions collects, uses, and shares your personal information.",
+  alternates: { canonical: "/privacy" },
 };
 
 const LAST_UPDATED = "23 April 2026";

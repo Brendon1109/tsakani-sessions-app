@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Refund Policy",
   description:
     "Refund policy for Tsakani Sessions event tickets, merch, and services.",
+  alternates: { canonical: "/refund-policy" },
 };
 
 const LAST_UPDATED = "23 April 2026";

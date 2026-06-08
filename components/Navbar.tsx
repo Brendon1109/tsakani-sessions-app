@@ -129,6 +129,8 @@ export default function Navbar() {
 
             <Link
               href="/events"
+              data-track="book_now_cta_click"
+              data-track-props='{"location":"navbar-desktop"}'
               className="bg-gold-gradient text-black text-sm font-semibold px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity"
             >
               Book Now
@@ -204,6 +206,8 @@ export default function Navbar() {
               <Link
                 href="/events"
                 onClick={() => setIsOpen(false)}
+                data-track="book_now_cta_click"
+                data-track-props='{"location":"navbar-mobile"}'
                 className="bg-gold-gradient text-black text-base font-semibold px-4 py-3 rounded-lg text-center mt-2 hover:opacity-90 transition-opacity"
               >
                 Book Now

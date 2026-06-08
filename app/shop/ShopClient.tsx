@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ShoppingBag, MessageCircle, Minus, Plus } from "lucide-react";
 import { createOrderMessage } from "@/lib/whatsapp";
+import { track } from "@/lib/analytics";
 import Turnstile from "@/components/Turnstile";
 import type { Product } from "@/lib/types";
 
@@ -75,6 +76,8 @@ export default function ShopClient({ products }: { products: Product[] }) {
     const color = selectedColors[productId] || product.colors[0];
     const priceInRand = product.price_zar / 100;
 
+    track("add_to_cart", { product: product.name, size, color });
+
     const existingIndex = cart.findIndex(
       (item) =>
         item.productId === productId &&
@@ -144,6 +147,11 @@ export default function ShopClient({ products }: { products: Product[] }) {
         setSubmitting(false);
         return;
       }
+
+      track("order_submitted", {
+        value: cartTotal,
+        items: cart.reduce((sum, item) => sum + item.quantity, 0),
+      });
 
       const message = createOrderMessage({
         customerName,

@@ -113,6 +113,7 @@ function SuccessContent() {
           payload ? (
             <button
               onClick={sendWhatsApp}
+              data-track="order_whatsapp_sent"
               className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 mb-3"
             >
               <MessageCircle size={18} aria-hidden="true" />

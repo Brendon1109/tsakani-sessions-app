@@ -15,36 +15,8 @@ import { eventDateShort, isEventPast } from "@/lib/date";
 
 export const revalidate = 60; // Cache for 1 minute, reduces DB hits
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://tsakanisessions.co.za";
-
-const localBusinessJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  name: "Tsakani Sessions",
-  description:
-    "Premium DJ entertainment, live performance, and event content creation based in Cape Town, South Africa.",
-  url: SITE_URL,
-  image: `${SITE_URL}/og-image.jpg`,
-  logo: `${SITE_URL}/images/tsakani-logo.png`,
-  telephone: "+27769961477",
-  email: "tsakanisessions@gmail.com",
-  address: {
-    "@type": "PostalAddress",
-    addressLocality: "Cape Town",
-    addressRegion: "Western Cape",
-    addressCountry: "ZA",
-  },
-  areaServed: {
-    "@type": "Country",
-    name: "South Africa",
-  },
-  sameAs: [
-    "https://instagram.com/tsakani_sessions",
-    "https://youtube.com/@tsakanisessions",
-    "https://www.tiktok.com/@tsakani_sessions",
-  ],
-};
+// Organization / LocalBusiness / WebSite structured data is now rendered
+// site-wide via <SiteJsonLd /> in the root layout (see lib/seo.ts).
 
 const services = [
   {
@@ -82,12 +54,6 @@ export default async function HomePage() {
 
   return (
     <div>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(localBusinessJsonLd),
-        }}
-      />
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-black via-black/95 to-black" />
@@ -496,6 +462,8 @@ export default async function HomePage() {
               href="https://wa.me/27769961477?text=Hi%20Tsakani%20Sessions!%20I'd%20like%20to%20enquire%20about%20booking."
               target="_blank"
               rel="noopener noreferrer"
+              data-track="book_whatsapp_click"
+              data-track-props='{"source":"home_cta"}'
               className="bg-gold-gradient text-black font-semibold px-8 py-3.5 rounded-full hover:opacity-90 transition-opacity"
             >
               Book via WhatsApp

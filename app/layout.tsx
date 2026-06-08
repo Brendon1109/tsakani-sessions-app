@@ -3,6 +3,8 @@ import { Inter, Dancing_Script } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PWARegister from "@/components/PWARegister";
+import SiteJsonLd from "@/components/SiteJsonLd";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
 import "./globals.css";
 
 const inter = Inter({
@@ -95,12 +97,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${dancingScript.variable}`}>
+    <html lang="en-ZA" className={`${inter.variable} ${dancingScript.variable}`}>
       <body className="font-sans bg-black text-white min-h-screen flex flex-col">
+        <SiteJsonLd />
         <Navbar />
         <main className="flex-1 pt-16 sm:pt-20">{children}</main>
         <Footer />
         <PWARegister />
+        <AnalyticsTracker />
       </body>
     </html>
   );
