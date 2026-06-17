@@ -161,6 +161,17 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} Tsakani Sessions. All rights
             reserved.
           </p>
+          <p className="text-gray-500 text-sm mt-2">
+            Developed by{" "}
+            <a
+              href="https://www.linkedin.com/in/brendon-mapinda-20b6911a0/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gold-500 hover:text-gold-400 font-semibold transition-colors"
+            >
+              Brendon&trade;
+            </a>
+          </p>
         </div>
       </div>
     </footer>
