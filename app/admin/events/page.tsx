@@ -415,6 +415,7 @@ export default function AdminEventsPage() {
                         <div className="flex items-start gap-2">
                           <input
                             type="text"
+                            required
                             placeholder="Ticket name (e.g., General Admission)"
                             value={ticket.name}
                             onChange={(e) => updateTicket(idx, { name: e.target.value })}

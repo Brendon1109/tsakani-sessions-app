@@ -15,6 +15,7 @@ applied is safe.
 | 4 | `supabase/featured_posts.sql` | Optional — adds the `featured_posts` table used by the homepage social feed. |
 | 5 | `supabase/admin_setup.sql` | `promote_admins_on_signup` trigger. Edit the hardcoded email list before running to match your admins. |
 | 6 | `supabase/newsletter_consent.sql` | Adds granular-consent columns (`consent_events`, `consent_merch`, `consent_at`, `consent_ip`) to `newsletter_subscribers` for POPIA compliance. |
+| 7 | `supabase/fix_role_escalation.sql` | Column-level privileges on `profiles` so users can't grant themselves admin by writing `role` (or `email`, which the promote trigger matches on). Must run after schema.sql and admin_setup.sql. |
 
 When you add a **new** migration file, append it to the table above with its
 order number, and note what existing state it assumes.

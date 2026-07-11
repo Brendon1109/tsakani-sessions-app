@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { logAudit } from "@/lib/audit";
+import { planTicketSync, type TicketSyncPlan } from "@/lib/ticketSync";
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -26,39 +27,19 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-interface TicketInput {
-  id?: string;
-  name?: string;
-  price_zar?: number;
-  quantity_total?: number;
-  description?: string;
-}
-
-async function syncTickets(
-  supabase: ReturnType<typeof createClient>,
+async function executeTicketPlan(
+  supabase: NonNullable<ReturnType<typeof createClient>>,
   eventId: string,
-  tickets: TicketInput[],
-): Promise<{ error?: string }> {
-  if (!supabase) return {};
-
-  const valid = tickets.filter(
-    (t) => t.name && t.name.trim() && Number.isFinite(t.price_zar) && Number.isFinite(t.quantity_total),
-  );
-
-  const { data: existing } = await supabase
-    .from("tickets")
-    .select("id")
-    .eq("event_id", eventId);
-
-  const incomingIds = new Set(valid.filter((t) => t.id).map((t) => t.id as string));
-  const toDelete = (existing || []).filter((row) => !incomingIds.has(row.id)).map((row) => row.id);
+  plan: TicketSyncPlan,
+): Promise<{ error?: string; status?: number }> {
+  const { toDelete, toUpdate, toInsert } = plan;
 
   if (toDelete.length > 0) {
     const { error } = await supabase.from("tickets").delete().in("id", toDelete);
-    if (error) return { error: error.message };
+    if (error) return { error: error.message, status: 500 };
   }
 
-  for (const ticket of valid) {
+  for (const ticket of [...toUpdate, ...toInsert]) {
     const payload = {
       event_id: eventId,
       name: ticket.name!.trim(),
@@ -67,15 +48,22 @@ async function syncTickets(
       description: ticket.description?.trim() || null,
     };
     if (ticket.id) {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from("tickets")
         .update(payload)
         .eq("id", ticket.id)
-        .eq("event_id", eventId);
-      if (error) return { error: error.message };
+        .eq("event_id", eventId)
+        .select("id");
+      if (error) return { error: error.message, status: 500 };
+      if (!updated || updated.length === 0) {
+        return {
+          error: `Ticket "${payload.name}" no longer exists — refresh and try again.`,
+          status: 409,
+        };
+      }
     } else {
       const { error } = await supabase.from("tickets").insert(payload);
-      if (error) return { error: error.message };
+      if (error) return { error: error.message, status: 500 };
     }
   }
 
@@ -111,6 +99,15 @@ export async function POST(request: NextRequest) {
   const cleaned = body.slug ? slugify(body.slug) : "";
   const slug = cleaned || `${slugify(title)}-${Date.now().toString(36)}`;
 
+  // Validate tickets before creating the event so a bad ticket row can't
+  // leave a half-created event behind.
+  let ticketPlan: TicketSyncPlan | null = null;
+  if (Array.isArray(body.tickets) && body.tickets.length > 0) {
+    const result = planTicketSync([], body.tickets);
+    if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+    ticketPlan = result.plan;
+  }
+
   const { data, error } = await supabase
     .from("events")
     .insert({
@@ -129,11 +126,8 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (Array.isArray(body.tickets) && body.tickets.length > 0) {
-    const sync = await syncTickets(supabase, data.id, body.tickets);
-    if (sync.error) return NextResponse.json({ error: sync.error }, { status: 500 });
-  }
-
+  // Audit the created event before ticket sync — the event row is committed
+  // even if a ticket write fails below.
   await logAudit(supabase, {
     user_id: user.id,
     user_email: email,
@@ -142,6 +136,11 @@ export async function POST(request: NextRequest) {
     resource_id: data.id,
     details: { title, slug },
   });
+
+  if (ticketPlan) {
+    const sync = await executeTicketPlan(supabase, data.id, ticketPlan);
+    if (sync.error) return NextResponse.json({ error: sync.error }, { status: sync.status || 500 });
+  }
 
   return NextResponse.json(data);
 }
@@ -160,6 +159,19 @@ export async function PATCH(request: NextRequest) {
     else delete updates.slug;
   }
 
+  // Validate ticket changes before writing anything so a bad ticket row
+  // can't leave a half-applied save.
+  let ticketPlan: TicketSyncPlan | null = null;
+  if (Array.isArray(tickets)) {
+    const { data: existing } = await supabase
+      .from("tickets")
+      .select("id")
+      .eq("event_id", id);
+    const result = planTicketSync((existing || []).map((row) => row.id), tickets);
+    if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+    ticketPlan = result.plan;
+  }
+
   const { data, error } = await supabase
     .from("events")
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -169,11 +181,8 @@ export async function PATCH(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (Array.isArray(tickets)) {
-    const sync = await syncTickets(supabase, id, tickets);
-    if (sync.error) return NextResponse.json({ error: sync.error }, { status: 500 });
-  }
-
+  // Audit the persisted event change before ticket sync, which can still
+  // fail on a concurrent edit (409) after the event row is committed.
   await logAudit(supabase, {
     user_id: user.id,
     user_email: email,
@@ -182,6 +191,11 @@ export async function PATCH(request: NextRequest) {
     resource_id: id,
     details: updates,
   });
+
+  if (ticketPlan) {
+    const sync = await executeTicketPlan(supabase, id, ticketPlan);
+    if (sync.error) return NextResponse.json({ error: sync.error }, { status: sync.status || 500 });
+  }
 
   return NextResponse.json(data);
 }
