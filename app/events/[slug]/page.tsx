@@ -16,6 +16,7 @@ import {
 import { getEventBySlug } from "@/lib/queries";
 import EventJsonLd from "@/components/EventJsonLd";
 import BreadcrumbJsonLd from "@/components/BreadcrumbJsonLd";
+import TicketCheckout from "@/components/TicketCheckout";
 
 export const revalidate = 60;
 
@@ -207,12 +208,6 @@ export default async function EventDetailPage({
                         ticket.quantity_total - (ticket.quantity_sold || 0),
                       );
                       const soldOut = remaining === 0;
-                      const buyMessage = encodeURIComponent(
-                        `Hi Tsakani Sessions! I'd like to buy ${ticket.name} (R${ticket.price_zar}) for "${event.title}" on ${eventDateShort(
-                          event.date,
-                        )}.`,
-                      );
-                      const buyUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${buyMessage}`;
                       return (
                         <div
                           key={ticket.id}
@@ -250,28 +245,22 @@ export default async function EventDetailPage({
                               Sold out
                             </button>
                           ) : (
-                            <a
-                              href={buyUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              data-track="ticket_buy_click"
-                              data-track-props={JSON.stringify({
-                                event: event.slug,
-                                ticket: ticket.name,
-                                price: ticket.price_zar,
-                              })}
-                              className="bg-gold-gradient text-black font-semibold px-5 py-2.5 rounded-full inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity whitespace-nowrap"
-                            >
-                              <MessageCircle size={14} />
-                              Buy on WhatsApp
-                            </a>
+                            <TicketCheckout
+                              ticketId={ticket.id}
+                              ticketName={ticket.name}
+                              priceZar={ticket.price_zar}
+                              eventTitle={event.title}
+                              eventSlug={event.slug}
+                              eventDateLabel={eventDateShort(event.date)}
+                              whatsappNumber={WHATSAPP_NUMBER}
+                            />
                           )}
                         </div>
                       );
                     })}
                   </div>
                   <p className="text-xs text-gray-500 mt-3 italic">
-                    Tickets are confirmed via WhatsApp. We&apos;ll send your order details and payment instructions there.
+                    Reserve your spot, then we&apos;ll open WhatsApp with your order reference. Payment instructions are confirmed there.
                   </p>
                 </div>
               )}

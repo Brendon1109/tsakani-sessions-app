@@ -32,28 +32,26 @@ export async function POST(request: NextRequest) {
   const supabase = createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
-  // Plain insert, NOT upsert. An upsert compiles to INSERT ... ON CONFLICT DO
-  // UPDATE, and Postgres then demands an UPDATE policy even when the email is
-  // brand new and nothing actually conflicts. Visitors are anon and only hold
-  // the "Anyone can subscribe" INSERT policy, so every single signup was being
-  // rejected with "new row violates row-level security policy". Giving anon an
-  // UPDATE policy would be the wrong fix: it would let anyone rewrite another
-  // person's consent flags. So we insert, and treat an existing email as a win.
-  const { error } = await supabase.from("newsletter_subscribers").insert({
-    email: email.toLowerCase().trim(),
-    source: "website",
-    is_active: true,
-    consent_events: wantsEvents,
-    consent_merch: wantsMerch,
-    consent_at: new Date().toISOString(),
-    consent_ip: ip || null,
+  // Goes through the subscribe_newsletter SECURITY DEFINER function, never a
+  // direct insert or upsert. Visitors are anon and hold only an INSERT policy,
+  // so a direct upsert (INSERT ... ON CONFLICT DO UPDATE) is rejected by RLS
+  // even when nothing conflicts. That bug rejected every signup for weeks.
+  //
+  // The function owns the one narrow write we want. Consent is additive there,
+  // so a subscriber who returns and ticks merch as well keeps events AND gains
+  // merch, while nobody can resubmit someone else's address to strip it.
+  // See supabase/subscribe_newsletter_fn.sql.
+  const { error } = await supabase.rpc("subscribe_newsletter", {
+    p_email: email.toLowerCase().trim(),
+    p_consent_events: wantsEvents,
+    p_consent_merch: wantsMerch,
+    p_source: "website",
+    p_consent_ip: ip || null,
   });
 
-  // 23505 = unique violation, they are already on the list. That is a success
-  // from the subscriber's point of view, so do not show them an error.
-  if (error && error.code !== "23505") {
-    console.error("[newsletter] insert failed:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[newsletter] subscribe failed:", error.message);
+    return NextResponse.json({ error: "Signup failed. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

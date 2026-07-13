@@ -1,24 +1,27 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/captcha";
 import { sendAdminOrderAlert } from "@/lib/email";
 
+/**
+ * Creates a ticket order so we actually know WHO is coming.
+ *
+ * Everything goes through the create_ticket_order SECURITY DEFINER function.
+ * We cannot insert-and-read-back directly: the only SELECT policy on
+ * ticket_orders is `user_id = auth.uid()`, and a visitor has no auth.uid(), so
+ * INSERT ... RETURNING (which is what .insert().select() compiles to) is
+ * refused by RLS. The function does the write and hands back only the order it
+ * just created, and it reserves the seats in the same transaction so a failure
+ * cannot leave seats sold to nobody. See supabase/create_ticket_order_fn.sql.
+ */
 export async function POST(request: NextRequest) {
-  // Rate limit: 3 ticket purchases per minute per IP
+  // Rate limit: 3 ticket orders per minute per IP
   const limited = await rateLimit(request, "tickets", 3, 60);
   if (limited) return limited;
 
   const body = await request.json();
-  const {
-    ticket_id,
-    buyer_name,
-    buyer_email,
-    buyer_phone,
-    quantity,
-    captcha_token,
-  } = body;
+  const { ticket_id, buyer_name, buyer_email, buyer_phone, quantity, captcha_token } = body;
 
   if (!ticket_id || !buyer_name || !buyer_email || !Number.isInteger(quantity)) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -36,58 +39,41 @@ export async function POST(request: NextRequest) {
   const supabase = createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
-  // Atomic reservation via DB function (prevents race condition)
-  const { data: ticket, error: reserveError } = await supabase.rpc("reserve_tickets", {
+  // Reserves the seats and writes the order atomically. Price is taken from the
+  // database inside the function, so a tampered client price is ignored.
+  const { data, error } = await supabase.rpc("create_ticket_order", {
     p_ticket_id: ticket_id,
+    p_buyer_name: buyer_name,
+    p_buyer_email: buyer_email,
+    p_buyer_phone: buyer_phone || null,
     p_quantity: quantity,
   });
 
-  if (reserveError || !ticket) {
+  const order = Array.isArray(data) ? data[0] : data;
+
+  if (error || !order) {
+    console.error("[tickets] order failed:", error?.message);
     return NextResponse.json(
-      { error: reserveError?.message || "Not enough tickets available" },
+      { error: error?.message || "Not enough tickets available" },
       { status: 400 }
     );
   }
 
-  // Price from DB, not from client
-  const total_zar = ticket.price_zar * quantity;
-  const qr_code = randomUUID();
-
-  const { data: order, error: orderError } = await supabase
-    .from("ticket_orders")
-    .insert({
-      ticket_id,
-      buyer_name,
-      buyer_email,
-      buyer_phone: buyer_phone || null,
-      quantity,
-      total_zar,
-      qr_code,
-      status: "pending",
-      payment_method: "whatsapp",
-    })
-    .select()
-    .single();
-
-  if (orderError) {
-    // Rollback the reservation
-    await supabase.rpc("release_tickets", {
-      p_ticket_id: ticket_id,
-      p_quantity: quantity,
-    });
-    return NextResponse.json({ error: orderError.message }, { status: 500 });
-  }
-
-  // Notify admin
+  // Tell the team someone is coming. Best effort, the order is already safe.
   sendAdminOrderAlert({
     type: "ticket",
     customerName: buyer_name,
     customerPhone: buyer_phone || "N/A",
     customerEmail: buyer_email,
-    summary: `${quantity} x ${ticket.name} ticket(s)`,
-    total: total_zar / 100,
-    orderId: order.id,
+    summary: `${quantity} x ${order.ticket_name} ticket(s)`,
+    total: order.total_zar,
+    orderId: order.order_id,
   }).catch(() => {});
 
-  return NextResponse.json({ ...order, validated_total_zar: total_zar });
+  return NextResponse.json({
+    order_id: order.order_id,
+    qr_code: order.qr_code,
+    total_zar: order.total_zar,
+    ticket_name: order.ticket_name,
+  });
 }
