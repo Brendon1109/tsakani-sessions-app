@@ -32,21 +32,29 @@ export async function POST(request: NextRequest) {
   const supabase = createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
-  const { error } = await supabase
-    .from("newsletter_subscribers")
-    .upsert(
-      {
-        email: email.toLowerCase().trim(),
-        source: "website",
-        is_active: true,
-        consent_events: wantsEvents,
-        consent_merch: wantsMerch,
-        consent_at: new Date().toISOString(),
-        consent_ip: ip || null,
-      },
-      { onConflict: "email" }
-    );
+  // Plain insert, NOT upsert. An upsert compiles to INSERT ... ON CONFLICT DO
+  // UPDATE, and Postgres then demands an UPDATE policy even when the email is
+  // brand new and nothing actually conflicts. Visitors are anon and only hold
+  // the "Anyone can subscribe" INSERT policy, so every single signup was being
+  // rejected with "new row violates row-level security policy". Giving anon an
+  // UPDATE policy would be the wrong fix: it would let anyone rewrite another
+  // person's consent flags. So we insert, and treat an existing email as a win.
+  const { error } = await supabase.from("newsletter_subscribers").insert({
+    email: email.toLowerCase().trim(),
+    source: "website",
+    is_active: true,
+    consent_events: wantsEvents,
+    consent_merch: wantsMerch,
+    consent_at: new Date().toISOString(),
+    consent_ip: ip || null,
+  });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // 23505 = unique violation, they are already on the list. That is a success
+  // from the subscriber's point of view, so do not show them an error.
+  if (error && error.code !== "23505") {
+    console.error("[newsletter] insert failed:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
   return NextResponse.json({ success: true });
 }
