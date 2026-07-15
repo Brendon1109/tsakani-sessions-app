@@ -27,6 +27,26 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+// Validate the optional external ticket link. Empty becomes null; a non-empty
+// value must be a valid http(s) URL. Never hardcode a specific URL: this is data
+// the admin pastes.
+function normalizeTicketUrl(value: unknown): { url: string | null } | { error: string } {
+  if (value == null || value === "") return { url: null };
+  if (typeof value !== "string") return { error: "External ticket link must be text" };
+  const trimmed = value.trim();
+  if (!trimmed) return { url: null };
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return { error: "External ticket link must be a valid URL" };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { error: "External ticket link must start with http or https" };
+  }
+  return { url: trimmed };
+}
+
 async function executeTicketPlan(
   supabase: NonNullable<ReturnType<typeof createClient>>,
   eventId: string,
@@ -96,6 +116,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "title and date required" }, { status: 400 });
   }
 
+  const ticketUrl = normalizeTicketUrl(body.external_ticket_url);
+  if ("error" in ticketUrl) {
+    return NextResponse.json({ error: ticketUrl.error }, { status: 400 });
+  }
+
   const cleaned = body.slug ? slugify(body.slug) : "";
   const slug = cleaned || `${slugify(title)}-${Date.now().toString(36)}`;
 
@@ -120,6 +145,7 @@ export async function POST(request: NextRequest) {
       status: status || "draft",
       is_featured: !!is_featured,
       cover_image_url: cover_image_url || null,
+      external_ticket_url: ticketUrl.url,
     })
     .select()
     .single();
@@ -157,6 +183,14 @@ export async function PATCH(request: NextRequest) {
     const cleaned = slugify(updates.slug);
     if (cleaned) updates.slug = cleaned;
     else delete updates.slug;
+  }
+
+  if ("external_ticket_url" in updates) {
+    const ticketUrl = normalizeTicketUrl(updates.external_ticket_url);
+    if ("error" in ticketUrl) {
+      return NextResponse.json({ error: ticketUrl.error }, { status: 400 });
+    }
+    updates.external_ticket_url = ticketUrl.url;
   }
 
   // Validate ticket changes before writing anything so a bad ticket row

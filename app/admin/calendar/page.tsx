@@ -1,15 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Circle } from "lucide-react";
+import { isEventPast } from "@/lib/date";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// Placeholder events for calendar display
-const calendarEvents: { date: string; title: string; type: "event" | "task" | "deadline" }[] = [];
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  status: "draft" | "published" | "past";
+}
+
+type EventKind = "event" | "past" | "draft";
+
+// upcoming published = gold, past = grey, draft = blue
+const kindColors: Record<EventKind, string> = {
+  event: "bg-gold-500 text-black",
+  past: "bg-white/10 text-gray-300",
+  draft: "bg-blue-400 text-black",
+};
+
+function kindOf(event: CalendarEvent): EventKind {
+  if (event.status === "draft") return "draft";
+  if (event.status === "past" || isEventPast(event.date)) return "past";
+  return "event";
+}
+
+function localDateKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
 
 export default function AdminCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/events");
+        if (res.ok && active) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setEvents(
+              data
+                .filter((e) => e?.date)
+                .map((e) => ({
+                  id: e.id,
+                  title: e.title,
+                  date: e.date,
+                  status: e.status,
+                }))
+            );
+          }
+        }
+      } catch {
+        // leave events empty on failure
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -21,10 +82,8 @@ export default function AdminCalendarPage() {
   const startOffset = (firstDay.getDay() + 6) % 7;
   const daysInMonth = lastDay.getDate();
 
-  const prevMonth = () =>
-    setCurrentDate(new Date(year, month - 1, 1));
-  const nextMonth = () =>
-    setCurrentDate(new Date(year, month + 1, 1));
+  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
   const monthName = currentDate.toLocaleString("default", {
     month: "long",
@@ -37,15 +96,21 @@ export default function AdminCalendarPage() {
     month === today.getMonth() &&
     year === today.getFullYear();
 
+  // Group events by local date key once per events change.
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const event of events) {
+      const key = localDateKey(event.date);
+      const list = map.get(key);
+      if (list) list.push(event);
+      else map.set(key, [event]);
+    }
+    return map;
+  }, [events]);
+
   const getEventsForDay = (day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return calendarEvents.filter((e) => e.date === dateStr);
-  };
-
-  const typeColors = {
-    event: "bg-gold-500",
-    task: "bg-blue-400",
-    deadline: "bg-red-400",
+    return eventsByDay.get(dateStr) || [];
   };
 
   return (
@@ -53,21 +118,22 @@ export default function AdminCalendarPage() {
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold">Calendar</h1>
         <p className="text-gray-400 mt-1">
-          Events, tasks, and deadlines at a glance
+          Every event on one view, coloured by status
         </p>
       </div>
 
       {/* Legend */}
       <div className="flex items-center gap-4 mb-6 text-xs">
         <span className="flex items-center gap-1.5 text-gray-400">
-          <Circle size={8} className="fill-gold-500 text-gold-500" /> Event
+          <Circle size={8} className="fill-gold-500 text-gold-500" /> Upcoming
         </span>
         <span className="flex items-center gap-1.5 text-gray-400">
-          <Circle size={8} className="fill-blue-400 text-blue-400" /> Task
+          <Circle size={8} className="fill-blue-400 text-blue-400" /> Draft
         </span>
         <span className="flex items-center gap-1.5 text-gray-400">
-          <Circle size={8} className="fill-red-400 text-red-400" /> Deadline
+          <Circle size={8} className="fill-white/40 text-white/40" /> Past
         </span>
+        {loading && <span className="text-gray-600">Loading events...</span>}
       </div>
 
       {/* Calendar */}
@@ -77,6 +143,7 @@ export default function AdminCalendarPage() {
           <button
             onClick={prevMonth}
             className="text-gray-400 hover:text-white p-1 transition-colors"
+            aria-label="Previous month"
           >
             <ChevronLeft size={20} />
           </button>
@@ -84,6 +151,7 @@ export default function AdminCalendarPage() {
           <button
             onClick={nextMonth}
             className="text-gray-400 hover:text-white p-1 transition-colors"
+            aria-label="Next month"
           >
             <ChevronRight size={20} />
           </button>
@@ -118,7 +186,7 @@ export default function AdminCalendarPage() {
             return (
               <div
                 key={day}
-                className={`p-2 sm:p-3 min-h-[60px] sm:min-h-[80px] border-b border-r border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${
+                className={`p-2 sm:p-3 min-h-[60px] sm:min-h-[80px] border-b border-r border-white/5 hover:bg-white/5 transition-colors ${
                   isToday(day) ? "bg-gold-500/5" : ""
                 }`}
               >
@@ -131,13 +199,17 @@ export default function AdminCalendarPage() {
                 >
                   {day}
                 </span>
-                {dayEvents.map((event, j) => (
-                  <div
-                    key={j}
-                    className={`mt-1 text-xs px-1.5 py-0.5 rounded truncate ${typeColors[event.type]} text-black`}
+                {dayEvents.map((event) => (
+                  <Link
+                    key={event.id}
+                    href="/admin/events"
+                    title={event.title}
+                    className={`mt-1 block text-xs px-1.5 py-0.5 rounded truncate hover:opacity-90 transition-opacity ${
+                      kindColors[kindOf(event)]
+                    }`}
                   >
                     {event.title}
-                  </div>
+                  </Link>
                 ))}
               </div>
             );

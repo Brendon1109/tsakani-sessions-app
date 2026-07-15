@@ -75,6 +75,7 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   const past = isEventPast(event.date) || event.status === "past";
+  const externalTickets = !past && !!event.external_ticket_url;
 
   const inquiryMessage = encodeURIComponent(
     `Hi Tsakani Sessions! I'd like to know more about "${event.title}" on ${eventDateShort(
@@ -194,8 +195,56 @@ export default async function EventDetailPage({
                 </div>
               )}
 
+              {/* Tickets via external ticketing partner */}
+              {externalTickets && (
+                <div className="mb-8">
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <TicketIcon size={18} className="text-gold-500" />
+                    Tickets
+                  </h2>
+
+                  {event.tickets && event.tickets.length > 0 && (
+                    <div className="space-y-3 mb-5">
+                      {event.tickets.map((ticket) => (
+                        <div
+                          key={ticket.id}
+                          className="bg-dark-700 border border-white/10 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-white">{ticket.name}</h3>
+                            {ticket.description && (
+                              <p className="text-sm text-gray-400 mb-1">
+                                {ticket.description}
+                              </p>
+                            )}
+                          </div>
+                          <p className="text-gold-500 text-lg font-bold shrink-0">
+                            R{ticket.price_zar.toLocaleString("en-ZA")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <a
+                    href={event.external_ticket_url ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-track="ticket_external_click"
+                    data-track-props={JSON.stringify({ event: event.slug })}
+                    className="bg-gold-gradient text-black font-semibold px-6 py-3 rounded-full inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity w-full sm:w-auto"
+                  >
+                    <TicketIcon size={16} />
+                    Buy Tickets
+                  </a>
+                  <p className="text-xs text-gray-500 mt-3 italic">
+                    Tickets are sold through our ticketing partner. The Buy Tickets button opens their secure checkout in a new tab.
+                  </p>
+                </div>
+              )}
+
               {/* Tickets */}
-              {!past && event.tickets && event.tickets.length > 0 && (
+              {!externalTickets && !past && event.tickets && event.tickets.length > 0 && (
                 <div className="mb-8">
                   <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                     <TicketIcon size={18} className="text-gold-500" />
@@ -265,7 +314,7 @@ export default async function EventDetailPage({
                 </div>
               )}
 
-              {!past && (!event.tickets || event.tickets.length === 0) && (
+              {!externalTickets && !past && (!event.tickets || event.tickets.length === 0) && (
                 <div className="mb-8 bg-gold-500/5 border border-gold-500/20 rounded-xl p-4 text-center">
                   <p className="text-gold-500 font-semibold">Free Entry</p>
                   <p className="text-xs text-gray-400 mt-1">No ticket required &mdash; just pull up.</p>
