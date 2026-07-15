@@ -29,6 +29,7 @@ interface EventForm {
   status: "draft" | "published" | "past";
   is_featured: boolean;
   cover_image_url: string;
+  external_ticket_url: string;
   tickets: TicketForm[];
 }
 
@@ -49,6 +50,7 @@ const emptyForm: EventForm = {
   status: "draft",
   is_featured: false,
   cover_image_url: "",
+  external_ticket_url: "",
   tickets: [],
 };
 
@@ -96,6 +98,7 @@ export default function AdminEventsPage() {
       status: event.status,
       is_featured: event.is_featured,
       cover_image_url: event.cover_image_url || "",
+      external_ticket_url: event.external_ticket_url || "",
       tickets: (event.tickets || []).map((t) => ({
         id: t.id,
         name: t.name,
@@ -385,6 +388,24 @@ export default function AdminEventsPage() {
                   rows={3}
                   className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-gold-500 focus:outline-none resize-none"
                 />
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 block mb-1">
+                  External ticket link (optional)
+                </label>
+                <input
+                  type="url"
+                  value={form.external_ticket_url}
+                  onChange={(e) =>
+                    setForm({ ...form, external_ticket_url: e.target.value })
+                  }
+                  placeholder="https://..."
+                  className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-gold-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Paste where people buy tickets, for example your FestFlow link,
+                  and the Buy button will send them there instead of WhatsApp.
+                </p>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">

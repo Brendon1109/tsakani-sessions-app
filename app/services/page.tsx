@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { createBookingMessage, openWhatsApp, type BookingData } from "@/lib/whatsapp";
 import { track } from "@/lib/analytics";
+import Turnstile from "@/components/Turnstile";
 
 const services = [
   {
@@ -73,6 +74,9 @@ const services = [
 export default function ServicesPage() {
   const [showBooking, setShowBooking] = useState(false);
   const [, setSelectedService] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState<BookingData>({
     name: "",
     email: "",
@@ -84,20 +88,67 @@ export default function ServicesPage() {
     message: "",
   });
 
+  const captchaRequired = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  const closeBooking = () => {
+    setShowBooking(false);
+    setSubmitted(false);
+  };
+
   const handleBook = (serviceId: string) => {
     setSelectedService(serviceId);
     const service = services.find((s) => s.id === serviceId)?.title || "";
     setFormData((prev) => ({ ...prev, eventType: service }));
+    setSubmitted(false);
     setShowBooking(true);
     track("open_booking_modal", { service });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     track("submit_booking", { service: formData.eventType });
+
     const message = createBookingMessage(formData);
+
+    // Save the enquiry FIRST so WhatsApp only ever carries a booking we have
+    // kept. Budget has no column of its own, so it rides along in the notes.
+    const storedMessage = [
+      formData.budget && `Budget: ${formData.budget}`,
+      formData.message,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          event_type: formData.eventType,
+          event_date: formData.eventDate,
+          venue: formData.venue,
+          message: storedMessage,
+          captcha_token: captchaToken,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("[booking] save failed:", data.error || res.status);
+      }
+    } catch (err) {
+      // A lead must never be lost. We still open WhatsApp below.
+      console.error("[booking] save error:", err);
+    }
+
+    // Either way, hand off to WhatsApp so the lead reaches the team.
     openWhatsApp(message);
-    setShowBooking(false);
+    setSubmitting(false);
+    setSubmitted(true);
   };
 
   return (
@@ -192,14 +243,39 @@ export default function ServicesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-dark-500 border border-gold-500/20 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex items-center justify-between p-6 border-b border-white/10">
-              <h3 className="text-xl font-bold">Book a Service</h3>
+              <h3 className="text-xl font-bold">
+                {submitted ? "Booking received" : "Book a Service"}
+              </h3>
               <button
-                onClick={() => setShowBooking(false)}
+                onClick={closeBooking}
                 className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Close"
               >
                 <X size={20} />
               </button>
             </div>
+            {submitted ? (
+              <div className="p-6 text-center space-y-4">
+                <div className="bg-gold-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                  <Check size={28} className="text-gold-500" />
+                </div>
+                <p className="text-gray-300">
+                  Thanks {formData.name.split(" ")[0] || "there"}. We have opened
+                  WhatsApp so you can send your booking straight to the team, and
+                  we have kept a copy of your details.
+                </p>
+                <p className="text-gray-500 text-sm">
+                  If WhatsApp did not open, message us on{" "}
+                  <span className="text-gold-500">+27 76 996 1477</span>.
+                </p>
+                <button
+                  onClick={closeBooking}
+                  className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">
@@ -347,14 +423,17 @@ export default function ServicesPage() {
                   placeholder="Tell us about your event..."
                 />
               </div>
+              {captchaRequired && <Turnstile onToken={setCaptchaToken} />}
               <button
                 type="submit"
-                className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                disabled={submitting}
+                className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <MessageCircle size={18} />
-                Send via WhatsApp
+                {submitting ? "Saving..." : "Send via WhatsApp"}
               </button>
             </form>
+            )}
           </div>
         </div>
       )}

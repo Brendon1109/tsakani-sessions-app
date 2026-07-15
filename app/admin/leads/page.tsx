@@ -3,20 +3,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { UserCheck, Download, Mail } from "lucide-react";
 import SearchPagination from "@/components/SearchPagination";
-
-interface Lead {
-  email: string;
-  name: string | null;
-  gallery_title: string;
-  viewed_at: string;
-}
+import { type Lead, type LeadSource, LEAD_SOURCES, sortLeadsByDateDesc } from "@/lib/leads";
 
 const PAGE_SIZE = 25;
+
+const sourceStyles: Record<LeadSource, string> = {
+  Booking: "text-gold-500 bg-gold-500/10",
+  "Ticket buyer": "text-green-400 bg-green-400/10",
+  "Merch buyer": "text-blue-400 bg-blue-400/10",
+  Newsletter: "text-purple-400 bg-purple-400/10",
+  "Gallery view": "text-gray-300 bg-white/10",
+};
 
 export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"All" | LeadSource>("All");
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -26,31 +29,37 @@ export default function AdminLeadsPage() {
   async function loadLeads() {
     setLoading(true);
     const res = await fetch("/api/admin/leads");
-    if (res.ok) setLeads(await res.json());
+    if (res.ok) setLeads(sortLeadsByDateDesc(await res.json()));
     setLoading(false);
   }
 
   const filtered = useMemo(() => {
-    if (!search) return leads;
     const q = search.toLowerCase();
-    return leads.filter(
-      (l) =>
-        l.email.toLowerCase().includes(q) ||
+    return leads.filter((l) => {
+      if (sourceFilter !== "All" && l.source !== sourceFilter) return false;
+      if (!q) return true;
+      return (
+        l.email?.toLowerCase().includes(q) ||
         l.name?.toLowerCase().includes(q) ||
-        l.gallery_title?.toLowerCase().includes(q)
-    );
-  }, [leads, search]);
+        l.phone?.toLowerCase().includes(q) ||
+        l.detail?.toLowerCase().includes(q) ||
+        l.source.toLowerCase().includes(q)
+      );
+    });
+  }, [leads, search, sourceFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function downloadCsv() {
-    const headers = ["email", "name", "gallery", "viewed_at"];
+    const headers = ["source", "name", "email", "phone", "detail", "date"];
     const rows = filtered.map((l) => [
-      l.email,
+      l.source,
       l.name || "",
-      l.gallery_title,
-      l.viewed_at,
+      l.email || "",
+      l.phone || "",
+      l.detail || "",
+      l.date,
     ]);
     const csv = [headers, ...rows]
       .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
@@ -65,13 +74,15 @@ export default function AdminLeadsPage() {
     URL.revokeObjectURL(url);
   }
 
+  const filters: ("All" | LeadSource)[] = ["All", ...LEAD_SOURCES];
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Leads</h1>
           <p className="text-gray-400 mt-1">
-            Users who signed in to view event galleries
+            Everyone who has shown interest in Tsakani Sessions
           </p>
         </div>
         <button
@@ -93,19 +104,45 @@ export default function AdminLeadsPage() {
           </div>
           <h2 className="text-xl font-bold mb-2">No Leads Yet</h2>
           <p className="text-gray-400 text-sm max-w-md mx-auto">
-            When users sign in with Google to view event galleries, their
-            contact info will appear here.
+            Booking enquiries, ticket buyers, merch orders, newsletter sign ups
+            and gallery viewers all land here as they come in.
           </p>
         </div>
       ) : (
         <>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {filters.map((f) => {
+              const count =
+                f === "All"
+                  ? leads.length
+                  : leads.filter((l) => l.source === f).length;
+              const active = sourceFilter === f;
+              return (
+                <button
+                  key={f}
+                  onClick={() => {
+                    setSourceFilter(f);
+                    setPage(1);
+                  }}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                    active
+                      ? "border-gold-500 text-gold-500 bg-gold-500/10"
+                      : "border-white/10 text-gray-400 hover:text-white hover:border-white/30"
+                  }`}
+                >
+                  {f} ({count})
+                </button>
+              );
+            })}
+          </div>
+
           <SearchPagination
             searchValue={search}
             onSearchChange={(v) => {
               setSearch(v);
               setPage(1);
             }}
-            placeholder="Search by email, name, or gallery..."
+            placeholder="Search by name, email, phone, or detail..."
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
@@ -116,30 +153,50 @@ export default function AdminLeadsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
+                    <th className="text-left p-4 text-gray-400 font-medium">Source</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Name</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Email</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">
-                      Gallery Viewed
-                    </th>
+                    <th className="text-left p-4 text-gray-400 font-medium">Phone</th>
+                    <th className="text-left p-4 text-gray-400 font-medium">Detail</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.map((lead, i) => (
                     <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                      <td className="p-4">
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded whitespace-nowrap ${sourceStyles[lead.source]}`}
+                        >
+                          {lead.source}
+                        </span>
+                      </td>
                       <td className="p-4">{lead.name || "—"}</td>
                       <td className="p-4">
-                        <a
-                          href={`mailto:${lead.email}`}
-                          className="text-gold-500 hover:underline flex items-center gap-1"
-                        >
-                          <Mail size={14} />
-                          {lead.email}
-                        </a>
+                        {lead.email ? (
+                          <a
+                            href={`mailto:${lead.email}`}
+                            className="text-gold-500 hover:underline flex items-center gap-1"
+                          >
+                            <Mail size={14} />
+                            {lead.email}
+                          </a>
+                        ) : (
+                          <span className="text-gray-600">—</span>
+                        )}
                       </td>
-                      <td className="p-4 text-gray-400">{lead.gallery_title}</td>
-                      <td className="p-4 text-gray-500">
-                        {new Date(lead.viewed_at).toLocaleDateString()}
+                      <td className="p-4 text-gray-400">
+                        {lead.phone ? (
+                          <a href={`tel:${lead.phone}`} className="hover:text-white">
+                            {lead.phone}
+                          </a>
+                        ) : (
+                          <span className="text-gray-600">—</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-gray-400">{lead.detail}</td>
+                      <td className="p-4 text-gray-500 whitespace-nowrap">
+                        {new Date(lead.date).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}

@@ -25,6 +25,7 @@ create table if not exists events (
   cover_image_url text,
   status text default 'draft' check (status in ('draft', 'published', 'past')),
   is_featured boolean default false,
+  external_ticket_url text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -192,6 +193,21 @@ create table if not exists newsletter_subscribers (
   is_active boolean default true
 );
 
+-- BOOKING_ENQUIRIES (service booking requests from /services)
+create table if not exists booking_enquiries (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  email text,
+  phone text,
+  event_type text,
+  event_date text,
+  venue text,
+  message text,
+  status text default 'new' check (status in ('new', 'contacted', 'confirmed', 'declined')),
+  source text default 'services_form',
+  created_at timestamptz default now()
+);
+
 -- VIDEO_PROJECTS
 create table if not exists video_projects (
   id uuid default gen_random_uuid() primary key,
@@ -225,6 +241,7 @@ alter table team_members enable row level security;
 alter table team_tasks enable row level security;
 alter table gallery_views enable row level security;
 alter table newsletter_subscribers enable row level security;
+alter table booking_enquiries enable row level security;
 alter table video_projects enable row level security;
 
 -- Profiles: users read/update own, admins read all
@@ -308,6 +325,13 @@ create policy "Admins read gallery views" on gallery_views for select using (
 -- Newsletter: anyone can subscribe, admins read all
 create policy "Anyone can subscribe" on newsletter_subscribers for insert with check (true);
 create policy "Admins manage subscribers" on newsletter_subscribers for all using (
+  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+);
+
+-- Booking enquiries: anyone can submit, admins manage all
+create policy "Anyone can submit a booking" on booking_enquiries
+  for insert to anon, authenticated with check (true);
+create policy "Admins manage bookings" on booking_enquiries for all using (
   exists (select 1 from profiles where id = auth.uid() and role = 'admin')
 );
 

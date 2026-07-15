@@ -20,6 +20,7 @@ export interface Event {
   cover_image_url: string | null;
   status: "draft" | "published" | "past";
   is_featured: boolean;
+  external_ticket_url?: string | null;
   created_at: string;
   updated_at: string;
 }
