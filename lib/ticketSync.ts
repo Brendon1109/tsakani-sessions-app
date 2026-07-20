@@ -4,6 +4,11 @@ export interface TicketInput {
   price_zar?: number;
   quantity_total?: number;
   description?: string;
+  /** Manual on/off. Absent is treated as on, so older callers behave as before. */
+  is_active?: boolean;
+  /** Optional sale window, as ISO instants. Null means unbounded on that side. */
+  sale_start?: string | null;
+  sale_end?: string | null;
 }
 
 export interface TicketSyncPlan {

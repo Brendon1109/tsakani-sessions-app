@@ -3,6 +3,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { logAudit } from "@/lib/audit";
 import { planTicketSync, type TicketSyncPlan } from "@/lib/ticketSync";
 
+/**
+ * Turn a sale window value from the admin form into a stored instant.
+ *
+ * The form sends a datetime-local string, which carries no zone, so the
+ * browser has already converted it to a real ISO instant before posting.
+ * Empty string means "no bound", which must persist as SQL NULL rather
+ * than an invalid date.
+ */
+function normaliseInstant(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(value as string);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 async function requireAdmin() {
   const supabase = createClient();
   if (!supabase) return { supabase: null, user: null, email: null };
@@ -54,6 +68,17 @@ async function executeTicketPlan(
 ): Promise<{ error?: string; status?: number }> {
   const { toDelete, toUpdate, toInsert } = plan;
 
+  for (const ticket of [...toUpdate, ...toInsert]) {
+    const start = normaliseInstant(ticket.sale_start);
+    const end = normaliseInstant(ticket.sale_end);
+    if (start && end && new Date(end) <= new Date(start)) {
+      return {
+        error: `Ticket "${ticket.name?.trim()}" closes before it opens. Check the sale window.`,
+        status: 400,
+      };
+    }
+  }
+
   if (toDelete.length > 0) {
     const { error } = await supabase.from("tickets").delete().in("id", toDelete);
     if (error) return { error: error.message, status: 500 };
@@ -66,6 +91,11 @@ async function executeTicketPlan(
       price_zar: Math.max(0, Math.floor(ticket.price_zar!)),
       quantity_total: Math.max(1, Math.floor(ticket.quantity_total!)),
       description: ticket.description?.trim() || null,
+      // Absent means "leave it on", so existing callers that never sent
+      // these fields keep their previous behaviour.
+      is_active: ticket.is_active !== false,
+      sale_start: normaliseInstant(ticket.sale_start),
+      sale_end: normaliseInstant(ticket.sale_end),
     };
     if (ticket.id) {
       const { data: updated, error } = await supabase

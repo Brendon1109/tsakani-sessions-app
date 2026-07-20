@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Event, Product, Gallery, GalleryPhoto, Ticket } from "@/lib/types";
+import { onSaleTickets } from "@/lib/tickets";
 
 export type EventWithTickets = Event & { tickets: Ticket[] };
 
@@ -22,7 +23,7 @@ export async function getPublishedEvents(): Promise<EventWithTickets[]> {
   if (!data) return [];
   return (data as EventWithTickets[]).map((e) => ({
     ...e,
-    tickets: (e.tickets || []).filter((t) => t.is_active),
+    tickets: onSaleTickets(e.tickets),
   }));
 }
 
@@ -41,7 +42,7 @@ export async function getFeaturedEvents(): Promise<EventWithTickets[]> {
   if (!data) return [];
   return (data as EventWithTickets[]).map((e) => ({
     ...e,
-    tickets: (e.tickets || []).filter((t) => t.is_active),
+    tickets: onSaleTickets(e.tickets),
   }));
 }
 
@@ -57,7 +58,7 @@ export async function getEventBySlug(slug: string): Promise<EventWithTickets | n
 
   if (!data) return null;
   const event = data as EventWithTickets;
-  event.tickets = (event.tickets || []).filter((t) => t.is_active);
+  event.tickets = onSaleTickets(event.tickets);
   return event;
 }
 

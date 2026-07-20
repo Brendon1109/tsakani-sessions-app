@@ -12,6 +12,48 @@ interface TicketForm {
   price_zar: number;
   quantity_total: number;
   description: string;
+  is_active: boolean;
+  /** datetime-local strings, empty means no bound */
+  sale_start: string;
+  sale_end: string;
+}
+
+/** ISO instant to the value a datetime-local input expects, in local time. */
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Back the other way, so the server stores an unambiguous instant. */
+function fromLocalInput(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/**
+ * Plain English state for one ticket, so an admin can see why something is
+ * or is not on the public site without reasoning about two dates.
+ */
+function ticketWindowHint(ticket: {
+  is_active: boolean;
+  sale_start: string;
+  sale_end: string;
+}): string {
+  if (!ticket.is_active) return "Off. Hidden from the site whatever the dates say.";
+
+  const now = Date.now();
+  const start = ticket.sale_start ? new Date(ticket.sale_start).getTime() : null;
+  const end = ticket.sale_end ? new Date(ticket.sale_end).getTime() : null;
+
+  if (start && end && end <= start) return "Closes before it opens. Fix the dates before saving.";
+  if (end && now >= end) return "Closed. The sale window has passed.";
+  if (start && now < start) return "Scheduled. Opens automatically, hidden until then.";
+  if (end) return "On sale now. Closes automatically at the time above.";
+  return "On sale now.";
 }
 
 interface EventWithTickets extends Event {
@@ -58,6 +100,9 @@ const emptyTicket: TicketForm = {
   name: "",
   price_zar: 0,
   quantity_total: 100,
+  is_active: true,
+  sale_start: "",
+  sale_end: "",
   description: "",
 };
 
@@ -104,6 +149,9 @@ export default function AdminEventsPage() {
         name: t.name,
         price_zar: t.price_zar,
         quantity_total: t.quantity_total,
+        is_active: t.is_active !== false,
+        sale_start: toLocalInput(t.sale_start),
+        sale_end: toLocalInput(t.sale_end),
         description: t.description || "",
       })),
     });
@@ -153,9 +201,16 @@ export default function AdminEventsPage() {
     setSaving(true);
     const method = form.id ? "PATCH" : "POST";
     const dateUtc = new Date(form.date).toISOString();
+    // The window inputs are local wall clock. Convert to absolute instants
+    // here so the server never has to guess a timezone.
+    const tickets = form.tickets.map((t) => ({
+      ...t,
+      sale_start: fromLocalInput(t.sale_start),
+      sale_end: fromLocalInput(t.sale_end),
+    }));
     const body = form.id
-      ? { ...form, date: dateUtc }
-      : { ...form, date: dateUtc, slug: form.slug || undefined };
+      ? { ...form, tickets, date: dateUtc }
+      : { ...form, tickets, date: dateUtc, slug: form.slug || undefined };
     const res = await fetch("/api/admin/events", {
       method,
       headers: { "Content-Type": "application/json" },
@@ -488,6 +543,42 @@ export default function AdminEventsPage() {
                           onChange={(e) => updateTicket(idx, { description: e.target.value })}
                           className="w-full bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
                         />
+                        <div className="flex flex-wrap items-end gap-3 pt-1">
+                          <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={ticket.is_active}
+                              onChange={(e) => updateTicket(idx, { is_active: e.target.checked })}
+                              className="accent-gold-500"
+                            />
+                            On sale
+                          </label>
+                          <div className="flex-1 min-w-[10rem]">
+                            <label className="text-xs text-gray-500 block mb-1">
+                              Opens (optional)
+                            </label>
+                            <input
+                              type="datetime-local"
+                              value={ticket.sale_start}
+                              onChange={(e) => updateTicket(idx, { sale_start: e.target.value })}
+                              className="w-full bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-[10rem]">
+                            <label className="text-xs text-gray-500 block mb-1">
+                              Closes (optional)
+                            </label>
+                            <input
+                              type="datetime-local"
+                              value={ticket.sale_end}
+                              onChange={(e) => updateTicket(idx, { sale_end: e.target.value })}
+                              className="w-full bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {ticketWindowHint(ticket)}
+                        </p>
                       </div>
                     ))}
                   </div>
