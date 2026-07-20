@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "signups": "node scripts/signups.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.49.0",

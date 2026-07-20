@@ -47,6 +47,9 @@ venv/
 
 # supabase
 supabase/.temp/
+
+# signup exports — personal data (POPIA), never commit
+signups-*.csv
 supabase/.branches/
 
 .vercel
