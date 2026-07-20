@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Ticket, Mail } from "lucide-react";
+import { Ticket, Mail, Check, X } from "lucide-react";
 import SearchPagination from "@/components/SearchPagination";
 
 interface TicketOrderRow {
@@ -39,6 +39,8 @@ export default function AdminTicketsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -49,6 +51,45 @@ export default function AdminTicketsPage() {
     const res = await fetch("/api/admin/tickets");
     if (res.ok) setOrders(await res.json());
     setLoading(false);
+  }
+
+  async function updateStatus(order: TicketOrderRow, status: string) {
+    if (status === "cancelled") {
+      const ok = window.confirm(
+        `Cancel ${order.quantity} x ${order.buyer_name}? This releases the tickets back to the pool.`
+      );
+      if (!ok) return;
+    }
+
+    setUpdatingId(order.id);
+    setError(null);
+    const previous = orders;
+
+    // Optimistic, then reconcile with whatever the server actually stored.
+    setOrders((rows) =>
+      rows.map((r) => (r.id === order.id ? { ...r, status } : r))
+    );
+
+    try {
+      const res = await fetch("/api/admin/tickets", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id, status }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Could not update the order");
+      }
+      const saved = await res.json();
+      setOrders((rows) =>
+        rows.map((r) => (r.id === order.id ? { ...r, status: saved.status } : r))
+      );
+    } catch (err) {
+      setOrders(previous);
+      setError(err instanceof Error ? err.message : "Could not update the order");
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   const filtered = useMemo(() => {
@@ -86,6 +127,11 @@ export default function AdminTicketsPage() {
         </div>
       ) : (
         <>
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
           <SearchPagination
             searchValue={search}
             onSearchChange={(v) => {
@@ -110,6 +156,7 @@ export default function AdminTicketsPage() {
                     <th className="text-left p-4 text-gray-400 font-medium">Total</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Status</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Date</th>
+                    <th className="text-right p-4 text-gray-400 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -156,6 +203,39 @@ export default function AdminTicketsPage() {
                       </td>
                       <td className="p-4 text-gray-500 whitespace-nowrap">
                         {new Date(order.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-end gap-2">
+                          {order.status !== "confirmed" && order.status !== "used" && (
+                            <button
+                              onClick={() => updateStatus(order, "confirmed")}
+                              disabled={updatingId === order.id}
+                              className="text-xs px-2.5 py-1 rounded bg-green-400/10 text-green-400 hover:bg-green-400/20 disabled:opacity-40 whitespace-nowrap"
+                            >
+                              <Check size={13} className="inline mr-1" />
+                              Confirm
+                            </button>
+                          )}
+                          {order.status === "confirmed" && (
+                            <button
+                              onClick={() => updateStatus(order, "used")}
+                              disabled={updatingId === order.id}
+                              className="text-xs px-2.5 py-1 rounded bg-white/10 text-gray-300 hover:bg-white/20 disabled:opacity-40 whitespace-nowrap"
+                            >
+                              Check in
+                            </button>
+                          )}
+                          {order.status !== "cancelled" && (
+                            <button
+                              onClick={() => updateStatus(order, "cancelled")}
+                              disabled={updatingId === order.id}
+                              className="text-xs px-2.5 py-1 rounded bg-red-400/10 text-red-400 hover:bg-red-400/20 disabled:opacity-40 whitespace-nowrap"
+                            >
+                              <X size={13} className="inline mr-1" />
+                              Cancel
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

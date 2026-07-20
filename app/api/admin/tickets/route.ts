@@ -27,12 +27,41 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
+// Mirrors the check constraint on ticket_orders.status (see schema.sql).
+const ALLOWED_STATUSES = ["pending", "confirmed", "used", "cancelled"] as const;
+type OrderStatus = (typeof ALLOWED_STATUSES)[number];
+
 export async function PATCH(request: NextRequest) {
   const { supabase, user } = await requireAdmin();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
   if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id, status } = await request.json();
+
+  if (!id || typeof id !== "string") {
+    return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+  }
+  if (!ALLOWED_STATUSES.includes(status as OrderStatus)) {
+    return NextResponse.json(
+      { error: `Status must be one of: ${ALLOWED_STATUSES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  // Read the current row first so we can tell what actually changed.
+  const { data: before, error: readError } = await supabase
+    .from("ticket_orders")
+    .select("id, status, quantity, ticket_id")
+    .eq("id", id)
+    .single();
+
+  if (readError || !before) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+  if (before.status === status) {
+    return NextResponse.json({ ...before, unchanged: true });
+  }
+
   const { data, error } = await supabase
     .from("ticket_orders")
     .update({ status })
@@ -40,5 +69,28 @@ export async function PATCH(request: NextRequest) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Cancelling frees the seats again. Only release when moving *into* cancelled
+  // from a state that was still holding stock, so repeat cancels cannot
+  // release the same seats twice.
+  if (status === "cancelled" && before.status !== "cancelled") {
+    const { error: releaseError } = await supabase.rpc("release_tickets", {
+      p_ticket_id: before.ticket_id,
+      p_quantity: before.quantity,
+    });
+    if (releaseError) {
+      console.error("[admin/tickets] release_tickets failed:", releaseError.message);
+    }
+  }
+
+  await supabase.from("audit_log").insert({
+    user_id: user.id,
+    user_email: user.email,
+    action: "ticket_order.status_change",
+    resource_type: "ticket_orders",
+    resource_id: id,
+    details: { from: before.status, to: status, quantity: before.quantity },
+  });
+
   return NextResponse.json(data);
 }
