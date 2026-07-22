@@ -3,6 +3,19 @@ import { SITE_URL } from "@/lib/seo";
 
 const FROM = process.env.RESEND_FROM_EMAIL || "Tsakani Sessions <onboarding@resend.dev>";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "tsakanisessions@gmail.com";
+
+/**
+ * Where a reply to one of our emails should actually land.
+ *
+ * We send from the sending domain, which has no MX record — Resend's "Enable
+ * Receiving" is deliberately off, because switching it on would claim the root
+ * MX and block ever putting real mailboxes on the domain. Without this header a
+ * buyer who hits Reply on their ticket confirmation gets a bounce, on the one
+ * email whose whole job is to make them feel looked after.
+ *
+ * ADMIN_EMAIL is a real inbox someone reads, so it is the honest answer.
+ */
+const REPLY_TO = process.env.REPLY_TO_EMAIL || ADMIN_EMAIL;
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "27769961477";
 
 let warnedMissingKey = false;
@@ -227,6 +240,7 @@ export async function sendTicketConfirmation(data: TicketConfirmationData): Prom
       from: FROM,
       to: data.to,
       subject: `${data.orderRef} — your ticket to ${data.eventTitle}`,
+      replyTo: REPLY_TO,
       html: shell({
         preheader: `Order ${data.orderRef} · ${data.quantity} x ${data.ticketName} · ${data.eventDateLabel}`,
         body,
@@ -300,6 +314,7 @@ export async function sendTicketConfirmedEmail(data: {
       from: FROM,
       to: data.to,
       subject: `Confirmed — ${data.orderRef} for ${data.eventTitle}`,
+      replyTo: REPLY_TO,
       html: shell({
         preheader: `Your ticket to ${data.eventTitle} is confirmed.`,
         body,
@@ -370,6 +385,7 @@ export async function sendNewsletterWelcome(data: {
       from: FROM,
       to: data.to,
       subject: "You're subscribed to Tsakani Sessions",
+      replyTo: REPLY_TO,
       html: shell({
         preheader: `You're subscribed for ${topicLine}. Unsubscribe any time.`,
         body,
@@ -408,6 +424,7 @@ export async function sendUnsubscribeConfirmation(to: string): Promise<boolean> 
       from: FROM,
       to,
       subject: "You've been unsubscribed",
+      replyTo: REPLY_TO,
       html: shell({ preheader: "You've been removed from the Tsakani Sessions list.", body }),
     });
     return true;
@@ -463,6 +480,7 @@ export async function sendOrderConfirmation(data: {
       from: FROM,
       to: data.to,
       subject: "Order confirmation — Tsakani Sessions",
+      replyTo: REPLY_TO,
       html: shell({
         preheader: `We received your order (R${data.total.toLocaleString("en-ZA")}).`,
         body,
