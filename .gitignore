@@ -28,6 +28,11 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# Claude Code machine-local settings — holds the Supabase personal access token
+# (sbp_...), which is an ACCOUNT-level credential covering every organisation.
+# .claude/settings.json (shared, no secrets) stays committable; this one never is.
+.claude/settings.local.json
+
 # vercel
 .vercel
 

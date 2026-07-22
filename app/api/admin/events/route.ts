@@ -44,21 +44,41 @@ function slugify(text: string): string {
 // Validate the optional external ticket link. Empty becomes null; a non-empty
 // value must be a valid http(s) URL. Never hardcode a specific URL: this is data
 // the admin pastes.
-function normalizeTicketUrl(value: unknown): { url: string | null } | { error: string } {
+function normalizeUrl(
+  value: unknown,
+  label = "External ticket link",
+): { url: string | null } | { error: string } {
   if (value == null || value === "") return { url: null };
-  if (typeof value !== "string") return { error: "External ticket link must be text" };
+  if (typeof value !== "string") return { error: `${label} must be text` };
   const trimmed = value.trim();
   if (!trimmed) return { url: null };
   let parsed: URL;
   try {
     parsed = new URL(trimmed);
   } catch {
-    return { error: "External ticket link must be a valid URL" };
+    return { error: `${label} must be a valid URL` };
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return { error: "External ticket link must start with http or https" };
+    return { error: `${label} must start with http or https` };
   }
   return { url: trimmed };
+}
+
+const normalizeTicketUrl = (value: unknown) => normalizeUrl(value, "External ticket link");
+const normalizePaymentUrl = (value: unknown) => normalizeUrl(value, "Payment link");
+
+// The payment note reaches buyers verbatim in an email, so it is capped. An
+// unbounded field here would be a way to push arbitrary bulk text through our
+// sending domain.
+function normalizePaymentNote(value: unknown): { note: string | null } | { error: string } {
+  if (value == null || value === "") return { note: null };
+  if (typeof value !== "string") return { error: "Payment instructions must be text" };
+  const trimmed = value.trim();
+  if (!trimmed) return { note: null };
+  if (trimmed.length > 1000) {
+    return { error: "Payment instructions must be under 1000 characters" };
+  }
+  return { note: trimmed };
 }
 
 async function executeTicketPlan(
@@ -151,6 +171,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: ticketUrl.error }, { status: 400 });
   }
 
+  const paymentUrl = normalizePaymentUrl(body.payment_url);
+  if ("error" in paymentUrl) {
+    return NextResponse.json({ error: paymentUrl.error }, { status: 400 });
+  }
+
+  const paymentNote = normalizePaymentNote(body.payment_note);
+  if ("error" in paymentNote) {
+    return NextResponse.json({ error: paymentNote.error }, { status: 400 });
+  }
+
   const cleaned = body.slug ? slugify(body.slug) : "";
   const slug = cleaned || `${slugify(title)}-${Date.now().toString(36)}`;
 
@@ -176,6 +206,8 @@ export async function POST(request: NextRequest) {
       is_featured: !!is_featured,
       cover_image_url: cover_image_url || null,
       external_ticket_url: ticketUrl.url,
+      payment_url: paymentUrl.url,
+      payment_note: paymentNote.note,
     })
     .select()
     .single();
@@ -221,6 +253,22 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: ticketUrl.error }, { status: 400 });
     }
     updates.external_ticket_url = ticketUrl.url;
+  }
+
+  if ("payment_url" in updates) {
+    const paymentUrl = normalizePaymentUrl(updates.payment_url);
+    if ("error" in paymentUrl) {
+      return NextResponse.json({ error: paymentUrl.error }, { status: 400 });
+    }
+    updates.payment_url = paymentUrl.url;
+  }
+
+  if ("payment_note" in updates) {
+    const paymentNote = normalizePaymentNote(updates.payment_note);
+    if ("error" in paymentNote) {
+      return NextResponse.json({ error: paymentNote.error }, { status: 400 });
+    }
+    updates.payment_note = paymentNote.note;
   }
 
   // Validate ticket changes before writing anything so a bad ticket row

@@ -72,6 +72,8 @@ interface EventForm {
   is_featured: boolean;
   cover_image_url: string;
   external_ticket_url: string;
+  payment_url: string;
+  payment_note: string;
   tickets: TicketForm[];
 }
 
@@ -93,6 +95,8 @@ const emptyForm: EventForm = {
   is_featured: false,
   cover_image_url: "",
   external_ticket_url: "",
+  payment_url: "",
+  payment_note: "",
   tickets: [],
 };
 
@@ -144,6 +148,8 @@ export default function AdminEventsPage() {
       is_featured: event.is_featured,
       cover_image_url: event.cover_image_url || "",
       external_ticket_url: event.external_ticket_url || "",
+      payment_url: event.payment_url || "",
+      payment_note: event.payment_note || "",
       tickets: (event.tickets || []).map((t) => ({
         id: t.id,
         name: t.name,
@@ -460,6 +466,40 @@ export default function AdminEventsPage() {
                 <p className="text-xs text-gray-500 mt-1">
                   Paste where people buy tickets, for example your FestFlow link,
                   and the Buy button will send them there instead of WhatsApp.
+                </p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 block mb-1">
+                  Payment link (optional)
+                </label>
+                <input
+                  type="url"
+                  value={form.payment_url}
+                  onChange={(e) => setForm({ ...form, payment_url: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-gold-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Where buyers go to pay after reserving — a FestFlow, Yoco or
+                  PayFast link. It appears as a &ldquo;Pay now&rdquo; button on the
+                  confirmation screen and in the confirmation email.
+                </p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 block mb-1">
+                  Payment instructions (optional)
+                </label>
+                <textarea
+                  value={form.payment_note}
+                  onChange={(e) => setForm({ ...form, payment_note: e.target.value })}
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="EFT to FNB 1234567890, ref your order number. Send proof of payment to..."
+                  className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-gold-500 focus:outline-none resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Shown with the payment link. Both are hidden entirely on free
+                  tickets &mdash; nobody gets asked to pay R0.
                 </p>
               </div>
               <div>

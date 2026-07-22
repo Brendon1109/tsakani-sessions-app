@@ -89,3 +89,5 @@ Kept here for reference so anyone reviewing this doc knows what's done:
 - ~~SQL migration order undocumented~~ → `docs/SETUP.md` now has a "Database setup" table.
 - ~~Newsletter form missing on site~~ → `components/NewsletterForm.tsx` in the footer, with granular consent checkboxes + privacy policy link.
 - ~~WhatsApp checkout loses context~~ → `/shop/success` page shows order ID + deliberate "Send via WhatsApp" button.
+- ~~Ticket buyers got no confirmation, only a redirect into a WhatsApp chat with a number they'd never seen~~ → `supabase/ticket_confirmation.sql` + `components/TicketCheckout.tsx`: on-page confirmation with order number and QR, a confirmation email, and `/ticket/[code]` as the buyer's own copy. WhatsApp is an optional button, never a redirect.
+- ~~No way to unsubscribe from the newsletter~~ → per-subscriber `unsubscribe_token`, `/unsubscribe`, and RFC 8058 one-click via `List-Unsubscribe`. `subscribe_newsletter` returns a token only for an address that wasn't already subscribed, so it can't be used to harvest someone else's.

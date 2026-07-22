@@ -57,21 +57,24 @@ export default function TermsPage() {
           </h2>
           <ul className="list-disc pl-5 space-y-2">
             <li>
-              When you place a merch or ticket order through the site, we
-              create a pending order and open WhatsApp with a summary.
+              When you book a ticket we reserve your spot, give you an order
+              number and QR code on screen, and email the same details to the
+              address you gave us.
             </li>
             <li>
-              Your order is only <strong>confirmed</strong> once you&apos;ve
-              sent the WhatsApp message and we&apos;ve replied with payment
-              details and confirmed availability.
+              A reserved ticket is only <strong>confirmed</strong> once payment
+              has reached us. Free tickets are confirmed as soon as they&apos;re
+              booked &mdash; there is nothing to pay.
+            </li>
+            <li>
+              Payment is made through the payment link on your confirmation, or
+              as arranged with us directly. When you place a merch order we
+              create a pending order and confirm availability and payment with
+              you.
             </li>
             <li>
               All prices are in South African Rand (ZAR) and include VAT where
               applicable.
-            </li>
-            <li>
-              Payment is arranged directly with us over WhatsApp (EFT or other
-              method as agreed).
             </li>
             <li>
               Pending orders that are not paid within 48 hours are

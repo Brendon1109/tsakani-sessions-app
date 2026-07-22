@@ -16,6 +16,15 @@ applied is safe.
 | 5 | `supabase/admin_setup.sql` | `promote_admins_on_signup` trigger. Edit the hardcoded email list before running to match your admins. |
 | 6 | `supabase/newsletter_consent.sql` | Adds granular-consent columns (`consent_events`, `consent_merch`, `consent_at`, `consent_ip`) to `newsletter_subscribers` for POPIA compliance. |
 | 7 | `supabase/fix_role_escalation.sql` | Column-level privileges on `profiles` so users can't grant themselves admin by writing `role` (or `email`, which the promote trigger matches on). Must run after schema.sql and admin_setup.sql. |
+| 8 | `supabase/subscribe_newsletter_fn.sql` | `subscribe_newsletter` SECURITY DEFINER function. Anon holds only an INSERT policy, so a direct upsert is refused by RLS — this owns the one narrow write. Must run after newsletter_consent.sql. |
+| 9 | `supabase/create_ticket_order_fn.sql` | `create_ticket_order` SECURITY DEFINER function. Reserves seats and writes the order in one transaction, and returns the new order despite RLS hiding it from anon. |
+| 10 | `supabase/ticket_sale_windows.sql` | Makes `sale_start` / `sale_end` real — `reserve_tickets` enforces the window so a ticket opens and closes on its own. |
+| 11 | `supabase/add_external_ticket_url.sql` | Adds `events.external_ticket_url` for per-event external checkout (e.g. FestFlow). |
+| 12 | `supabase/ticket_confirmation.sql` | **Ticket confirmations.** Adds `events.payment_url` / `payment_note`, the generated `ticket_orders.order_ref`, and `newsletter_subscribers.unsubscribe_token`. Replaces `create_ticket_order` (now returns event + payment details, and honours the sale window) and `subscribe_newsletter` (now returns the unsubscribe token). Adds `get_ticket_order` and `unsubscribe_newsletter`. Must run after 8, 9, 10 and 11. |
+
+Optional, order-independent once `schema.sql` has run: `analytics_events.sql`
+(first-party analytics), `booking_enquiries.sql` (the /services form),
+`storage_policies.sql` (bucket policies), `add_gallery_drive_url.sql`.
 
 When you add a **new** migration file, append it to the table above with its
 order number, and note what existing state it assumes.
