@@ -60,10 +60,17 @@ async function handle(request: NextRequest) {
   }
 
   // Cancel stale ticket orders + release reservations
+  // gt("total_zar", 0) so a free ticket is never swept up here. create_ticket_order
+  // now writes free orders as 'confirmed' for exactly this reason, but a
+  // free order that reaches 'pending' by any other route (an old row, a manual
+  // edit) still must not be cancelled — there is no payment for it to be
+  // waiting on, so "unpaid for 48 hours" is not a meaningful thing to say
+  // about it.
   const { data: staleTickets } = await supabase
     .from("ticket_orders")
     .select("id, ticket_id, quantity")
     .eq("status", "pending")
+    .gt("total_zar", 0)
     .lt("created_at", cutoff);
 
   let released = 0;

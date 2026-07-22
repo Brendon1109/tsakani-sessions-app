@@ -1,5 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { sendTicketConfirmedEmail } from "@/lib/email";
+import { ticketUrl } from "@/lib/qr";
+import { eventDateLong, eventTime } from "@/lib/date";
+
+/** A to-one embedded join arrives as an object at runtime but is typed as an array. */
+function pickOne<T>(value: T | T[] | null | undefined): T | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value ?? undefined;
+}
 
 async function requireAdmin() {
   const supabase = createClient();
@@ -48,10 +57,14 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  // Read the current row first so we can tell what actually changed.
+  // Read the current row first so we can tell what actually changed. The extra
+  // columns are what the buyer's "you're confirmed" email needs — read here so
+  // we don't have to re-query after the write.
   const { data: before, error: readError } = await supabase
     .from("ticket_orders")
-    .select("id, status, quantity, ticket_id")
+    .select(
+      "id, status, quantity, ticket_id, order_ref, qr_code, buyer_name, buyer_email, total_zar, ticket:tickets(name, event:events(title, date))"
+    )
     .eq("id", id)
     .single();
 
@@ -80,6 +93,30 @@ export async function PATCH(request: NextRequest) {
     });
     if (releaseError) {
       console.error("[admin/tickets] release_tickets failed:", releaseError.message);
+    }
+  }
+
+  // Tell the buyer their held ticket is now a real one. Best effort: the status
+  // change is already committed and must not be undone by a mail failure.
+  if (status === "confirmed" && before.status !== "confirmed") {
+    // Supabase types the embedded joins as arrays; at runtime a to-one join is
+    // an object. Normalise both shapes rather than trusting either.
+    const ticket = pickOne(before.ticket);
+    const event = pickOne(ticket?.event);
+    if (before.buyer_email && before.qr_code) {
+      sendTicketConfirmedEmail({
+        to: before.buyer_email,
+        buyerName: before.buyer_name || "there",
+        orderRef: before.order_ref || id,
+        ticketName: ticket?.name || "ticket",
+        quantity: before.quantity ?? 1,
+        totalZar: before.total_zar ?? 0,
+        eventTitle: event?.title || "Tsakani Sessions",
+        eventDateLabel: event?.date
+          ? `${eventDateLong(event.date)}, ${eventTime(event.date)}`
+          : "Date to be confirmed",
+        ticketUrl: ticketUrl(before.qr_code),
+      }).catch(() => {});
     }
   }
 

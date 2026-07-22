@@ -21,6 +21,10 @@ export interface Event {
   status: "draft" | "published" | "past";
   is_featured: boolean;
   external_ticket_url?: string | null;
+  /** Where buyers go to pay. Only ever shown for orders with a total above zero. */
+  payment_url?: string | null;
+  /** Free-text payment instructions, shown alongside payment_url on paid orders. */
+  payment_note?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -101,6 +105,8 @@ export interface Ticket {
 
 export interface TicketOrder {
   id: string;
+  /** Generated in the database from the id, e.g. TS-1A2B3C4D. Read-only. */
+  order_ref: string;
   ticket_id: string;
   user_id: string | null;
   buyer_name: string;
@@ -182,6 +188,15 @@ export interface NewsletterSubscriber {
   source: string;
   subscribed_at: string;
   is_active: boolean;
+  consent_events: boolean;
+  consent_merch: boolean;
+  consent_at: string | null;
+  consent_ip: string | null;
+  /**
+   * Proof of ownership for opting out. It only ever leaves the server inside an
+   * email to the address itself — never render it in a page or an admin list.
+   */
+  unsubscribe_token: string;
 }
 
 export interface AnalyticsEvent {

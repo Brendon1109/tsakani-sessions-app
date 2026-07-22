@@ -309,7 +309,7 @@ export default async function EventDetailPage({
                     })}
                   </div>
                   <p className="text-xs text-gray-500 mt-3 italic">
-                    Reserve your spot, then we&apos;ll open WhatsApp with your order reference. Payment instructions are confirmed there.
+                    Reserve your spot and we&apos;ll send your order number and QR code straight to your email.
                   </p>
                 </div>
               )}

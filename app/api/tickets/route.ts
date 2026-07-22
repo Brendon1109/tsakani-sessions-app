@@ -2,7 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/captcha";
-import { sendAdminOrderAlert } from "@/lib/email";
+import { sendAdminOrderAlert, sendTicketConfirmation } from "@/lib/email";
+import { ticketQrPng, ticketUrl } from "@/lib/qr";
+import { eventDateLong, eventTime } from "@/lib/date";
 
 /**
  * Creates a ticket order so we actually know WHO is coming.
@@ -13,7 +15,8 @@ import { sendAdminOrderAlert } from "@/lib/email";
  * INSERT ... RETURNING (which is what .insert().select() compiles to) is
  * refused by RLS. The function does the write and hands back only the order it
  * just created, and it reserves the seats in the same transaction so a failure
- * cannot leave seats sold to nobody. See supabase/create_ticket_order_fn.sql.
+ * cannot leave seats sold to nobody. See supabase/create_ticket_order_fn.sql
+ * and supabase/ticket_confirmation.sql.
  */
 export async function POST(request: NextRequest) {
   // Rate limit: 3 ticket orders per minute per IP
@@ -59,21 +62,69 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const dateLabel = order.event_date
+    ? `${eventDateLong(order.event_date)}, ${eventTime(order.event_date)}`
+    : "Date to be confirmed";
+  const url = ticketUrl(order.qr_code);
+
+  // The buyer's own copy. This is the whole point of the flow: they leave with
+  // something in writing instead of an open WhatsApp thread.
+  //
+  // Awaited, unlike the admin alert below, because the confirmation screen tells
+  // the buyer whether the email is on its way. Promising an email that silently
+  // failed is worse than saying it didn't send. A failure here still returns the
+  // order — the seats are reserved either way and we never lose the sale over it.
+  let emailed = false;
+  try {
+    const qrPng = await ticketQrPng(url).catch(() => null);
+    emailed = await sendTicketConfirmation({
+      // create_ticket_order does not hand back the email, so use what was
+      // submitted. The database stored a lowercased, trimmed copy of this exact
+      // value, so the two cannot disagree about who gets the ticket.
+      to: String(buyer_email).trim(),
+      buyerName: buyer_name,
+      orderRef: order.order_ref,
+      qrCode: order.qr_code,
+      ticketName: order.ticket_name,
+      quantity,
+      totalZar: order.total_zar,
+      eventTitle: order.event_title,
+      eventDateLabel: dateLabel,
+      venueName: order.venue_name,
+      venueAddress: order.venue_address,
+      paymentUrl: order.payment_url,
+      paymentNote: order.payment_note,
+      ticketUrl: url,
+      qrPng,
+    });
+  } catch (err) {
+    console.error("[tickets] confirmation email failed:", err);
+  }
+
   // Tell the team someone is coming. Best effort, the order is already safe.
   sendAdminOrderAlert({
     type: "ticket",
     customerName: buyer_name,
     customerPhone: buyer_phone || "N/A",
     customerEmail: buyer_email,
-    summary: `${quantity} x ${order.ticket_name} ticket(s)`,
+    summary: `${quantity} x ${order.ticket_name} ticket(s)\n${order.event_title}\n${dateLabel}`,
     total: order.total_zar,
-    orderId: order.order_id,
+    orderId: order.order_ref || order.order_id,
   }).catch(() => {});
 
   return NextResponse.json({
     order_id: order.order_id,
+    order_ref: order.order_ref,
     qr_code: order.qr_code,
     total_zar: order.total_zar,
     ticket_name: order.ticket_name,
+    event_title: order.event_title,
+    event_date_label: dateLabel,
+    venue_name: order.venue_name,
+    venue_address: order.venue_address,
+    payment_url: order.payment_url,
+    payment_note: order.payment_note,
+    ticket_url: url,
+    emailed,
   });
 }

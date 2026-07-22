@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/captcha";
+import { sendNewsletterWelcome } from "@/lib/email";
+import { SITE_URL } from "@/lib/seo";
 
 export async function POST(request: NextRequest) {
   // Rate limit: 3 signups per 10 min per IP
@@ -40,9 +42,10 @@ export async function POST(request: NextRequest) {
   // The function owns the one narrow write we want. Consent is additive there,
   // so a subscriber who returns and ticks merch as well keeps events AND gains
   // merch, while nobody can resubmit someone else's address to strip it.
-  // See supabase/subscribe_newsletter_fn.sql.
-  const { error } = await supabase.rpc("subscribe_newsletter", {
-    p_email: email.toLowerCase().trim(),
+  // See supabase/subscribe_newsletter_fn.sql and supabase/ticket_confirmation.sql.
+  const normalised = email.toLowerCase().trim();
+  const { data, error } = await supabase.rpc("subscribe_newsletter", {
+    p_email: normalised,
     p_consent_events: wantsEvents,
     p_consent_merch: wantsMerch,
     p_source: "website",
@@ -52,6 +55,33 @@ export async function POST(request: NextRequest) {
   if (error) {
     console.error("[newsletter] subscribe failed:", error.message);
     return NextResponse.json({ error: "Signup failed. Please try again." }, { status: 500 });
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+
+  // Confirm in writing, and show the way out in the same email.
+  //
+  // A token comes back only for an address that was not already an active
+  // subscriber, so its presence IS the "welcome this person" signal. Someone who
+  // submits the form twice in a row gets null and no second welcome, which is
+  // both what we want and what stops the function handing an existing
+  // subscriber's token to whoever asked. See supabase/ticket_confirmation.sql.
+  //
+  // Best effort: their subscription is already recorded, and a mail failure must
+  // not tell them the signup didn't work.
+  if (row?.unsubscribe_token) {
+    // SITE_URL, not a bare env read: an empty base would emit a relative
+    // List-Unsubscribe header, which is not a valid URI, so Gmail and Apple Mail
+    // would drop the one-click button and the in-body link would be dead too.
+    const base = SITE_URL.replace(/\/+$/, "");
+    const token = encodeURIComponent(row.unsubscribe_token);
+    sendNewsletterWelcome({
+      to: normalised,
+      consentEvents: wantsEvents,
+      consentMerch: wantsMerch,
+      unsubscribeUrl: `${base}/unsubscribe?token=${token}`,
+      listUnsubscribeUrl: `${base}/api/newsletter/unsubscribe?token=${token}`,
+    }).catch(() => {});
   }
 
   return NextResponse.json({ success: true });

@@ -6,6 +6,8 @@ import SearchPagination from "@/components/SearchPagination";
 
 interface TicketOrderRow {
   id: string;
+  /** Generated in the database, e.g. TS-1A2B3C4D. This is what buyers quote. */
+  order_ref: string | null;
   buyer_name: string;
   buyer_email: string | null;
   buyer_phone: string | null;
@@ -97,6 +99,7 @@ export default function AdminTicketsPage() {
     const q = search.toLowerCase();
     return orders.filter(
       (o) =>
+        o.order_ref?.toLowerCase().includes(q) ||
         o.buyer_name?.toLowerCase().includes(q) ||
         o.buyer_email?.toLowerCase().includes(q) ||
         o.buyer_phone?.toLowerCase().includes(q) ||
@@ -138,7 +141,7 @@ export default function AdminTicketsPage() {
               setSearch(v);
               setPage(1);
             }}
-            placeholder="Search by buyer, contact, or event..."
+            placeholder="Search by order number, buyer, contact, or event..."
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
@@ -149,6 +152,7 @@ export default function AdminTicketsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
+                    <th className="text-left p-4 text-gray-400 font-medium">Order</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Buyer</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Contact</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Event</th>
@@ -162,6 +166,9 @@ export default function AdminTicketsPage() {
                 <tbody>
                   {paginated.map((order) => (
                     <tr key={order.id} className="border-b border-white/5 hover:bg-white/5">
+                      <td className="p-4 font-mono text-xs text-gold-500 whitespace-nowrap">
+                        {order.order_ref || "—"}
+                      </td>
                       <td className="p-4 font-medium">{order.buyer_name || "—"}</td>
                       <td className="p-4">
                         <div className="flex flex-col gap-0.5">
