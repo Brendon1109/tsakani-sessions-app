@@ -75,7 +75,10 @@ export default function TicketCheckout({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  // number | "" : the field is allowed to sit empty *while editing* so it can be
+  // cleared and retyped. A plain number input that snaps an empty value back to
+  // 1 on every keystroke makes it impossible to backspace and change the count.
+  const [quantity, setQuantity] = useState<number | "">(1);
   const [joinList, setJoinList] = useState(true);
   const [captchaToken, setCaptchaToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +88,11 @@ export default function TicketCheckout({
 
   const captchaRequired = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const isFree = priceZar === 0;
+
+  // Ticket count is 1–20. Kept as a helper so the field, the +/- steppers and
+  // the submit handler all clamp the same way.
+  const clampQty = (n: number) => Math.max(1, Math.min(20, Math.floor(n)));
+  const qtyValue = quantity === "" ? 1 : quantity;
 
   // When the modal swaps the form out for the confirmation, the element that had
   // focus (the submit button) is unmounted and focus falls back to <body>. A
@@ -124,6 +132,12 @@ export default function TicketCheckout({
     setSubmitting(true);
     setError("");
 
+    // Enter can submit without ever blurring the field, so normalise here too:
+    // an empty or out-of-range count becomes a valid one for the request and
+    // for the confirmation screen that reads `quantity` back.
+    const qty = clampQty(qtyValue);
+    if (qty !== quantity) setQuantity(qty);
+
     try {
       const res = await fetch("/api/tickets", {
         method: "POST",
@@ -133,7 +147,7 @@ export default function TicketCheckout({
           buyer_name: name.trim(),
           buyer_email: email.trim(),
           buyer_phone: phone.trim() || null,
-          quantity,
+          quantity: qty,
           captcha_token: captchaToken,
         }),
       });
@@ -408,16 +422,48 @@ export default function TicketCheckout({
 
                   <label className="flex flex-col gap-1">
                     <span className="text-xs text-gray-400">How many?</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={quantity}
-                      onChange={(e) =>
-                        setQuantity(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
-                      }
-                      className="bg-dark-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gold-500 w-24"
-                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label="One fewer ticket"
+                        onClick={() => setQuantity(clampQty(qtyValue - 1))}
+                        disabled={qtyValue <= 1}
+                        className="w-10 h-10 shrink-0 rounded-lg border border-white/10 bg-dark-800 text-white text-xl leading-none flex items-center justify-center hover:border-gold-500 focus:outline-none focus:border-gold-500 disabled:opacity-40 disabled:hover:border-white/10"
+                      >
+                        &minus;
+                      </button>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={20}
+                        value={quantity}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          // Let the field go empty mid-edit so it can be cleared
+                          // and retyped; clamp on blur/submit, not per keystroke.
+                          if (raw === "") {
+                            setQuantity("");
+                            return;
+                          }
+                          const n = Number(raw);
+                          if (Number.isNaN(n)) return;
+                          setQuantity(clampQty(n));
+                        }}
+                        onBlur={() => setQuantity(clampQty(qtyValue))}
+                        className="bg-dark-800 border border-white/10 rounded-lg px-3 py-2 text-white text-center focus:outline-none focus:border-gold-500 w-16"
+                      />
+                      <button
+                        type="button"
+                        aria-label="One more ticket"
+                        // From an empty field, land on 1 rather than jumping to 2.
+                        onClick={() => setQuantity(quantity === "" ? 1 : clampQty(quantity + 1))}
+                        disabled={qtyValue >= 20}
+                        className="w-10 h-10 shrink-0 rounded-lg border border-white/10 bg-dark-800 text-white text-xl leading-none flex items-center justify-center hover:border-gold-500 focus:outline-none focus:border-gold-500 disabled:opacity-40 disabled:hover:border-white/10"
+                      >
+                        +
+                      </button>
+                    </div>
                   </label>
 
                   <label className="flex items-start gap-2 text-xs text-gray-400 mt-1">

@@ -23,18 +23,25 @@ interface ClipEntry {
   file: string;
   label: string;
   type: "intro" | "main" | "transition" | "outro";
-  start: number;
-  end: number;
+  start: number | "";
+  end: number | "";
   audioOffset: number | null;
   duration?: number;
 }
 
 interface AudioConfig {
   file: string;
-  startOffset: number;
-  fadeIn: number;
-  fadeOut: number;
+  startOffset: number | "";
+  fadeIn: number | "";
+  fadeOut: number | "";
 }
+
+// A numeric field is allowed to sit empty ("") while being edited so it can be
+// cleared and retyped; a parseFloat(x)||0 coercion snaps an empty field back on
+// every keystroke, which made these boxes impossible to backspace. Empty is
+// normalised to a number on blur and again when the config is built.
+const editNum = (raw: string): number | "" =>
+  raw === "" ? "" : Number.isNaN(parseFloat(raw)) ? "" : parseFloat(raw);
 
 const defaultAudio: AudioConfig = {
   file: "",
@@ -113,7 +120,7 @@ export default function AdminVideoPage() {
       clips: {
         intro: introClips[0] ? { file: introClips[0].file, duration: introClips[0].end || 5 } : {},
         main_footage: mainClips.map((c) => ({
-          file: c.file, start: c.start, end: c.end,
+          file: c.file, start: c.start === "" ? 0 : c.start, end: c.end === "" ? 0 : c.end,
           ...(syncMode === "offset" ? { audio_offset: c.audioOffset } : {}),
         })),
         transitions: transitionClips.map((c) => ({
@@ -125,9 +132,9 @@ export default function AdminVideoPage() {
       },
       audio: {
         file: audio.file,
-        start_offset: audio.startOffset,
-        fade_in: audio.fadeIn,
-        fade_out: audio.fadeOut,
+        start_offset: audio.startOffset === "" ? 0 : audio.startOffset,
+        fade_in: audio.fadeIn === "" ? 0 : audio.fadeIn,
+        fade_out: audio.fadeOut === "" ? 0 : audio.fadeOut,
       },
     };
   };
@@ -279,7 +286,8 @@ export default function AdminVideoPage() {
                               type="number"
                               min={0}
                               value={clip.start}
-                              onChange={(e) => updateClip(clip.id, "start", parseFloat(e.target.value) || 0)}
+                              onChange={(e) => updateClip(clip.id, "start", editNum(e.target.value))}
+                              onBlur={() => { if (clip.start === "") updateClip(clip.id, "start", 0); }}
                               className="w-full bg-dark-400 border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:border-gold-500 focus:outline-none"
                             />
                           </div>
@@ -289,7 +297,8 @@ export default function AdminVideoPage() {
                               type="number"
                               min={0}
                               value={clip.end}
-                              onChange={(e) => updateClip(clip.id, "end", parseFloat(e.target.value) || 0)}
+                              onChange={(e) => updateClip(clip.id, "end", editNum(e.target.value))}
+                              onBlur={() => { if (clip.end === "") updateClip(clip.id, "end", 0); }}
                               className="w-full bg-dark-400 border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:border-gold-500 focus:outline-none"
                             />
                           </div>
@@ -367,7 +376,8 @@ export default function AdminVideoPage() {
                   type="number"
                   min={0}
                   value={audio.startOffset}
-                  onChange={(e) => setAudio((a) => ({ ...a, startOffset: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => setAudio((a) => ({ ...a, startOffset: editNum(e.target.value) }))}
+                  onBlur={() => setAudio((a) => (a.startOffset === "" ? { ...a, startOffset: 0 } : a))}
                   className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-gold-500 focus:outline-none"
                 />
               </div>
@@ -378,7 +388,8 @@ export default function AdminVideoPage() {
                     type="number"
                     min={0}
                     value={audio.fadeIn}
-                    onChange={(e) => setAudio((a) => ({ ...a, fadeIn: parseFloat(e.target.value) || 0 }))}
+                    onChange={(e) => setAudio((a) => ({ ...a, fadeIn: editNum(e.target.value) }))}
+                    onBlur={() => setAudio((a) => (a.fadeIn === "" ? { ...a, fadeIn: 0 } : a))}
                     className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-gold-500 focus:outline-none"
                   />
                 </div>
@@ -388,7 +399,8 @@ export default function AdminVideoPage() {
                     type="number"
                     min={0}
                     value={audio.fadeOut}
-                    onChange={(e) => setAudio((a) => ({ ...a, fadeOut: parseFloat(e.target.value) || 0 }))}
+                    onChange={(e) => setAudio((a) => ({ ...a, fadeOut: editNum(e.target.value) }))}
+                    onBlur={() => setAudio((a) => (a.fadeOut === "" ? { ...a, fadeOut: 0 } : a))}
                     className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-gold-500 focus:outline-none"
                   />
                 </div>
