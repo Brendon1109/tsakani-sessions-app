@@ -9,8 +9,8 @@ import type { Event, Ticket as TicketType } from "@/lib/types";
 interface TicketForm {
   id?: string;
   name: string;
-  price_zar: number;
-  quantity_total: number;
+  price_zar: number | "";
+  quantity_total: number | "";
   description: string;
   is_active: boolean;
   /** datetime-local strings, empty means no bound */
@@ -99,6 +99,13 @@ const emptyForm: EventForm = {
   payment_note: "",
   tickets: [],
 };
+
+// A numeric field is allowed to sit empty ("") while being edited so it can be
+// cleared and retyped; a Number(x)||n coercion snaps an empty field back on
+// every keystroke, which is what made these boxes impossible to backspace.
+// Empty is normalised to a real number on blur and again at save.
+const editNum = (raw: string): number | "" =>
+  raw === "" ? "" : Number.isNaN(Number(raw)) ? "" : Number(raw);
 
 const emptyTicket: TicketForm = {
   name: "",
@@ -211,6 +218,10 @@ export default function AdminEventsPage() {
     // here so the server never has to guess a timezone.
     const tickets = form.tickets.map((t) => ({
       ...t,
+      // A field left blank at save falls back to its sensible default rather
+      // than shipping "" to the API.
+      price_zar: t.price_zar === "" ? 0 : t.price_zar,
+      quantity_total: t.quantity_total === "" || t.quantity_total < 1 ? 1 : t.quantity_total,
       sale_start: fromLocalInput(t.sale_start),
       sale_end: fromLocalInput(t.sale_end),
     }));
@@ -555,8 +566,12 @@ export default function AdminEventsPage() {
                               step="1"
                               value={ticket.price_zar}
                               onChange={(e) =>
-                                updateTicket(idx, { price_zar: Number(e.target.value) || 0 })
+                                updateTicket(idx, { price_zar: editNum(e.target.value) })
                               }
+                              onBlur={() => {
+                                if (ticket.price_zar === "")
+                                  updateTicket(idx, { price_zar: 0 });
+                              }}
                               className="w-full bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
                             />
                           </div>
@@ -569,9 +584,14 @@ export default function AdminEventsPage() {
                               value={ticket.quantity_total}
                               onChange={(e) =>
                                 updateTicket(idx, {
-                                  quantity_total: Number(e.target.value) || 1,
+                                  quantity_total: editNum(e.target.value),
                                 })
                               }
+                              onBlur={() => {
+                                const q = ticket.quantity_total;
+                                if (q === "" || q < 1)
+                                  updateTicket(idx, { quantity_total: 1 });
+                              }}
                               className="w-full bg-dark-500 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-gold-500 focus:outline-none"
                             />
                           </div>
