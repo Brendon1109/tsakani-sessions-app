@@ -16,6 +16,7 @@ import {
   Share2,
   Pin,
   UserCheck,
+  ScanLine,
   ChevronLeft,
   Menu,
 } from "lucide-react";
@@ -23,6 +24,9 @@ import { useState } from "react";
 
 const adminNav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  // Second, above everything else: this is the only page anyone opens while
+  // standing at an entrance with a queue in front of them.
+  { href: "/admin/door", label: "Door / Check-in", icon: ScanLine },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/events", label: "Events", icon: Calendar },
   { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
