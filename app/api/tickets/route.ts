@@ -24,7 +24,16 @@ export async function POST(request: NextRequest) {
   if (limited) return limited;
 
   const body = await request.json();
-  const { ticket_id, buyer_name, buyer_email, buyer_phone, quantity, captcha_token } = body;
+  const {
+    ticket_id,
+    buyer_name,
+    buyer_email,
+    buyer_phone,
+    quantity,
+    captcha_token,
+    birthday_month,
+    birthday_day,
+  } = body;
 
   if (!ticket_id || !buyer_name || !buyer_email || !Number.isInteger(quantity)) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -44,12 +53,24 @@ export async function POST(request: NextRequest) {
 
   // Reserves the seats and writes the order atomically. Price is taken from the
   // database inside the function, so a tampered client price is ignored.
+  // The birthday is passed through, never judged here. Whether it earns the
+  // package depends on the event's month and its own opt-out, and that decision
+  // lives in the function so a crafted POST cannot talk its way into free
+  // entry for five.
+  const monthValue = Number(birthday_month);
+  const dayValue = Number(birthday_day);
+  const month =
+    Number.isInteger(monthValue) && monthValue >= 1 && monthValue <= 12 ? monthValue : null;
+  const day = Number.isInteger(dayValue) && dayValue >= 1 && dayValue <= 31 ? dayValue : null;
+
   const { data, error } = await supabase.rpc("create_ticket_order", {
     p_ticket_id: ticket_id,
     p_buyer_name: buyer_name,
     p_buyer_email: buyer_email,
     p_buyer_phone: buyer_phone || null,
     p_quantity: quantity,
+    p_birthday_month: month,
+    p_birthday_day: day,
   });
 
   const order = Array.isArray(data) ? data[0] : data;
@@ -107,7 +128,14 @@ export async function POST(request: NextRequest) {
     customerName: buyer_name,
     customerPhone: buyer_phone || "N/A",
     customerEmail: buyer_email,
-    summary: `${quantity} x ${order.ticket_name} ticket(s)\n${order.event_title}\n${dateLabel}`,
+    summary:
+      `${quantity} x ${order.ticket_name} ticket(s)\n${order.event_title}\n${dateLabel}` +
+      // Flagged in the alert the team already reads, because the two perks a
+      // database cannot deliver — a table and a shout-out — need a person to
+      // act before the night, not a report someone remembers to open.
+      (order.is_birthday_vip
+        ? `\n\n🎂 BIRTHDAY VIP — reserve a table for ${quantity} and give the DJ the name.`
+        : ""),
     total: order.total_zar,
     orderId: order.order_ref || order.order_id,
   }).catch(() => {});
@@ -117,6 +145,8 @@ export async function POST(request: NextRequest) {
     order_ref: order.order_ref,
     qr_code: order.qr_code,
     total_zar: order.total_zar,
+    is_birthday_vip: order.is_birthday_vip ?? false,
+    birthday_group: order.birthday_group ?? 5,
     ticket_name: order.ticket_name,
     event_title: order.event_title,
     event_date_label: dateLabel,

@@ -100,8 +100,24 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Comp slips carry their own printed numbers. The door reads one off a slip
+  // and types it, so the search box has to know which booking each belongs to.
+  const { data: compRows } = await supabase
+    .from("comp_tickets")
+    .select("ref, order_id")
+    .eq("event_id", eventId);
+
+  const compByOrder = new Map<string, string[]>();
+  for (const c of compRows ?? []) {
+    if (!c.order_id) continue;
+    const list = compByOrder.get(c.order_id) ?? [];
+    list.push(c.ref);
+    compByOrder.set(c.order_id, list);
+  }
+
   const guests = (data ?? []).map(({ qr_code, ...row }) => ({
     ...row,
+    comp_refs: (compByOrder.get(row.id) ?? []).sort(),
     ticket_name: ticketNames.get(row.ticket_id) ?? null,
     // The link the team pastes into a WhatsApp thread. Built here rather than in
     // the browser because it has to match the URL baked into the emailed QR,
@@ -218,6 +234,7 @@ export async function POST(request: NextRequest) {
     p_event_id: body.event_id || null,
     p_count: Number.isInteger(body.count) ? body.count : 1,
     p_allow_unpaid: body.allow_unpaid === true,
+    p_id_checked: body.id_checked === true,
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

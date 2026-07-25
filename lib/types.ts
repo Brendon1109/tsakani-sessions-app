@@ -25,6 +25,12 @@ export interface Event {
   payment_url?: string | null;
   /** Free-text payment instructions, shown alongside payment_url on paid orders. */
   payment_note?: string | null;
+  /**
+   * Whether the birthday package is offered on this night. Defaults to true in
+   * the database, so an event that predates the column offers it — which is the
+   * intended behaviour for a standing offer.
+   */
+  birthday_package?: boolean | null;
   created_at: string;
   updated_at: string;
 }

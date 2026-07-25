@@ -302,6 +302,19 @@ export default async function EventDetailPage({
                               eventSlug={event.slug}
                               eventDateLabel={eventDateShort(event.date)}
                               whatsappNumber={WHATSAPP_NUMBER}
+                              // Read in South African time, matching the check
+                              // the database does. A 01:00 event on the 1st is
+                              // stored as the previous day in UTC, and the raw
+                              // month would put it in the wrong one.
+                              eventMonth={
+                                Number(
+                                  new Intl.DateTimeFormat("en-ZA", {
+                                    timeZone: "Africa/Johannesburg",
+                                    month: "numeric",
+                                  }).format(new Date(event.date))
+                                ) || undefined
+                              }
+                              birthdayPackage={event.birthday_package !== false}
                             />
                           )}
                         </div>

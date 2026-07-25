@@ -60,6 +60,9 @@ interface Guest {
   source: string | null;
   ticket_name: string | null;
   ticket_url: string | null;
+  is_birthday_vip?: boolean | null;
+  /** Numbers printed on any complimentary slips issued against this booking. */
+  comp_refs?: string[];
 }
 
 interface TicketType {
@@ -84,10 +87,14 @@ interface CheckInResult {
     | "checked_in"
     | "already_in"
     | "unpaid"
+    | "birthday_id_check"
     | "cancelled"
     | "wrong_event"
     | "not_found"
     | "undone";
+  is_birthday_vip?: boolean | null;
+  birthday_day?: number | null;
+  birthday_month?: number | null;
   order_id?: string | null;
   order_ref?: string | null;
   buyer_name?: string | null;
@@ -103,6 +110,11 @@ interface CheckInResult {
 }
 
 const EVENT_KEY = "tsakani.door.eventId";
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 function timeOf(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -220,7 +232,12 @@ export default function DoorPage() {
 
   // ── Checking someone in ───────────────────────────────────
   const submit = useCallback(
-    async (payload: { code: string; count?: number; allow_unpaid?: boolean }) => {
+    async (payload: {
+      code: string;
+      count?: number;
+      allow_unpaid?: boolean;
+      id_checked?: boolean;
+    }) => {
       if (!eventId) return;
       setBusy(true);
       try {
@@ -232,6 +249,7 @@ export default function DoorPage() {
             event_id: eventId,
             count: payload.count ?? 1,
             allow_unpaid: payload.allow_unpaid ?? false,
+            id_checked: payload.id_checked ?? false,
           }),
         });
         const body = await res.json();
@@ -344,7 +362,18 @@ export default function DoorPage() {
     return guests
       .filter((g) => {
         const ref = (g.order_ref || "").toLowerCase();
+        // "28", "0028" and "tsk-comp-0028" all have to find the slip holder —
+        // whoever is on the door types the shortest thing that could work.
+        const compHit = (g.comp_refs ?? []).some((c) => {
+          const lower = c.toLowerCase();
+          const digits = c.replace(/\D/g, "");
+          return (
+            lower.includes(q) ||
+            (/^\d{1,4}$/.test(q) && digits === q.padStart(4, "0"))
+          );
+        });
         return (
+          compHit ||
           g.buyer_name?.toLowerCase().includes(q) ||
           ref.includes(q) ||
           // "CBA7" — the tail is what people read out, and it is unambiguous
@@ -438,6 +467,16 @@ export default function DoorPage() {
             onAddMore={(n) => result.code && submit({ code: result.code, count: n })}
             onAdmitUnpaid={() =>
               result.code && submit({ code: result.code, count: 1, allow_unpaid: true })
+            }
+            onIdConfirmed={() =>
+              result.code &&
+              submit({
+                code: result.code,
+                // The whole birthday group arrives together — that is the point
+                // of the package — so confirming the ID admits all of them.
+                count: result.quantity ?? 1,
+                id_checked: true,
+              })
             }
             onUndo={() => result.order_id && undo(result.order_id)}
           />
@@ -682,6 +721,7 @@ function ResultCard({
   onDismiss,
   onAddMore,
   onAdmitUnpaid,
+  onIdConfirmed,
   onUndo,
 }: {
   result: CheckInResult;
@@ -689,6 +729,7 @@ function ResultCard({
   onDismiss: () => void;
   onAddMore: (n: number) => void;
   onAdmitUnpaid: () => void;
+  onIdConfirmed: () => void;
   onUndo: () => void;
 }) {
   const qty = result.quantity ?? 1;
@@ -714,6 +755,12 @@ function ResultCard({
       text: "text-amber-300",
       icon: <Wallet size={30} className="text-amber-400" />,
       title: "Not paid yet",
+    },
+    birthday_id_check: {
+      wrap: "border-gold-500/50 bg-gold-500/10",
+      text: "text-gold-400",
+      icon: <span className="text-3xl leading-none">🎂</span>,
+      title: "Birthday group — check ID",
     },
     cancelled: {
       wrap: "border-red-400/40 bg-red-400/10",
@@ -760,6 +807,28 @@ function ResultCard({
                 {result.ticket_name ? ` · ${result.ticket_name}` : ""}
               </p>
             </>
+          )}
+
+          {result.outcome === "birthday_id_check" && (
+            <div className="mt-2">
+              <p className="text-gray-200 text-sm leading-relaxed">
+                Claims a birthday in{" "}
+                <span className="font-bold text-white">
+                  {result.birthday_month ? MONTH_NAMES[result.birthday_month - 1] : "—"}
+                  {result.birthday_day ? ` ${result.birthday_day}` : ""}
+                </span>
+                . Check their ID says the same month before letting the group in.
+              </p>
+              <p className="text-gold-400/90 text-sm mt-2">
+                Free entry for {qty}, a table, and a shout-out.
+              </p>
+            </div>
+          )}
+
+          {result.outcome === "checked_in" && result.is_birthday_vip && (
+            <p className="text-gold-400 text-sm mt-2 font-semibold">
+              🎂 Birthday group — table and shout-out
+            </p>
           )}
 
           {result.outcome === "checked_in" && (
@@ -838,6 +907,16 @@ function ResultCard({
             className="flex-1 min-w-[10rem] bg-gold-gradient text-black font-bold px-4 py-3 rounded-xl disabled:opacity-40"
           >
             Paid at door — let in
+          </button>
+        )}
+
+        {result.outcome === "birthday_id_check" && (
+          <button
+            onClick={onIdConfirmed}
+            disabled={busy}
+            className="flex-1 min-w-[11rem] bg-gold-gradient text-black font-bold px-4 py-3 rounded-xl disabled:opacity-40"
+          >
+            ID checks out — let them in
           </button>
         )}
 
@@ -1062,9 +1141,17 @@ function GuestRow({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-semibold text-white truncate">{guest.buyer_name}</p>
+          <p className="font-semibold text-white truncate">
+            {guest.is_birthday_vip ? "🎂 " : ""}
+            {guest.buyer_name}
+          </p>
           <p className="text-xs text-gray-500 mt-0.5 truncate">
             <span className="font-mono text-gold-500/80">{guest.order_ref}</span>
+            {(guest.comp_refs ?? []).length > 0
+              ? ` · comp ${(guest.comp_refs ?? [])
+                  .map((c) => c.replace("TSK-COMP-", "#"))
+                  .join(", ")}`
+              : ""}
             {qty > 1 ? ` · ${inCount}/${qty} in` : ""}
             {guest.status === "pending" ? " · unpaid" : ""}
             {guest.source && guest.source !== "website" ? ` · ${guest.source}` : ""}

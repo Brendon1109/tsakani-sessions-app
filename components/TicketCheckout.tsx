@@ -37,7 +37,19 @@ interface Props {
   eventSlug: string;
   eventDateLabel: string;
   whatsappNumber: string;
+  /** 1-12, in South African local time. The month a birthday has to match. */
+  eventMonth?: number;
+  /** False for a night that cannot absorb free groups. */
+  birthdayPackage?: boolean;
 }
+
+/** Birthday person plus four friends. Mirrors birthday_group_max() in the database. */
+const BIRTHDAY_GROUP_MAX = 5;
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 interface Confirmation {
   order_ref: string;
@@ -50,6 +62,8 @@ interface Confirmation {
   payment_note: string | null;
   ticket_url: string;
   emailed: boolean;
+  is_birthday_vip: boolean;
+  birthday_group: number;
 }
 
 function httpUrl(value: string | null): string | null {
@@ -70,11 +84,17 @@ export default function TicketCheckout({
   eventSlug,
   eventDateLabel,
   whatsappNumber,
+  eventMonth,
+  birthdayPackage = true,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  // "" until they choose. Asked only when the offer is actually available, so
+  // nobody hands over a birthday for nothing.
+  const [birthMonth, setBirthMonth] = useState<string>("");
+  const [birthDay, setBirthDay] = useState<string>("");
   // number | "" : the field is allowed to sit empty *while editing* so it can be
   // cleared and retyped. A plain number input that snaps an empty value back to
   // 1 on every keystroke makes it impossible to backspace and change the count.
@@ -88,6 +108,13 @@ export default function TicketCheckout({
 
   const captchaRequired = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const isFree = priceZar === 0;
+
+  // The offer only exists if this event is in some month, the event allows it,
+  // and there is something to give — a night that is already free cannot make
+  // entry any freer, so pitching "free entry" there would be noise.
+  const birthdayOffered = birthdayPackage && !!eventMonth;
+  const monthMatches = !!eventMonth && Number(birthMonth) === eventMonth;
+  const qualifies = birthdayOffered && monthMatches;
 
   // Ticket count is 1–20. Kept as a helper so the field, the +/- steppers and
   // the submit handler all clamp the same way.
@@ -124,6 +151,8 @@ export default function TicketCheckout({
       setPhone("");
       setQuantity(1);
       setCaptchaToken("");
+      setBirthMonth("");
+      setBirthDay("");
     }
   }
 
@@ -149,6 +178,8 @@ export default function TicketCheckout({
           buyer_phone: phone.trim() || null,
           quantity: qty,
           captcha_token: captchaToken,
+          birthday_month: birthMonth ? Number(birthMonth) : null,
+          birthday_day: birthDay ? Number(birthDay) : null,
         }),
       });
 
@@ -282,6 +313,31 @@ export default function TicketCheckout({
                     {confirmation.event_date_label || eventDateLabel}
                   </p>
                 </div>
+
+                {/* The two perks the database cannot deliver are spelled out
+                    here, because the buyer has to know to expect them — and to
+                    bring ID, which is the one thing that can cost them the
+                    package on the night. */}
+                {confirmation.is_birthday_vip && (
+                  <div className="mt-4 bg-gold-500/10 border border-gold-500/30 rounded-xl p-4">
+                    <p className="text-sm font-bold text-gold-500">
+                      🎂 Happy birthday month, {name.trim().split(" ")[0] || "friend"}!
+                    </p>
+                    <ul className="text-sm text-gray-300 leading-relaxed mt-2 space-y-1">
+                      <li>
+                        • You and your{" "}
+                        {Math.max(0, quantity === "" ? 0 : quantity - 1)} guest
+                        {quantity !== 1 ? "s" : ""} are in <strong>free</strong>
+                      </li>
+                      <li>• A table is reserved for your group</li>
+                      <li>• The DJ gives you a shout-out on the night</li>
+                    </ul>
+                    <p className="text-xs text-gold-400/90 mt-3 leading-relaxed">
+                      Bring your ID — the door checks it against your birthday before letting the
+                      group in.
+                    </p>
+                  </div>
+                )}
 
                 {/* A free ticket is already theirs. Never mention paying. */}
                 {confirmedFree ? (
@@ -465,6 +521,81 @@ export default function TicketCheckout({
                       </button>
                     </div>
                   </label>
+
+                  {/* ── Birthday package ──────────────────────
+                      Pitched before it is asked for. "When is your birthday?"
+                      on a ticket form reads as data collection; the offer first
+                      makes it obvious why we want it and what they get back. */}
+                  {birthdayOffered && (
+                    <div
+                      className={`rounded-xl border p-3.5 transition-colors ${
+                        qualifies
+                          ? "border-gold-500/50 bg-gold-500/10"
+                          : "border-white/10 bg-dark-800"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-gold-500 flex items-center gap-1.5">
+                        🎂 Birthday month?
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                        If this event falls in your birthday month, you and up to{" "}
+                        {BIRTHDAY_GROUP_MAX - 1} friends come in <strong>free</strong>, we hold a
+                        table for you, and the DJ gives you a shout-out.
+                      </p>
+
+                      <div className="flex gap-2 mt-3">
+                        <select
+                          value={birthMonth}
+                          onChange={(e) => setBirthMonth(e.target.value)}
+                          aria-label="Birthday month"
+                          className="flex-1 bg-dark-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500"
+                        >
+                          <option value="">Month</option>
+                          {MONTHS.map((m, i) => (
+                            <option key={m} value={i + 1}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={birthDay}
+                          onChange={(e) => setBirthDay(e.target.value)}
+                          aria-label="Birthday day"
+                          className="w-24 bg-dark-900 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold-500"
+                        >
+                          <option value="">Day</option>
+                          {Array.from({ length: 31 }, (_, i) => (
+                            <option key={i + 1} value={i + 1}>
+                              {i + 1}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {qualifies && (
+                        <p className="text-xs text-gold-400 mt-2.5 leading-relaxed">
+                          <strong>It&apos;s your month!</strong>{" "}
+                          {qtyValue > BIRTHDAY_GROUP_MAX ? (
+                            <>
+                              The package covers {BIRTHDAY_GROUP_MAX} people — set &ldquo;How
+                              many?&rdquo; to {BIRTHDAY_GROUP_MAX} or fewer to claim it.
+                            </>
+                          ) : (
+                            <>
+                              Bring up to {BIRTHDAY_GROUP_MAX - 1} friends free. Bring ID on the
+                              night — the door checks it.
+                            </>
+                          )}
+                        </p>
+                      )}
+                      {birthMonth && !monthMatches && (
+                        <p className="text-xs text-gray-500 mt-2.5 leading-relaxed">
+                          Not this one — but book a Tsakani Sessions in {MONTHS[Number(birthMonth) - 1]} and
+                          it&apos;s yours.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <label className="flex items-start gap-2 text-xs text-gray-400 mt-1">
                     <input
