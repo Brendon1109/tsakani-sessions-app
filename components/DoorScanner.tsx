@@ -177,8 +177,14 @@ export default function DoorScanner({ onCode, paused = false }: DoorScannerProps
               const ctx = canvas.getContext("2d", { willReadFrequently: true });
               if (ctx) {
                 ctx.drawImage(video, 0, 0, w, h);
+                // attemptBoth, not dontInvert. Belt and braces alongside the
+                // dark-on-light fix in lib/qr-colors.ts: tickets already in
+                // people's inboxes and screenshots were rendered inverted, and
+                // those have to keep working. Doubles the decode cost of a
+                // frame that finds nothing, which is worth it — a scanner that
+                // silently cannot read a valid ticket is the expensive failure.
                 const hit = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, {
-                  inversionAttempts: "dontInvert",
+                  inversionAttempts: "attemptBoth",
                 });
                 if (hit?.data) handleCode(hit.data);
               }

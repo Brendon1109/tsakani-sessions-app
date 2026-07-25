@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { SITE_URL } from "@/lib/seo";
+import { QR_COLORS } from "@/lib/qr-colors";
 
 /**
  * Server-side QR rendering, for the copy that goes in the email.
@@ -9,10 +10,11 @@ import { SITE_URL } from "@/lib/seo";
  * A ticket has to survive the tab being closed, so the email carries its own
  * PNG rendered here.
  *
- * Colours are inverted from the on-screen version on purpose. On screen the QR
- * sits on the dark page and is drawn gold on near-black. In an email it becomes
- * an attachment the buyer may open in a photo viewer, print, or hold up in a
- * dark venue — dark-on-white is what scanners and printers handle reliably.
+ * This copy was always dark-on-white, and it was the only one that worked: when
+ * the on-screen version was drawn gold-on-near-black it became an inverted
+ * symbol that the door scanner could not read, so guests showing their ticket
+ * page were unscannable while the same ticket from an inbox went straight
+ * through. Both now share one palette. See lib/qr-colors.ts.
  */
 export async function ticketQrPng(url: string): Promise<Buffer> {
   return QRCode.toBuffer(url, {
@@ -20,10 +22,7 @@ export async function ticketQrPng(url: string): Promise<Buffer> {
     width: 600,
     margin: 2,
     errorCorrectionLevel: "M",
-    color: {
-      dark: "#000000",
-      light: "#ffffff",
-    },
+    color: { ...QR_COLORS },
   });
 }
 
