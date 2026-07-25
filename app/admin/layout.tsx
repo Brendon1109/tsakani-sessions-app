@@ -17,6 +17,7 @@ import {
   Pin,
   UserCheck,
   ScanLine,
+  Gift,
   ChevronLeft,
   Menu,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const adminNav = [
   { href: "/admin/events", label: "Events", icon: Calendar },
   { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
   { href: "/admin/tickets", label: "Tickets", icon: Ticket },
+  { href: "/admin/comp-tickets", label: "Comp Tickets", icon: Gift },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/venues", label: "Venues", icon: Building2 },
   { href: "/admin/team", label: "Team", icon: Users },
@@ -54,7 +56,7 @@ export default function AdminLayout({
       {/* Mobile sidebar toggle */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed bottom-6 left-6 z-40 bg-gold-gradient text-black p-3 rounded-full shadow-lg"
+        className="lg:hidden fixed bottom-6 left-6 z-40 bg-gold-gradient text-black p-3 rounded-full shadow-lg print:hidden"
         aria-label="Toggle sidebar"
       >
         <Menu size={20} />
@@ -62,7 +64,9 @@ export default function AdminLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-16 sm:top-20 left-0 z-30 h-[calc(100vh-64px)] sm:h-[calc(100vh-80px)] w-64 bg-dark-600 border-r border-white/10 overflow-y-auto transition-transform duration-200 ${
+        // print:hidden so a printed comp sheet is tickets and nothing else —
+        // the sidebar would otherwise take a third of every page.
+        className={`fixed lg:sticky top-16 sm:top-20 left-0 z-30 h-[calc(100vh-64px)] sm:h-[calc(100vh-80px)] w-64 bg-dark-600 border-r border-white/10 overflow-y-auto transition-transform duration-200 print:hidden ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >

@@ -5,7 +5,7 @@ import NewsletterForm from "@/components/NewsletterForm";
 
 export default function Footer() {
   return (
-    <footer className="bg-dark-700 border-t border-gold-500/10">
+    <footer className="bg-dark-700 border-t border-gold-500/10 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Brand */}
