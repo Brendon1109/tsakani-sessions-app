@@ -12,8 +12,12 @@ import {
   Wallet,
   CameraOff,
   RefreshCw,
+  UserPlus,
+  MessageCircle,
+  Loader2,
 } from "lucide-react";
 import DoorScanner from "@/components/DoorScanner";
+import { waNumber } from "@/lib/whatsapp";
 
 /**
  * Door mode.
@@ -53,7 +57,26 @@ interface Guest {
   total_zar: number;
   checked_in_at: string | null;
   created_at: string;
+  source: string | null;
   ticket_name: string | null;
+  ticket_url: string | null;
+}
+
+interface TicketType {
+  id: string;
+  name: string;
+  price_zar: number;
+}
+
+interface AddedGuest {
+  order_ref: string;
+  buyer_name: string;
+  quantity: number;
+  ticket_url: string | null;
+  over_capacity: boolean;
+  sold: number;
+  capacity: number;
+  phone: string | null;
 }
 
 interface CheckInResult {
@@ -97,11 +120,37 @@ function eventDayLabel(iso: string): string {
   });
 }
 
+/**
+ * The link that hands a guest their ticket in the chat they already booked in.
+ *
+ * Returns null when there is no usable number or no ticket link, and the button
+ * is hidden rather than disabled. A dead "Send on WhatsApp" is worse than none:
+ * the team taps it, sees a chat open, and believes the ticket went out.
+ */
+function whatsappTicketLink(guest: {
+  buyer_name: string;
+  buyer_phone: string | null;
+  ticket_url: string | null;
+  order_ref: string | null;
+}, eventTitle: string): string | null {
+  const number = waNumber(guest.buyer_phone);
+  if (!number || !guest.ticket_url) return null;
+  const firstName = (guest.buyer_name || "there").trim().split(" ")[0];
+  const message =
+    `Hi ${firstName}! 🎟️ Here's your ticket for ${eventTitle || "Tsakani Sessions"}.\n\n` +
+    `Order ${guest.order_ref}\n${guest.ticket_url}\n\n` +
+    `Open that link and show the QR code at the door — we scan it and you're straight in. See you there! 🎶`;
+  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+}
+
 export default function DoorPage() {
   const [events, setEvents] = useState<EventOption[]>([]);
   const [eventId, setEventId] = useState<string | null>(null);
   const [eventTitle, setEventTitle] = useState<string>("");
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [tickets, setTickets] = useState<TicketType[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [added, setAdded] = useState<AddedGuest | null>(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<CheckInResult | null>(null);
@@ -145,6 +194,7 @@ export default function DoorPage() {
         if (!res.ok) throw new Error();
         const body = await res.json();
         setGuests(body.guests ?? []);
+        setTickets(body.tickets ?? []);
         setEventTitle(body.event?.title?.trim() || "");
         setError(null);
       } catch {
@@ -217,6 +267,46 @@ export default function DoorPage() {
         loadGuests(eventId, true);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not undo");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [eventId, loadGuests]
+  );
+
+  const addGuest = useCallback(
+    async (form: {
+      ticket_id: string;
+      buyer_name: string;
+      buyer_phone: string;
+      quantity: number;
+      source: "whatsapp" | "door";
+    }) => {
+      if (!eventId) return;
+      setBusy(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/admin/door", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "add_guest", ...form }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || "Could not add that guest");
+        setAdded({
+          order_ref: body.order_ref,
+          buyer_name: form.buyer_name,
+          quantity: body.quantity,
+          ticket_url: body.ticket_url,
+          over_capacity: body.over_capacity,
+          sold: body.sold,
+          capacity: body.capacity,
+          phone: form.buyer_phone || null,
+        });
+        setAddOpen(false);
+        loadGuests(eventId, true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not add that guest");
       } finally {
         setBusy(false);
       }
@@ -354,6 +444,77 @@ export default function DoorPage() {
         </div>
       )}
 
+      {/* ── A guest we just created, and the link to send them ── */}
+      {added && (
+        <div className="mb-5 rounded-2xl border-2 border-gold-500/40 bg-gold-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 size={28} className="text-gold-500 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-bold text-gold-400">Added to the list</p>
+              <p className="text-white text-xl font-bold mt-1 break-words">{added.buyer_name}</p>
+              <p className="text-gray-400 text-sm mt-0.5">
+                {added.order_ref} · {added.quantity}{" "}
+                {added.quantity === 1 ? "guest" : "guests"}
+              </p>
+              {added.over_capacity && (
+                <p className="text-amber-300 text-sm mt-2 flex items-start gap-1.5">
+                  <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                  Over capacity — {added.sold} booked against {added.capacity} places. They&apos;re
+                  in, but the room is fuller than planned.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(() => {
+              const link = whatsappTicketLink(
+                {
+                  buyer_name: added.buyer_name,
+                  buyer_phone: added.phone,
+                  ticket_url: added.ticket_url,
+                  order_ref: added.order_ref,
+                },
+                eventTitle
+              );
+              return link ? (
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 min-w-[11rem] bg-gold-gradient text-black font-bold px-4 py-3 rounded-xl flex items-center justify-center gap-2"
+                >
+                  <MessageCircle size={17} />
+                  Send their ticket
+                </a>
+              ) : (
+                <p className="flex-1 min-w-[11rem] text-xs text-gray-400 leading-relaxed py-2">
+                  No usable WhatsApp number, so there is nothing to send. They can still be found by
+                  name at the door.
+                </p>
+              );
+            })()}
+            <button
+              onClick={() => setAdded(null)}
+              className="flex-1 min-w-[7rem] bg-white/5 border border-white/10 text-white font-semibold px-4 py-3 rounded-xl hover:bg-white/10"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Adding someone who never booked on the site ── */}
+      {addOpen && (
+        <AddGuestForm
+          tickets={tickets}
+          busy={busy}
+          initialName={query.trim()}
+          onCancel={() => setAddOpen(false)}
+          onSubmit={addGuest}
+        />
+      )}
+
       {/* ── Camera ── */}
       <div className="mb-5">
         {scanning ? (
@@ -375,6 +536,17 @@ export default function DoorPage() {
           >
             <ScanLine size={22} />
             Scan tickets
+          </button>
+        )}
+
+        {!addOpen && (
+          <button
+            onClick={() => setAddOpen(true)}
+            disabled={!eventId || tickets.length === 0}
+            className="mt-3 w-full border border-white/10 text-gray-200 font-semibold px-5 py-3.5 rounded-xl hover:bg-white/5 flex items-center justify-center gap-2 disabled:opacity-40"
+          >
+            <UserPlus size={17} />
+            Add a guest
           </button>
         )}
       </div>
@@ -402,15 +574,33 @@ export default function DoorPage() {
         {query.trim() && (
           <div className="mt-3 space-y-2">
             {matches.length === 0 ? (
-              <p className="text-gray-500 text-sm px-1 py-3">
-                Nobody on tonight&apos;s list matches &ldquo;{query.trim()}&rdquo;.
-              </p>
+              // The dead end that sent the team to a PDF. Someone who booked on
+              // WhatsApp is genuinely not in the list, so "no match" has to
+              // offer the way forward rather than just report the absence.
+              <div className="rounded-xl border border-white/10 bg-dark-500 px-4 py-4">
+                <p className="text-gray-400 text-sm">
+                  Nobody on tonight&apos;s list matches &ldquo;{query.trim()}&rdquo;.
+                </p>
+                <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+                  If they booked on WhatsApp they were never on it. Add them and they get a real
+                  ticket you can scan next time.
+                </p>
+                <button
+                  onClick={() => setAddOpen(true)}
+                  disabled={tickets.length === 0}
+                  className="mt-3 w-full bg-gold-gradient text-black font-bold px-4 py-3 rounded-xl flex items-center justify-center gap-2 disabled:opacity-40"
+                >
+                  <UserPlus size={17} />
+                  Add {query.trim().slice(0, 24)}
+                </button>
+              </div>
             ) : (
               matches.map((g) => (
                 <GuestRow
                   key={g.id}
                   guest={g}
                   busy={busy}
+                  eventTitle={eventTitle}
                   onCheckIn={(n) =>
                     submit({
                       code: g.order_ref || g.id,
@@ -438,7 +628,14 @@ export default function DoorPage() {
           </h2>
           <div className="space-y-2">
             {recent.map((g) => (
-              <GuestRow key={g.id} guest={g} busy={busy} onUndo={() => undo(g.id)} compact />
+              <GuestRow
+                key={g.id}
+                guest={g}
+                busy={busy}
+                eventTitle={eventTitle}
+                onUndo={() => undo(g.id)}
+                compact
+              />
             ))}
           </div>
         </div>
@@ -666,16 +863,187 @@ function ResultCard({
   );
 }
 
+/**
+ * Putting a guest who booked another way into the same list as everyone else.
+ *
+ * Only the name is required. A WhatsApp booking often arrives as "can I bring 3
+ * people" and a first name, and a form that insists on an email would send the
+ * team straight back to keeping a separate list — which is the entire problem
+ * this is here to end.
+ */
+function AddGuestForm({
+  tickets,
+  busy,
+  initialName,
+  onCancel,
+  onSubmit,
+}: {
+  tickets: TicketType[];
+  busy: boolean;
+  initialName: string;
+  onCancel: () => void;
+  onSubmit: (form: {
+    ticket_id: string;
+    buyer_name: string;
+    buyer_phone: string;
+    quantity: number;
+    source: "whatsapp" | "door";
+  }) => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [phone, setPhone] = useState("");
+  const [qty, setQty] = useState<number | "">(1);
+  const [ticketId, setTicketId] = useState(tickets[0]?.id || "");
+  const [source, setSource] = useState<"whatsapp" | "door">("whatsapp");
+
+  const qtyValue = qty === "" ? 1 : qty;
+  const chosen = tickets.find((t) => t.id === ticketId);
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!name.trim() || !ticketId) return;
+        onSubmit({
+          ticket_id: ticketId,
+          buyer_name: name.trim(),
+          buyer_phone: phone.trim(),
+          quantity: Math.max(1, Math.min(20, Math.floor(qtyValue))),
+          source,
+        });
+      }}
+      className="mb-5 rounded-2xl border border-gold-500/30 bg-dark-500 p-5"
+    >
+      <h2 className="font-bold text-white text-lg flex items-center gap-2">
+        <UserPlus size={19} className="text-gold-500" />
+        Add a guest
+      </h2>
+      <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+        They get a real order number and a QR code, so they show up in this list and can be scanned
+        like anyone else.
+      </p>
+
+      <div className="mt-4 flex flex-col gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-gray-400">Their name</span>
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="off"
+            className="bg-dark-800 border border-white/10 rounded-lg px-3 py-3 text-white text-base focus:outline-none focus:border-gold-500"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-gray-400">
+            WhatsApp number <span className="text-gray-600">(so we can send their ticket)</span>
+          </span>
+          <input
+            type="tel"
+            inputMode="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="082 123 4567"
+            autoComplete="off"
+            className="bg-dark-800 border border-white/10 rounded-lg px-3 py-3 text-white text-base focus:outline-none focus:border-gold-500"
+          />
+        </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-400">How many</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={20}
+              value={qty}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") return setQty("");
+                const n = Number(raw);
+                if (!Number.isNaN(n)) setQty(Math.max(1, Math.min(20, Math.floor(n))));
+              }}
+              onBlur={() => setQty(Math.max(1, Math.min(20, Math.floor(qtyValue))))}
+              className="bg-dark-800 border border-white/10 rounded-lg px-3 py-3 text-white text-base focus:outline-none focus:border-gold-500"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-400">Ticket</span>
+            <select
+              value={ticketId}
+              onChange={(e) => setTicketId(e.target.value)}
+              className="bg-dark-800 border border-white/10 rounded-lg px-3 py-3 text-white text-base focus:outline-none focus:border-gold-500"
+            >
+              {tickets.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} {t.price_zar > 0 ? `· R${t.price_zar}` : "· Free"}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="flex gap-2">
+          {(["whatsapp", "door"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSource(s)}
+              className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold border ${
+                source === s
+                  ? "border-gold-500 bg-gold-500/10 text-gold-400"
+                  : "border-white/10 text-gray-400 hover:bg-white/5"
+              }`}
+            >
+              {s === "whatsapp" ? "Booked on WhatsApp" : "Walk-up at door"}
+            </button>
+          ))}
+        </div>
+
+        {chosen && chosen.price_zar > 0 && (
+          <p className="text-xs text-amber-300/90 leading-relaxed">
+            {chosen.name} is R{chosen.price_zar} each — R{chosen.price_zar * qtyValue} total. Adding
+            them here marks it as paid, so only do this once you have the money.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="submit"
+          disabled={busy || !name.trim() || !ticketId}
+          className="flex-1 bg-gold-gradient text-black font-bold px-4 py-3 rounded-xl flex items-center justify-center gap-2 disabled:opacity-40"
+        >
+          {busy ? <Loader2 size={17} className="animate-spin" /> : <UserPlus size={17} />}
+          Add guest
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-5 py-3 rounded-xl border border-white/10 text-gray-300 font-semibold hover:bg-white/5"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /** One person in the search results, sized for a thumb rather than a mouse. */
 function GuestRow({
   guest,
   busy,
+  eventTitle,
   onCheckIn,
   onUndo,
   compact = false,
 }: {
   guest: Guest;
   busy: boolean;
+  eventTitle: string;
   onCheckIn?: (count: number) => void;
   onUndo?: () => void;
   compact?: boolean;
@@ -684,6 +1052,7 @@ function GuestRow({
   const inCount = guest.checked_in_count || 0;
   const remaining = Math.max(0, qty - inCount);
   const fullyIn = remaining === 0;
+  const waLink = whatsappTicketLink(guest, eventTitle);
 
   return (
     <div
@@ -698,11 +1067,27 @@ function GuestRow({
             <span className="font-mono text-gold-500/80">{guest.order_ref}</span>
             {qty > 1 ? ` · ${inCount}/${qty} in` : ""}
             {guest.status === "pending" ? " · unpaid" : ""}
+            {guest.source && guest.source !== "website" ? ` · ${guest.source}` : ""}
             {fullyIn && guest.checked_in_at ? ` · ${timeOf(guest.checked_in_at)}` : ""}
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Their ticket, in the chat they booked in. Also the fix for anyone
+              who lost the confirmation email. */}
+          {waLink && (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-400/80 hover:text-green-300 p-2 rounded-lg hover:bg-white/5"
+              aria-label={`Send ${guest.buyer_name} their ticket on WhatsApp`}
+              title="Send their ticket on WhatsApp"
+            >
+              <MessageCircle size={16} />
+            </a>
+          )}
+
           {!compact && onCheckIn && !fullyIn && (
             <>
               <button

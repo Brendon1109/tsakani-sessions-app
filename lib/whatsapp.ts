@@ -99,3 +99,35 @@ export function openWhatsApp(message: string): void {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
   window.open(url, "_blank");
 }
+
+/**
+ * Turns a phone number as a person actually typed it into the digits wa.me
+ * needs: country code, no plus, no spaces.
+ *
+ * Buyers enter South African numbers at least four different ways, and all four
+ * are already in the table: "0663444301", "27722662818", "+27813936557",
+ * "814881232" with the leading zero dropped, plus "(060) 893-2868" with
+ * punctuation. wa.me accepts none of those verbatim — it silently opens a chat
+ * with nobody — so the guess has to happen here rather than at each call site.
+ *
+ * Returns null when there is nothing usable, which is the signal to hide the
+ * button entirely. A "Send on WhatsApp" button that opens an empty chat is
+ * worse than no button, because the team believes the ticket was sent.
+ */
+export function waNumber(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return null;
+
+  // Already international, with or without the + that we stripped above.
+  if (digits.startsWith("27") && digits.length === 11) return digits;
+  // Local form: 082 123 4567 → 2782 123 4567.
+  if (digits.startsWith("0") && digits.length === 10) return `27${digits.slice(1)}`;
+  // Leading zero dropped, which is what happens when a number is pasted out of
+  // a spreadsheet that treated it as a number.
+  if (digits.length === 9) return `27${digits}`;
+  // Long enough to be some other country's number; send it as given rather than
+  // mangling it into a South African one.
+  if (digits.length >= 10) return digits;
+  return null;
+}

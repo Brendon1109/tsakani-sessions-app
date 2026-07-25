@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { ticketUrl } from "@/lib/qr";
 
 /**
  * The door.
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
   // fail loudly instead.
   const { data: ticketRows, error: ticketError } = await supabase
     .from("tickets")
-    .select("id, name")
+    .select("id, name, price_zar")
     .eq("event_id", eventId);
 
   if (ticketError) {
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
 
   const ticketNames = new Map((ticketRows ?? []).map((t) => [t.id, t.name]));
   if (ticketNames.size === 0) {
-    return NextResponse.json({ event, guests: [] });
+    return NextResponse.json({ event, guests: [], tickets: [] });
   }
 
   // Cancelled orders are excluded — they are not guests, and a name on the list
@@ -91,7 +92,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("ticket_orders")
     .select(
-      "id, order_ref, buyer_name, buyer_email, buyer_phone, quantity, checked_in_count, status, total_zar, checked_in_at, created_at, ticket_id"
+      "id, order_ref, qr_code, buyer_name, buyer_email, buyer_phone, quantity, checked_in_count, status, total_zar, checked_in_at, created_at, source, ticket_id"
     )
     .in("ticket_id", Array.from(ticketNames.keys()))
     .neq("status", "cancelled")
@@ -99,12 +100,27 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const guests = (data ?? []).map((row) => ({
+  const guests = (data ?? []).map(({ qr_code, ...row }) => ({
     ...row,
     ticket_name: ticketNames.get(row.ticket_id) ?? null,
+    // The link the team pastes into a WhatsApp thread. Built here rather than in
+    // the browser because it has to match the URL baked into the emailed QR,
+    // and that comes from SITE_URL on the server.
+    ticket_url: qr_code ? ticketUrl(qr_code) : null,
   }));
 
-  return NextResponse.json({ event, guests });
+  return NextResponse.json({
+    event,
+    guests,
+    // Inactive types included on purpose: by the time the door is open, online
+    // sales have usually closed and every type is inactive. Hiding them would
+    // leave the team nothing to add a walk-up guest against.
+    tickets: (ticketRows ?? []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      price_zar: t.price_zar,
+    })),
+  });
 }
 
 /**
@@ -145,6 +161,53 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ outcome: "undone", ...row });
+  }
+
+  // Adding a guest who booked over WhatsApp, or who walked up to the door.
+  // Until now there was no way to do this at all, which is exactly why those
+  // guests lived in a chat thread instead of the guest list.
+  if (body.action === "add_guest") {
+    if (!body.ticket_id || typeof body.ticket_id !== "string") {
+      return NextResponse.json({ error: "Pick a ticket type" }, { status: 400 });
+    }
+    if (!body.buyer_name || !String(body.buyer_name).trim()) {
+      return NextResponse.json({ error: "A name is required" }, { status: 400 });
+    }
+
+    const { data, error } = await supabase.rpc("admin_create_ticket_order", {
+      p_ticket_id: body.ticket_id,
+      p_buyer_name: String(body.buyer_name).trim(),
+      p_buyer_phone: body.buyer_phone ? String(body.buyer_phone).trim() : null,
+      p_buyer_email: body.buyer_email ? String(body.buyer_email).trim() : null,
+      p_quantity: Number.isInteger(body.quantity) ? body.quantity : 1,
+      p_source: body.source === "door" ? "door" : "whatsapp",
+      p_confirmed: body.confirmed !== false,
+    });
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return NextResponse.json({ error: "Could not add that guest" }, { status: 500 });
+
+    await supabase.from("audit_log").insert({
+      user_id: user.id,
+      user_email: user.email,
+      action: "ticket_order.created_by_admin",
+      resource_type: "ticket_orders",
+      resource_id: row.order_id,
+      details: {
+        order_ref: row.order_ref,
+        buyer_name: String(body.buyer_name).trim(),
+        quantity: row.quantity,
+        source: body.source === "door" ? "door" : "whatsapp",
+        status: row.status,
+        over_capacity: row.over_capacity,
+      },
+    });
+
+    return NextResponse.json({
+      ...row,
+      ticket_url: row.qr_code ? ticketUrl(row.qr_code) : null,
+    });
   }
 
   const code = typeof body.code === "string" ? body.code.trim() : "";
