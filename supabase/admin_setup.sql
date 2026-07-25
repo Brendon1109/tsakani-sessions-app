@@ -6,7 +6,8 @@ BEGIN
     'mapindabrendon@gmail.com',
     'tsakanisessions@gmail.com',
     'pwilliamson@sh9keit.com',
-    'phetolokgaladi11@gmail.com'
+    'phetolokgaladi11@gmail.com',
+    'nonofomotsei@gmail.com'
   ) THEN
     NEW.role := 'admin';
   END IF;
@@ -27,7 +28,8 @@ WHERE email IN (
   'mapindabrendon@gmail.com',
   'tsakanisessions@gmail.com',
   'pwilliamson@sh9keit.com',
-  'phetolokgaladi11@gmail.com'
+  'phetolokgaladi11@gmail.com',
+  'nonofomotsei@gmail.com'
 );
 
 -- Revoke admin from removed emails
