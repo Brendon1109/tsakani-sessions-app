@@ -21,15 +21,18 @@
 --
 -- Safe to re-run.
 
--- ── 1. Per-event opt out ────────────────────────────────────
--- A sold-out headline night should be able to decline. Defaults to on, because
--- the offer is meant to be the standing rule rather than something remembered
--- per event.
+-- ── 1. Per-event opt in ─────────────────────────────────────
+-- Defaults to OFF since 2026-07-28: word got around and people were claiming
+-- the package instead of buying tickets, so the offer is now something an
+-- event turns on deliberately (update events set birthday_package = true
+-- where id = ...) rather than the standing rule.
 alter table events
-  add column if not exists birthday_package boolean not null default true;
+  add column if not exists birthday_package boolean not null default false;
+alter table events
+  alter column birthday_package set default false;
 
 comment on column events.birthday_package is
-  'Whether the birthday package is offered for this event. Off for nights that cannot absorb free groups.';
+  'Whether the birthday package is offered for this event. Off by default; on only for nights that can absorb free groups.';
 
 
 -- ── 2. The claim, on the order ──────────────────────────────

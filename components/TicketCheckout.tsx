@@ -39,7 +39,7 @@ interface Props {
   whatsappNumber: string;
   /** 1-12, in South African local time. The month a birthday has to match. */
   eventMonth?: number;
-  /** False for a night that cannot absorb free groups. */
+  /** Off unless the event opts in — free groups were costing ticket sales. */
   birthdayPackage?: boolean;
 }
 
@@ -85,7 +85,7 @@ export default function TicketCheckout({
   eventDateLabel,
   whatsappNumber,
   eventMonth,
-  birthdayPackage = true,
+  birthdayPackage = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
