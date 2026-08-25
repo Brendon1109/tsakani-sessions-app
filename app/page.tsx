@@ -77,7 +77,7 @@ export default async function HomePage() {
           </h1>
           <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-10 animate-slide-up">
             Two Tales of Happiness, Friendship & Brotherhood. Premium DJ
-            entertainment and content creation — Cape Town.
+            entertainment and content creation, Cape Town.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up">
             <Link
@@ -458,8 +458,8 @@ export default async function HomePage() {
             Ready to <span className="text-gold-gradient">Tsakani</span>?
           </h2>
           <p className="text-gray-400 mb-8 max-w-xl mx-auto">
-            Book us for your next event or browse our merch. Let&apos;s create
-            an unforgettable experience together.
+            Book us for your next event, grab some merch, or look through the
+            gallery. Let&apos;s create an unforgettable experience together.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
@@ -477,6 +477,16 @@ export default async function HomePage() {
               className="border border-gold-500/40 text-gold-500 font-semibold px-8 py-3.5 rounded-full hover:bg-gold-500/10 transition-colors"
             >
               Shop Merch
+            </Link>
+            {/* The gallery moved out of the hero to make room for merch, so it
+                lands here. Deliberately the quietest of the three: booking and
+                merch are the two that make money. */}
+            <Link
+              href="/gallery"
+              className="border border-white/15 text-gray-300 font-medium px-8 py-3.5 rounded-full hover:text-white hover:border-white/30 transition-colors flex items-center gap-2"
+            >
+              <Camera size={17} />
+              View Gallery
             </Link>
           </div>
         </div>
