@@ -11,9 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Node 24 to match the Vercel runtime, which is what actually serves this
+      # app. CI sat on Node 20 and that caused two problems: @supabase/* now
+      # requires Node >= 22 and warned on every run, and Node 20 ships npm 10,
+      # which strips the optional @emnapi entries that npm 11 writes. Every
+      # local install then put them back, npm ci called the lock file out of
+      # sync, and CI failed on install. It had been red on every push since
+      # 25 July for exactly that. Matching the runtime ends the cycle.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
