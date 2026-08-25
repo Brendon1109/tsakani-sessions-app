@@ -21,6 +21,7 @@ applied is safe.
 | 10 | `supabase/ticket_sale_windows.sql` | Makes `sale_start` / `sale_end` real — `reserve_tickets` enforces the window so a ticket opens and closes on its own. |
 | 11 | `supabase/add_external_ticket_url.sql` | Adds `events.external_ticket_url` for per-event external checkout (e.g. FestFlow). |
 | 12 | `supabase/ticket_confirmation.sql` | **Ticket confirmations.** Adds `events.payment_url` / `payment_note`, the generated `ticket_orders.order_ref`, and `newsletter_subscribers.unsubscribe_token`. Replaces `create_ticket_order` (now returns event + payment details, and honours the sale window) and `subscribe_newsletter` (now returns the unsubscribe token). Adds `get_ticket_order` and `unsubscribe_newsletter`. Must run after 8, 9, 10 and 11. |
+| 13 | `supabase/merch_store.sql` | **The merch store.** Widens `products.category` to cover hoodies and hats, adds `images`, `sort_order`, `in_stock`; allows `eft` as an order payment method; adds the admin-only `store_settings` table holding the EFT bank details. Adds `create_merch_order` (the merch equivalent of 9, and the fix for merch checkout failing on RLS at the read-back), `eft_available`, and `cleanup_stale_merch_orders`. Must run after schema.sql. |
 
 Optional, order-independent once `schema.sql` has run: `analytics_events.sql`
 (first-party analytics), `booking_enquiries.sql` (the /services form),

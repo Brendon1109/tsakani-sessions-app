@@ -436,32 +436,91 @@ export async function sendUnsubscribeConfirmation(to: string): Promise<boolean> 
 
 // ── Merch ──────────────────────────────────────────────────
 
+/**
+ * Bank details for an EFT order. Null when the buyer chose WhatsApp, or when
+ * EFT is switched off in admin, and in that case no payment panel is rendered
+ * at all rather than an empty one.
+ */
+export interface EftDetails {
+  account_holder: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  branch_code: string | null;
+  account_type: string | null;
+  payment_email: string | null;
+  eft_instructions: string | null;
+  reference: string;
+}
+
 export async function sendOrderConfirmation(data: {
   to: string;
   customerName: string;
   items: { name: string; size: string; color: string; qty: number; price: number }[];
   total: number;
   orderId: string;
+  reference?: string | null;
+  eft?: EftDetails | null;
 }): Promise<boolean> {
   const resend = getClient();
   if (!resend || !data.to) return false;
 
   const itemRows = data.items
-    .map(
-      (it) =>
-        `<tr>
-           <td style="padding:9px 0;border-bottom:1px solid #262626;font-size:14px;color:#e8e8e8">${esc(it.name)} <span style="color:${MUTED}">(${esc(it.size)}, ${esc(it.color)}) &times;${esc(it.qty)}</span></td>
+    .map((it) => {
+      const variant = [it.size, it.color].filter(Boolean).join(", ");
+      return `<tr>
+           <td style="padding:9px 0;border-bottom:1px solid #262626;font-size:14px;color:#e8e8e8">${esc(it.name)}${variant ? ` <span style="color:${MUTED}">(${esc(variant)})</span>` : ""} <span style="color:${MUTED}">&times;${esc(it.qty)}</span></td>
            <td style="padding:9px 0;border-bottom:1px solid #262626;font-size:14px;color:#fff;text-align:right;white-space:nowrap">R${(it.price * it.qty).toLocaleString("en-ZA")}</td>
-         </tr>`
-    )
+         </tr>`;
+    })
     .join("");
+
+  const eft = data.eft;
+  const bankRow = (label: string, value: string | null | undefined) =>
+    value
+      ? `<tr>
+           <td style="padding:5px 0;font-size:13px;color:${MUTED}">${esc(label)}</td>
+           <td style="padding:5px 0;font-size:14px;color:#fff;text-align:right;font-weight:600">${esc(value)}</td>
+         </tr>`
+      : "";
+
+  const eftPanel = eft
+    ? `
+    <div style="background:#0d0d0d;border:1px solid ${GOLD}55;border-radius:14px;padding:16px 20px;margin-top:16px">
+      <p style="margin:0 0 12px;font-size:15px;font-weight:700;color:${GOLD}">Pay by EFT</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${bankRow("Account holder", eft.account_holder)}
+        ${bankRow("Bank", eft.bank_name)}
+        ${bankRow("Account number", eft.account_number)}
+        ${bankRow("Branch code", eft.branch_code)}
+        ${bankRow("Account type", eft.account_type)}
+        ${bankRow("Reference", eft.reference)}
+      </table>
+      <p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#b8b8b8">
+        Use <strong style="color:#fff">${esc(eft.reference)}</strong> as your payment reference so we can match your payment to this order.
+      </p>
+      ${
+        eft.payment_email
+          ? `<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#b8b8b8">Send proof of payment to <a href="mailto:${esc(eft.payment_email)}" style="color:${GOLD}">${esc(eft.payment_email)}</a>.</p>`
+          : ""
+      }
+      ${
+        eft.eft_instructions
+          ? `<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#b8b8b8">${esc(eft.eft_instructions)}</p>`
+          : ""
+      }
+    </div>`
+    : "";
+
+  const intro = eft
+    ? "We've got it. Pay by EFT using the details below and we'll confirm as soon as the payment reflects."
+    : "We've got it. We'll confirm availability and payment with you shortly.";
 
   const body = `
     <h1 style="margin:22px 0 6px;font-size:23px;line-height:1.3;color:#fff;font-weight:700">
       Thanks for your order, ${esc(data.customerName.split(" ")[0])}.
     </h1>
     <p style="margin:0 0 20px;font-size:15px;line-height:1.65;color:#b8b8b8">
-      We've got it. We'll confirm availability and payment with you shortly.
+      ${esc(intro)}
     </p>
     <div style="background:#0d0d0d;border:1px solid #262626;border-radius:14px;padding:16px 20px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -471,8 +530,9 @@ export async function sendOrderConfirmation(data: {
           <td style="padding:11px 0 0;font-size:17px;font-weight:700;color:${GOLD};text-align:right">R${data.total.toLocaleString("en-ZA")}</td>
         </tr>
       </table>
-      <p style="margin:14px 0 0;font-size:12px;color:${MUTED}">Order reference: ${esc(data.orderId)}</p>
+      <p style="margin:14px 0 0;font-size:12px;color:${MUTED}">Order reference: ${esc(data.reference || data.orderId)}</p>
     </div>
+    ${eftPanel}
   `;
 
   try {

@@ -66,13 +66,30 @@ export async function getActiveProducts(): Promise<Product[]> {
   const supabase = createClient();
   if (!supabase) return [];
 
+  // sort_order first so an admin can put the hero piece at the top of the grid,
+  // created_at only as the tie-break for products that were never ordered.
   const { data } = await supabase
     .from("products")
     .select("*")
     .eq("is_active", true)
+    .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
   return (data as Product[]) || [];
+}
+
+/**
+ * Whether checkout should offer EFT. The bank details themselves are admin
+ * only, so this is a yes or no and nothing more; a buyer gets the account after
+ * their order exists, from create_merch_order.
+ */
+export async function getEftAvailable(): Promise<boolean> {
+  const supabase = createClient();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase.rpc("eft_available");
+  if (error) return false;
+  return data === true;
 }
 
 export async function getGalleries(): Promise<(Gallery & { photo_count: number; event: Event | null })[]> {

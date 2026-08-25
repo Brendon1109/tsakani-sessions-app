@@ -21,8 +21,11 @@ interface OrderRow {
   total_zar: number;
   status: string;
   payment_method: string | null;
+  payment_reference: string | null;
   created_at: string;
 }
+
+const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
 
 const PAGE_SIZE = 25;
 
@@ -49,6 +52,7 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -61,6 +65,23 @@ export default function AdminOrdersPage() {
     setLoading(false);
   }
 
+  // EFT has no gateway telling us the money landed. Somebody checks the bank
+  // against the reference and moves the order along here, which is the whole
+  // reconciliation step.
+  async function updateStatus(id: string, status: string) {
+    setUpdating(id);
+    const res = await fetch("/api/admin/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
+    }
+    setUpdating(null);
+  }
+
   const filtered = useMemo(() => {
     if (!search) return orders;
     const q = search.toLowerCase();
@@ -69,6 +90,7 @@ export default function AdminOrdersPage() {
         o.customer_name?.toLowerCase().includes(q) ||
         o.customer_email?.toLowerCase().includes(q) ||
         o.customer_phone?.toLowerCase().includes(q) ||
+        o.payment_reference?.toLowerCase().includes(q) ||
         itemsSummary(o.items).toLowerCase().includes(q)
     );
   }, [orders, search]);
@@ -90,8 +112,9 @@ export default function AdminOrdersPage() {
           <ShoppingBag size={32} className="text-gray-600 mx-auto mb-3" />
           <h2 className="text-xl font-bold mb-2">No Orders Yet</h2>
           <p className="text-gray-400 text-sm max-w-md mx-auto">
-            Merch orders placed on the shop are saved here. You can track status
-            and fulfilment as they come in.
+            Merch orders placed on the shop are saved here. Mark an EFT order
+            confirmed once the payment shows in the account, then shipped when
+            it goes out.
           </p>
         </div>
       ) : (
@@ -102,7 +125,7 @@ export default function AdminOrdersPage() {
               setSearch(v);
               setPage(1);
             }}
-            placeholder="Search by customer, contact, or item..."
+            placeholder="Search by customer, contact, reference, or item..."
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
@@ -117,6 +140,7 @@ export default function AdminOrdersPage() {
                     <th className="text-left p-4 text-gray-400 font-medium">Contact</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Items</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Total</th>
+                    <th className="text-left p-4 text-gray-400 font-medium">Payment</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Status</th>
                     <th className="text-left p-4 text-gray-400 font-medium">Date</th>
                   </tr>
@@ -155,14 +179,32 @@ export default function AdminOrdersPage() {
                       <td className="p-4 text-gold-500 font-semibold whitespace-nowrap">
                         {rands(order.total_zar)}
                       </td>
+                      <td className="p-4 whitespace-nowrap">
+                        <span className="text-xs uppercase tracking-wider text-gray-500">
+                          {order.payment_method || "—"}
+                        </span>
+                        {order.payment_reference && (
+                          <div className="font-mono text-xs text-gold-500 mt-0.5">
+                            {order.payment_reference}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-4">
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded capitalize ${
+                        <select
+                          value={order.status}
+                          disabled={updating === order.id}
+                          onChange={(e) => updateStatus(order.id, e.target.value)}
+                          aria-label={`Status for ${order.customer_name}`}
+                          className={`text-xs px-2 py-1 rounded capitalize bg-transparent border border-white/10 focus:border-gold-500 focus:outline-none disabled:opacity-50 ${
                             statusColors[order.status] || "text-gray-400 bg-white/10"
                           }`}
                         >
-                          {order.status}
-                        </span>
+                          {STATUSES.map((s) => (
+                            <option key={s} value={s} className="bg-dark-500 text-white">
+                              {s}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="p-4 text-gray-500 whitespace-nowrap">
                         {new Date(order.created_at).toLocaleDateString()}

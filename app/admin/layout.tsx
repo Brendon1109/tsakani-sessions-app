@@ -8,6 +8,8 @@ import {
   Calendar,
   Image as ImageIcon,
   ShoppingBag,
+  Shirt,
+  Landmark,
   Ticket,
   Building2,
   Users,
@@ -33,7 +35,8 @@ const adminNav = [
   { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
   { href: "/admin/tickets", label: "Tickets", icon: Ticket },
   { href: "/admin/comp-tickets", label: "Comp Tickets", icon: Gift },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+  { href: "/admin/products", label: "Merch", icon: Shirt },
+  { href: "/admin/orders", label: "Merch Orders", icon: ShoppingBag },
   { href: "/admin/venues", label: "Venues", icon: Building2 },
   { href: "/admin/team", label: "Team", icon: Users },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
@@ -41,6 +44,7 @@ const adminNav = [
   { href: "/admin/social", label: "Social Uploads", icon: Share2 },
   { href: "/admin/featured-posts", label: "Featured Posts", icon: Pin },
   { href: "/admin/leads", label: "Leads", icon: UserCheck },
+  { href: "/admin/store-settings", label: "Store Settings", icon: Landmark },
 ];
 
 export default function AdminLayout({

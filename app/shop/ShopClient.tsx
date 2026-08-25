@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, MessageCircle, Minus, Plus } from "lucide-react";
+import { ShoppingBag, MessageCircle, Minus, Plus, Landmark } from "lucide-react";
 import { createOrderMessage } from "@/lib/whatsapp";
 import { track } from "@/lib/analytics";
 import Turnstile from "@/components/Turnstile";
@@ -21,27 +21,63 @@ interface CartItem {
   image: string;
 }
 
+interface EftDetails {
+  account_holder: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  branch_code: string | null;
+  account_type: string | null;
+  payment_email: string | null;
+  eft_instructions: string | null;
+  reference: string;
+}
+
 const CART_STORAGE_KEY = "tsakani_cart_v1";
 
-export default function ShopClient({ products }: { products: Product[] }) {
+const PLACEHOLDER = "/images/tsakani-logo.png";
+
+// Swatch colours for the names an admin can pick in /admin/products. Anything
+// unknown falls back to a neutral chip, and the name is always shown next to it
+// so an unrecognised colour reads as a label rather than a mystery grey circle.
+const colorHex: Record<string, string> = {
+  Black: "#000000",
+  White: "#ffffff",
+  Nude: "#d4a574",
+  Sand: "#d9c7a7",
+  Stone: "#c9c2b6",
+  Cream: "#f0e6d2",
+  Grey: "#b0b0b0",
+  Orange: "#e8602c",
+  Gold: "#ffd700",
+};
+
+/** Product photos in display order: the card shot first, then the rest. */
+function photosOf(product: Product): string[] {
+  const extra = (product.images || []).filter((url) => url && url !== product.image_url);
+  const all = [...(product.image_url ? [product.image_url] : []), ...extra];
+  return all.length > 0 ? all : [PLACEHOLDER];
+}
+
+export default function ShopClient({
+  products,
+  eftAvailable,
+}: {
+  products: Product[];
+  eftAvailable: boolean;
+}) {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
   const [selectedSizes, setSelectedSizes] = useState<Record<string, string>>({});
   const [selectedColors, setSelectedColors] = useState<Record<string, string>>({});
+  const [activePhoto, setActivePhoto] = useState<Record<string, number>>({});
   const [showCart, setShowCart] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const colorHex: Record<string, string> = {
-    Black: "#000000",
-    White: "#ffffff",
-    Nude: "#d4a574",
-    Gold: "#ffd700",
-  };
+  const [submitting, setSubmitting] = useState<"eft" | "whatsapp" | null>(null);
+  const [checkoutError, setCheckoutError] = useState("");
 
   // Hydrate cart from localStorage
   useEffect(() => {
@@ -70,10 +106,17 @@ export default function ShopClient({ products }: { products: Product[] }) {
 
   const addToCart = (productId: string) => {
     const product = products.find((p) => p.id === productId);
-    if (!product) return;
+    if (!product || product.in_stock === false) return;
 
-    const size = selectedSizes[productId] || product.sizes[0];
-    const color = selectedColors[productId] || product.colors[0];
+    // A mug has no size and a one-colour hoodie has no colour choice, so an
+    // empty string here is a real value meaning "not applicable" rather than a
+    // missing selection. The server treats it the same way.
+    const size = product.sizes?.length
+      ? selectedSizes[productId] || product.sizes[0]
+      : "";
+    const color = product.colors?.length
+      ? selectedColors[productId] || product.colors[0]
+      : "";
     const priceInRand = product.price_zar / 100;
 
     track("add_to_cart", { product: product.name, size, color });
@@ -99,7 +142,7 @@ export default function ShopClient({ products }: { products: Product[] }) {
           color,
           quantity: 1,
           price: priceInRand,
-          image: product.image_url || "/images/tsakani-logo.png",
+          image: product.image_url || PLACEHOLDER,
         },
       ]);
     }
@@ -118,12 +161,18 @@ export default function ShopClient({ products }: { products: Product[] }) {
     0
   );
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (method: "eft" | "whatsapp") => {
     if (!customerName || !customerPhone) return;
-    setSubmitting(true);
+    if (method === "eft" && !customerEmail) {
+      setCheckoutError("Add your email so we can send you the bank details.");
+      return;
+    }
+    setCheckoutError("");
+    setSubmitting(method);
 
     try {
-      // Send only product IDs and sizes — server looks up prices from DB
+      // Only product IDs and choices go up. Prices, sizes and colours are
+      // resolved server side from the products table.
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -131,6 +180,7 @@ export default function ShopClient({ products }: { products: Product[] }) {
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_email: customerEmail || null,
+          payment_method: method,
           items: cart.map((item) => ({
             product_id: item.productId,
             size: item.size,
@@ -143,14 +193,15 @@ export default function ShopClient({ products }: { products: Product[] }) {
 
       const data = await response.json();
       if (!response.ok) {
-        alert(data.error || "Order failed. Please try again.");
-        setSubmitting(false);
+        setCheckoutError(data.error || "Order failed. Please try again.");
+        setSubmitting(null);
         return;
       }
 
       track("order_submitted", {
         value: cartTotal,
         items: cart.reduce((sum, item) => sum + item.quantity, 0),
+        method,
       });
 
       const message = createOrderMessage({
@@ -166,13 +217,19 @@ export default function ShopClient({ products }: { products: Product[] }) {
         total: cartTotal,
       });
 
-      // Stash the WhatsApp payload so the success page can offer a deliberate
-      // "Send via WhatsApp" button instead of opening it automatically and
-      // losing context if the user closes the tab.
+      // Stash what the success page needs. The bank details ride along here
+      // rather than being fetched again, because the only thing entitled to
+      // see them is the browser that just placed this order.
       try {
         sessionStorage.setItem(
           PENDING_ORDER_KEY,
-          JSON.stringify({ message, total: cartTotal })
+          JSON.stringify({
+            message,
+            total: cartTotal,
+            method,
+            reference: data.payment_reference || null,
+            eft: (data.eft as EftDetails | null) || null,
+          })
         );
       } catch {
         // ignore quota errors — success page will degrade gracefully
@@ -188,15 +245,20 @@ export default function ShopClient({ products }: { products: Product[] }) {
         `/shop/success?orderId=${encodeURIComponent(data.id)}&total=${cartTotal}`
       );
     } catch {
-      alert("Something went wrong. Please check your connection and try again.");
+      setCheckoutError(
+        "Something went wrong. Please check your connection and try again."
+      );
     } finally {
-      setSubmitting(false);
+      setSubmitting(null);
     }
   };
 
   const captchaRequired = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const canCheckout =
-    customerName && customerPhone && (!captchaRequired || captchaToken) && !submitting;
+    !!customerName &&
+    !!customerPhone &&
+    (!captchaRequired || !!captchaToken) &&
+    !submitting;
 
   return (
     <div>
@@ -222,99 +284,150 @@ export default function ShopClient({ products }: { products: Product[] }) {
           <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product) => {
               const priceInRand = product.price_zar / 100;
+              const photos = photosOf(product);
+              const shown = Math.min(activePhoto[product.id] || 0, photos.length - 1);
+              const soldOut = product.in_stock === false;
               return (
                 <div
                   key={product.id}
                   className="group bg-dark-500 border border-white/10 rounded-2xl overflow-hidden hover:border-gold-500/30 transition-all duration-300"
                 >
-                  <div className="relative aspect-square bg-dark-300 flex items-center justify-center p-8">
+                  <div className="relative aspect-square bg-dark-300 flex items-center justify-center p-6">
                     <Image
-                      src={product.image_url || "/images/tsakani-logo.png"}
+                      src={photos[shown]}
                       alt={product.name}
-                      width={200}
-                      height={200}
-                      className="object-contain opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
+                      width={400}
+                      height={400}
+                      className={`object-contain max-h-full w-auto transition-all duration-300 ${
+                        soldOut
+                          ? "opacity-40 grayscale"
+                          : "opacity-90 group-hover:opacity-100 group-hover:scale-105"
+                      }`}
                     />
                     <span className="absolute top-4 right-4 bg-gold-gradient text-black text-sm font-bold px-3 py-1 rounded-full">
-                      R{priceInRand}
+                      R{priceInRand.toLocaleString("en-ZA")}
                     </span>
+                    {soldOut && (
+                      <span className="absolute top-4 left-4 bg-black/80 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+                        Sold out
+                      </span>
+                    )}
                   </div>
+
+                  {photos.length > 1 && (
+                    <div className="flex gap-2 px-6 pt-4" role="group" aria-label={`${product.name} photos`}>
+                      {photos.map((photo, index) => (
+                        <button
+                          key={photo}
+                          onClick={() =>
+                            setActivePhoto((prev) => ({ ...prev, [product.id]: index }))
+                          }
+                          aria-label={`Show photo ${index + 1} of ${product.name}`}
+                          aria-pressed={index === shown}
+                          className={`relative w-12 h-12 rounded-lg overflow-hidden border transition-colors ${
+                            index === shown
+                              ? "border-gold-500"
+                              : "border-white/10 hover:border-white/30"
+                          }`}
+                        >
+                          <Image
+                            src={photo}
+                            alt=""
+                            fill
+                            sizes="48px"
+                            className="object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="p-6">
                     <h3 className="text-lg font-bold mb-1">{product.name}</h3>
-                    <p className="text-gray-400 text-sm mb-4">{product.description}</p>
+                    {product.description && (
+                      <p className="text-gray-400 text-sm mb-4">{product.description}</p>
+                    )}
 
-                    <div className="mb-4">
-                      <label className="text-xs text-gray-500 uppercase tracking-wider block mb-2">
-                        Size
-                      </label>
-                      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={`${product.name} size`}>
-                        {product.sizes.map((size) => {
-                          const selected =
-                            (selectedSizes[product.id] || product.sizes[0]) === size;
-                          return (
-                            <button
-                              key={size}
-                              onClick={() =>
-                                setSelectedSizes((prev) => ({
-                                  ...prev,
-                                  [product.id]: size,
-                                }))
-                              }
-                              role="radio"
-                              aria-checked={selected}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                                selected
-                                  ? "border-gold-500 text-gold-500 bg-gold-500/10"
-                                  : "border-white/10 text-gray-400 hover:border-white/30"
-                              }`}
-                            >
-                              {size}
-                            </button>
-                          );
-                        })}
+                    {product.sizes?.length > 0 && (
+                      <div className="mb-4">
+                        <label className="text-xs text-gray-500 uppercase tracking-wider block mb-2">
+                          Size
+                        </label>
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={`${product.name} size`}>
+                          {product.sizes.map((size) => {
+                            const selected =
+                              (selectedSizes[product.id] || product.sizes[0]) === size;
+                            return (
+                              <button
+                                key={size}
+                                onClick={() =>
+                                  setSelectedSizes((prev) => ({
+                                    ...prev,
+                                    [product.id]: size,
+                                  }))
+                                }
+                                role="radio"
+                                aria-checked={selected}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                                  selected
+                                    ? "border-gold-500 text-gold-500 bg-gold-500/10"
+                                    : "border-white/10 text-gray-400 hover:border-white/30"
+                                }`}
+                              >
+                                {size}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="mb-5">
-                      <label className="text-xs text-gray-500 uppercase tracking-wider block mb-2">
-                        Color
-                      </label>
-                      <div className="flex gap-2" role="radiogroup" aria-label={`${product.name} color`}>
-                        {product.colors.map((color) => {
-                          const selected =
-                            (selectedColors[product.id] || product.colors[0]) === color;
-                          return (
-                            <button
-                              key={color}
-                              onClick={() =>
-                                setSelectedColors((prev) => ({
-                                  ...prev,
-                                  [product.id]: color,
-                                }))
-                              }
-                              role="radio"
-                              aria-checked={selected}
-                              aria-label={color}
-                              className={`w-8 h-8 rounded-full border-2 transition-colors ${
-                                selected
-                                  ? "border-gold-500"
-                                  : "border-white/20 hover:border-white/40"
-                              }`}
-                              style={{ backgroundColor: colorHex[color] || "#666" }}
-                              title={color}
-                            />
-                          );
-                        })}
+                    {product.colors?.length > 0 && (
+                      <div className="mb-5">
+                        <label className="text-xs text-gray-500 uppercase tracking-wider block mb-2">
+                          Colour
+                        </label>
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={`${product.name} colour`}>
+                          {product.colors.map((color) => {
+                            const selected =
+                              (selectedColors[product.id] || product.colors[0]) === color;
+                            return (
+                              <button
+                                key={color}
+                                onClick={() =>
+                                  setSelectedColors((prev) => ({
+                                    ...prev,
+                                    [product.id]: color,
+                                  }))
+                                }
+                                role="radio"
+                                aria-checked={selected}
+                                className={`flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-lg border text-xs transition-colors ${
+                                  selected
+                                    ? "border-gold-500 text-gold-500 bg-gold-500/10"
+                                    : "border-white/10 text-gray-400 hover:border-white/30"
+                                }`}
+                              >
+                                <span
+                                  className="w-5 h-5 rounded-full border border-white/20 shrink-0"
+                                  style={{ backgroundColor: colorHex[color] || "#666" }}
+                                  aria-hidden="true"
+                                />
+                                {color}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <button
                       onClick={() => addToCart(product.id)}
-                      className="w-full bg-gold-gradient text-black font-semibold py-2.5 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                      disabled={soldOut}
+                      className="w-full bg-gold-gradient text-black font-semibold py-2.5 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <ShoppingBag size={16} aria-hidden="true" />
-                      Add to Cart
+                      {soldOut ? "Sold out" : "Add to Cart"}
                     </button>
                   </div>
                 </div>
@@ -331,7 +444,7 @@ export default function ShopClient({ products }: { products: Product[] }) {
           aria-label={`Open cart with ${cart.reduce((sum, item) => sum + item.quantity, 0)} items`}
         >
           <ShoppingBag size={18} aria-hidden="true" />
-          Cart ({cart.reduce((sum, item) => sum + item.quantity, 0)}) — R{cartTotal}
+          Cart ({cart.reduce((sum, item) => sum + item.quantity, 0)}) — R{cartTotal.toLocaleString("en-ZA")}
         </button>
       )}
 
@@ -366,9 +479,11 @@ export default function ShopClient({ products }: { products: Product[] }) {
                       >
                         <div className="flex-1">
                           <p className="font-medium text-sm">{item.name}</p>
-                          <p className="text-gray-500 text-xs">
-                            {item.size} / {item.color}
-                          </p>
+                          {(item.size || item.color) && (
+                            <p className="text-gray-500 text-xs">
+                              {[item.size, item.color].filter(Boolean).join(" / ")}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <button
@@ -390,7 +505,7 @@ export default function ShopClient({ products }: { products: Product[] }) {
                           </button>
                         </div>
                         <p className="text-gold-500 font-semibold text-sm w-16 text-right">
-                          R{item.price * item.quantity}
+                          R{(item.price * item.quantity).toLocaleString("en-ZA")}
                         </p>
                       </div>
                     ))}
@@ -399,7 +514,9 @@ export default function ShopClient({ products }: { products: Product[] }) {
                   <div className="border-t border-white/10 pt-4 mb-6">
                     <div className="flex items-center justify-between text-lg font-bold">
                       <span>Total</span>
-                      <span className="text-gold-500">R{cartTotal}</span>
+                      <span className="text-gold-500">
+                        R{cartTotal.toLocaleString("en-ZA")}
+                      </span>
                     </div>
                   </div>
 
@@ -428,7 +545,11 @@ export default function ShopClient({ products }: { products: Product[] }) {
                       type="email"
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
-                      placeholder="Email (optional, for confirmation)"
+                      placeholder={
+                        eftAvailable
+                          ? "Email * (we send the bank details here)"
+                          : "Email (optional, for confirmation)"
+                      }
                       aria-label="Email"
                       autoComplete="email"
                       maxLength={254}
@@ -436,21 +557,56 @@ export default function ShopClient({ products }: { products: Product[] }) {
                     />
                   </div>
 
-                  <div className="mb-6">
+                  <div className="mb-5">
                     <Turnstile onToken={setCaptchaToken} />
                   </div>
 
-                  <button
-                    onClick={handleCheckout}
-                    disabled={!canCheckout}
-                    className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <MessageCircle size={18} aria-hidden="true" />
-                    {submitting ? "Submitting..." : "Order via WhatsApp"}
-                  </button>
-                  <p className="text-gray-500 text-xs text-center mt-3">
-                    Your order is saved and sent via WhatsApp for confirmation
-                  </p>
+                  {checkoutError && (
+                    <p className="mb-4 bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg px-4 py-3">
+                      {checkoutError}
+                    </p>
+                  )}
+
+                  {eftAvailable ? (
+                    <>
+                      <button
+                        onClick={() => handleCheckout("eft")}
+                        disabled={!canCheckout}
+                        className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Landmark size={18} aria-hidden="true" />
+                        {submitting === "eft" ? "Placing order..." : "Pay by EFT"}
+                      </button>
+                      <p className="text-gray-500 text-xs text-center mt-3 mb-4">
+                        You get our bank details and a payment reference on the
+                        next screen and by email.
+                      </p>
+                      <button
+                        onClick={() => handleCheckout("whatsapp")}
+                        disabled={!canCheckout}
+                        className="w-full border border-white/15 text-gray-300 hover:text-white hover:border-white/30 font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <MessageCircle size={16} aria-hidden="true" />
+                        {submitting === "whatsapp"
+                          ? "Submitting..."
+                          : "Rather chat on WhatsApp"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleCheckout("whatsapp")}
+                        disabled={!canCheckout}
+                        className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <MessageCircle size={18} aria-hidden="true" />
+                        {submitting === "whatsapp" ? "Submitting..." : "Order via WhatsApp"}
+                      </button>
+                      <p className="text-gray-500 text-xs text-center mt-3">
+                        Your order is saved and sent via WhatsApp for confirmation
+                      </p>
+                    </>
+                  )}
                 </>
               )}
             </div>

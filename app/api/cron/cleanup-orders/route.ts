@@ -47,13 +47,17 @@ async function handle(request: NextRequest) {
 
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-  // Cancel stale merch orders
-  const { data: cancelledOrders, error: ordersError } = await supabase
-    .from("orders")
-    .update({ status: "cancelled", updated_at: new Date().toISOString() })
-    .eq("status", "pending")
-    .lt("created_at", cutoff)
-    .select("id");
+  // Cancel stale merch orders.
+  //
+  // This goes through cleanup_stale_merch_orders rather than a direct update.
+  // The direct update ran on the anon key and the only UPDATE policy on orders
+  // is the admin one, so it silently matched zero rows every night and reported
+  // "cancelled_orders: 0" as if there had been nothing to do. See
+  // supabase/merch_store.sql.
+  const { data: cancelledCount, error: ordersError } = await supabase.rpc(
+    "cleanup_stale_merch_orders",
+    { p_hours: 48 }
+  );
 
   if (ordersError) {
     return NextResponse.json({ error: ordersError.message }, { status: 500 });
@@ -96,7 +100,7 @@ async function handle(request: NextRequest) {
     .lt("expires_at", new Date().toISOString());
 
   return NextResponse.json({
-    cancelled_orders: cancelledOrders?.length || 0,
+    cancelled_orders: typeof cancelledCount === "number" ? cancelledCount : 0,
     cancelled_ticket_orders: released,
     timestamp: new Date().toISOString(),
   });

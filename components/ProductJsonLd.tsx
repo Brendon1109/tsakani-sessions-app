@@ -26,9 +26,10 @@ export default function ProductJsonLd({ products }: { products: Product[] }) {
           "@type": "Offer",
           price: (p.price_zar / 100).toFixed(2),
           priceCurrency: "ZAR",
-          availability: p.is_active
-            ? "https://schema.org/InStock"
-            : "https://schema.org/OutOfStock",
+          availability:
+            p.is_active && p.in_stock !== false
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
           url: `${SITE_URL}/shop`,
         },
       },
