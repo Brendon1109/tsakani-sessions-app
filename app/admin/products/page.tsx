@@ -65,6 +65,8 @@ interface ProductForm {
   in_stock: boolean;
   is_active: boolean;
   sort_order: number | "";
+  /** Colour name to its own photo. Colours with no entry fall back to the main shot. */
+  color_images: Record<string, string>;
 }
 
 const emptyForm: ProductForm = {
@@ -78,6 +80,7 @@ const emptyForm: ProductForm = {
   in_stock: true,
   is_active: true,
   sort_order: 0,
+  color_images: {},
 };
 
 export default function AdminProductsPage() {
@@ -127,6 +130,7 @@ export default function AdminProductsPage() {
       in_stock: product.in_stock !== false,
       is_active: product.is_active !== false,
       sort_order: product.sort_order ?? 0,
+      color_images: product.color_images || {},
     });
     setShowForm(true);
   }
@@ -156,6 +160,31 @@ export default function AdminProductsPage() {
     }
   }
 
+  async function uploadColourPhoto(colour: string, file: File | null) {
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/products/upload", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Upload failed");
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        color_images: { ...f.color_images, [colour]: data.url },
+      }));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   function moveImage(index: number, delta: number) {
     setForm((f) => {
       const next = [...f.images];
@@ -167,12 +196,16 @@ export default function AdminProductsPage() {
   }
 
   function toggleFromList(key: "sizes" | "colors", value: string) {
-    setForm((f) => ({
-      ...f,
-      [key]: f[key].includes(value)
-        ? f[key].filter((v) => v !== value)
-        : [...f[key], value],
-    }));
+    setForm((f) => {
+      const on = f[key].includes(value);
+      const next = on ? f[key].filter((v) => v !== value) : [...f[key], value];
+      if (key !== "colors" || !on) return { ...f, [key]: next };
+      // Turning a colour off drops its photo with it, otherwise the form keeps
+      // posting a picture for a colour nobody can buy.
+      const images = { ...f.color_images };
+      delete images[value];
+      return { ...f, colors: next, color_images: images };
+    });
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -203,6 +236,7 @@ export default function AdminProductsPage() {
       in_stock: form.in_stock,
       is_active: form.is_active,
       sort_order: form.sort_order === "" ? 0 : form.sort_order,
+      color_images: form.color_images,
     };
 
     const res = await fetch("/api/admin/products", {
@@ -635,6 +669,69 @@ export default function AdminProductsPage() {
                     );
                   })}
                 </div>
+
+                {form.colors.length > 0 && (
+                  <div className="mt-4 bg-dark-300/40 border border-white/10 rounded-lg p-4">
+                    <p className="text-sm font-medium mb-1">Photo per colour</p>
+                    <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                      Give a colour its own shot and the shop swaps the picture
+                      when a buyer picks it. Leave one blank and the card keeps
+                      the main photo and says in words which colour was chosen,
+                      so nobody thinks the picker is broken.
+                    </p>
+                    <div className="space-y-2">
+                      {form.colors.map((colour) => {
+                        const shot = form.color_images[colour];
+                        return (
+                          <div key={colour} className="flex items-center gap-3">
+                            <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-dark-300 shrink-0">
+                              {shot ? (
+                                <Image
+                                  src={shot}
+                                  alt={colour}
+                                  fill
+                                  sizes="48px"
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-700">
+                                  <ShoppingBag size={16} />
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-sm flex-1">{colour}</span>
+                            {shot && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setForm((f) => {
+                                    const next = { ...f.color_images };
+                                    delete next[colour];
+                                    return { ...f, color_images: next };
+                                  })
+                                }
+                                className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+                              >
+                                Remove
+                              </button>
+                            )}
+                            <label className="text-xs text-gold-500 hover:text-gold-400 cursor-pointer transition-colors">
+                              {shot ? "Replace" : "Add photo"}
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/avif"
+                                className="hidden"
+                                onChange={(e) =>
+                                  uploadColourPhoto(colour, e.target.files?.[0] || null)
+                                }
+                              />
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-5 pt-1">

@@ -55,11 +55,24 @@ const colorHex: Record<string, string> = {
   Gold: "#ffd700",
 };
 
-/** Product photos in display order: the card shot first, then the rest. */
+/**
+ * Product photos in display order: the card shot first, then the rest, then any
+ * per-colour shot that is not already in the list.
+ *
+ * Colour photos are folded into the same list rather than kept separate so the
+ * thumbnail strip and the colour picker drive one index between them. Picking
+ * Red and tapping Red's thumbnail are then the same action.
+ */
 function photosOf(product: Product): string[] {
-  const extra = (product.images || []).filter((url) => url && url !== product.image_url);
-  const all = [...(product.image_url ? [product.image_url] : []), ...extra];
-  return all.length > 0 ? all : [PLACEHOLDER];
+  const colourShots = Object.values(product.color_images || {}).filter(Boolean);
+  const all = [
+    ...(product.image_url ? [product.image_url] : []),
+    ...(product.images || []),
+    ...colourShots,
+  ];
+  const seen = new Set<string>();
+  const unique = all.filter((url) => url && !seen.has(url) && seen.add(url));
+  return unique.length > 0 ? unique : [PLACEHOLDER];
 }
 
 export default function ShopClient({
@@ -299,6 +312,13 @@ export default function ShopClient({
               const photos = photosOf(product);
               const shown = Math.min(activePhoto[product.id] || 0, photos.length - 1);
               const soldOut = product.in_stock === false;
+              const chosenColour = product.colors?.length
+                ? selectedColors[product.id] || product.colors[0]
+                : "";
+              // A product can have five colourways and one mockup. Say so,
+              // rather than showing a sand hoodie to somebody who picked red
+              // and letting them think the picker is broken.
+              const photoFollowsColour = !!product.color_images?.[chosenColour];
               return (
                 <div
                   key={product.id}
@@ -397,7 +417,10 @@ export default function ShopClient({
                     {product.colors?.length > 0 && (
                       <div className="mb-5">
                         <label className="text-xs text-gray-500 uppercase tracking-wider block mb-2">
-                          Colour
+                          Colour:{" "}
+                          <span className="text-gray-200 normal-case tracking-normal font-medium">
+                            {chosenColour}
+                          </span>
                         </label>
                         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={`${product.name} colour`}>
                           {product.colors.map((color) => {
@@ -406,12 +429,23 @@ export default function ShopClient({
                             return (
                               <button
                                 key={color}
-                                onClick={() =>
+                                onClick={() => {
                                   setSelectedColors((prev) => ({
                                     ...prev,
                                     [product.id]: color,
-                                  }))
-                                }
+                                  }));
+                                  // Only jump the photo when this colour
+                                  // actually has one. Otherwise leave whatever
+                                  // the buyer was looking at alone.
+                                  const shot = product.color_images?.[color];
+                                  const index = shot ? photos.indexOf(shot) : -1;
+                                  if (index >= 0) {
+                                    setActivePhoto((prev) => ({
+                                      ...prev,
+                                      [product.id]: index,
+                                    }));
+                                  }
+                                }}
                                 role="radio"
                                 aria-checked={selected}
                                 className={`flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-lg border text-xs transition-colors ${
@@ -430,6 +464,12 @@ export default function ShopClient({
                             );
                           })}
                         </div>
+                        {!photoFollowsColour && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Photo shows another colourway. Your order is for{" "}
+                            <span className="text-gray-300">{chosenColour}</span>.
+                          </p>
+                        )}
                       </div>
                     )}
 

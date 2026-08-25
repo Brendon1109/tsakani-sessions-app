@@ -85,6 +85,30 @@ interface ProductPayload {
   in_stock: boolean;
   is_active: boolean;
   sort_order: number;
+  color_images: Record<string, string>;
+}
+
+/**
+ * Colour name to photo URL. Only colours the product actually offers are kept,
+ * so removing a colour cannot leave an orphan photo behind that nothing can
+ * reach but everything still ships to the browser.
+ */
+function cleanColorImages(
+  value: unknown,
+  colors: string[]
+): { images: Record<string, string> } | { error: string } {
+  // Wrapped in { images } rather than returned bare: a Record<string, string>
+  // can structurally hold an "error" key, so `"error" in result` would not
+  // narrow it and a colour literally named "error" would confuse the caller.
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { images: {} };
+  const out: Record<string, string> = {};
+  for (const [colour, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!colors.includes(colour)) continue;
+    const cleaned = cleanUrl(raw);
+    if (cleaned && typeof cleaned === "object") return cleaned;
+    if (cleaned) out[colour] = cleaned;
+  }
+  return { images: out };
 }
 
 function buildPayload(body: Record<string, unknown>): ProductPayload | { error: string } {
@@ -117,6 +141,12 @@ function buildPayload(body: Record<string, unknown>): ProductPayload | { error: 
   const sortRaw = Number(body.sort_order);
   const sort_order = Number.isFinite(sortRaw) ? Math.trunc(sortRaw) : 0;
 
+  const sizes = cleanList(body.sizes);
+  const colors = cleanList(body.colors);
+
+  const colorImages = cleanColorImages(body.color_images, colors);
+  if ("error" in colorImages) return colorImages;
+
   return {
     name,
     description,
@@ -126,11 +156,12 @@ function buildPayload(body: Record<string, unknown>): ProductPayload | { error: 
     // gallery strip alone still has a card image instead of the logo placeholder.
     image_url: image || images[0] || null,
     images,
-    sizes: cleanList(body.sizes),
-    colors: cleanList(body.colors),
+    sizes,
+    colors,
     in_stock: body.in_stock !== false,
     is_active: body.is_active !== false,
     sort_order,
+    color_images: colorImages.images,
   };
 }
 

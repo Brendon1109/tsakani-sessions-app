@@ -244,3 +244,18 @@ $$;
 
 revoke all on function public.create_merch_order(text, text, text, jsonb, text) from public;
 grant execute on function public.create_merch_order(text, text, text, jsonb, text) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- PER COLOUR PHOTOS
+-- ---------------------------------------------------------------------------
+--
+-- Picking a colour changed the chip and nothing else, so on a product with five
+-- colourways the picture was telling the buyer the wrong thing four times out of
+-- five. color_images maps a colour name to its own photo. Colours with no photo
+-- fall back to the main image and the card says which colour is selected in
+-- words, so the choice is never silent.
+
+alter table products add column if not exists color_images jsonb not null default '{}'::jsonb;
+
+comment on column products.color_images is
+  'Colour name to photo URL. When a buyer picks a colour that has an entry, the card swaps to that photo. Colours with no entry fall back to the main image.';

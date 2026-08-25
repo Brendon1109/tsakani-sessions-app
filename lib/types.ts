@@ -77,6 +77,11 @@ export interface Product {
   image_url: string | null;
   /** Extra shots, in display order. Empty is normal. */
   images: string[];
+  /**
+   * Colour name to its own photo. A colour with an entry swaps the card image
+   * when it is picked; one without falls back to image_url.
+   */
+  color_images: Record<string, string>;
   sizes: string[];
   colors: string[];
   /**
