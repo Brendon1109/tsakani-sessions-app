@@ -7,6 +7,7 @@ import {
   Calendar,
   ArrowRight,
   Sparkles,
+  ShoppingBag,
 } from "lucide-react";
 import { getFeaturedEvents } from "@/lib/queries";
 import { getLatestYouTubeVideos } from "@/lib/youtube";
@@ -86,12 +87,15 @@ export default async function HomePage() {
               <Calendar size={18} />
               Upcoming Events
             </Link>
+            {/* Merch, not the gallery, is the second hero button. There is
+                stock to sell now, and the gallery is still one tap away in the
+                nav. */}
             <Link
-              href="/gallery"
+              href="/shop"
               className="border border-gold-500/40 text-gold-500 font-semibold px-8 py-3.5 rounded-full hover:bg-gold-500/10 transition-colors flex items-center gap-2"
             >
-              <Camera size={18} />
-              View Gallery
+              <ShoppingBag size={18} />
+              Shop Merch
             </Link>
           </div>
         </div>
