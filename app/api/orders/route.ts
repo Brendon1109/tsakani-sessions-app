@@ -4,6 +4,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/captcha";
 import { sendOrderConfirmation, sendAdminOrderAlert } from "@/lib/email";
 import type { EftDetails } from "@/lib/email";
+import { buildPaystackUrl } from "@/lib/paystack";
 
 /**
  * Merch checkout.
@@ -38,6 +39,8 @@ interface MerchOrderResult {
   account_type: string | null;
   payment_email: string | null;
   eft_instructions: string | null;
+  paystack_url: string | null;
+  paystack_note: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -66,7 +69,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const method = payment_method === "eft" ? "eft" : "whatsapp";
+  const method =
+    payment_method === "eft" || payment_method === "paystack"
+      ? payment_method
+      : "whatsapp";
 
   // CAPTCHA verification (if configured)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
@@ -105,6 +111,18 @@ export async function POST(request: NextRequest) {
   if (!row) {
     return NextResponse.json({ error: "Could not place the order" }, { status: 500 });
   }
+
+  // The pay link is assembled here, server side, from the amount the database
+  // just calculated. The browser never gets to say what it owes.
+  const paystackUrl =
+    method === "paystack" && row.paystack_url && customer_email
+      ? buildPaystackUrl({
+          baseUrl: row.paystack_url,
+          amountCents: row.total_zar,
+          email: customer_email,
+          customerName: customer_name,
+        })
+      : null;
 
   const eft: EftDetails | null = row.eft_enabled
     ? {
@@ -161,6 +179,8 @@ export async function POST(request: NextRequest) {
           orderId: row.order_id,
           reference: row.payment_reference,
           eft,
+          paystackUrl,
+          paystackNote: row.paystack_note,
         })
       : Promise.resolve(false),
     sendAdminOrderAlert({
@@ -181,6 +201,8 @@ export async function POST(request: NextRequest) {
     payment_method: method,
     payment_reference: row.payment_reference,
     eft,
+    paystack_url: paystackUrl,
+    paystack_note: row.paystack_note,
   });
 }
 

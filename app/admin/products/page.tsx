@@ -46,6 +46,8 @@ const COLOUR_PRESETS = [
   "White",
   "Black",
   "Grey",
+  "Olive",
+  "Red",
   "Orange",
   "Gold",
 ];

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getActiveProducts, getEftAvailable } from "@/lib/queries";
+import { getActiveProducts, getCheckoutOptions } from "@/lib/queries";
 import ShopClient from "./ShopClient";
 import ProductJsonLd from "@/components/ProductJsonLd";
 
@@ -25,14 +25,14 @@ export const metadata: Metadata = {
 };
 
 export default async function ShopPage() {
-  const [products, eftAvailable] = await Promise.all([
+  const [products, checkout] = await Promise.all([
     getActiveProducts(),
-    getEftAvailable(),
+    getCheckoutOptions(),
   ]);
   return (
     <>
       <ProductJsonLd products={products} />
-      <ShopClient products={products} eftAvailable={eftAvailable} />
+      <ShopClient products={products} checkout={checkout} />
     </>
   );
 }

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
+import { isPaystackUrl } from "@/lib/paystack";
 
 /**
  * The bank details EFT checkout pays into. One row, admin only.
@@ -67,8 +68,28 @@ export async function PUT(request: NextRequest) {
     account_type: text(body.account_type, 40),
     payment_email: text(body.payment_email, 254),
     eft_instructions: text(body.eft_instructions, 1000),
+    paystack_enabled: !!body.paystack_enabled,
+    paystack_url: text(body.paystack_url, 500),
+    paystack_note: text(body.paystack_note, 500),
     updated_at: new Date().toISOString(),
   };
+
+  // Only Paystack's own hosts. This field is where buyers are sent to type card
+  // details, so an admin account that got taken over must not be able to point
+  // it at a lookalike page.
+  if (updates.paystack_url && !isPaystackUrl(updates.paystack_url)) {
+    return NextResponse.json(
+      { error: "That is not a Paystack link. It must start with https:// and be on paystack.com or paystack.shop." },
+      { status: 400 }
+    );
+  }
+
+  if (updates.paystack_enabled && !updates.paystack_url) {
+    return NextResponse.json(
+      { error: "Paste your Paystack payment link before switching card payments on." },
+      { status: 400 }
+    );
+  }
 
   // Switching EFT on with a blank account number would show buyers a payment
   // panel with nothing to pay into, so refuse rather than half-configure it.
@@ -105,7 +126,11 @@ export async function PUT(request: NextRequest) {
     action: "store_settings.update",
     resource_type: "store_settings",
     // Deliberately no account number here.
-    details: { eft_enabled: updates.eft_enabled, bank_name: updates.bank_name },
+    details: {
+      eft_enabled: updates.eft_enabled,
+      bank_name: updates.bank_name,
+      paystack_enabled: updates.paystack_enabled,
+    },
   });
 
   // The shop is cached and reads eft_available at render time, so switching EFT

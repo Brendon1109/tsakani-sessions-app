@@ -460,6 +460,9 @@ export async function sendOrderConfirmation(data: {
   orderId: string;
   reference?: string | null;
   eft?: EftDetails | null;
+  /** Ready-to-click card payment link, already carrying the locked amount. */
+  paystackUrl?: string | null;
+  paystackNote?: string | null;
 }): Promise<boolean> {
   const resend = getClient();
   if (!resend || !data.to) return false;
@@ -511,7 +514,26 @@ export async function sendOrderConfirmation(data: {
     </div>`
     : "";
 
-  const intro = eft
+  const payUrl = safeUrl(data.paystackUrl);
+  const cardPanel = payUrl
+    ? `
+    <div style="background:#0d0d0d;border:1px solid ${GOLD}55;border-radius:14px;padding:16px 20px;margin-top:16px;text-align:center">
+      <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:${GOLD}">Pay by card</p>
+      <p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#b8b8b8">
+        Your reference is <strong style="color:#fff">${esc(data.reference || data.orderId)}</strong>. Enter it on the payment page so we can match your payment to this order.
+      </p>
+      <a href="${esc(payUrl)}" style="display:inline-block;background:${GOLD};color:#000;font-weight:700;font-size:15px;text-decoration:none;padding:12px 26px;border-radius:999px">Pay R${data.total.toLocaleString("en-ZA")} now</a>
+      ${
+        data.paystackNote
+          ? `<p style="margin:14px 0 0;font-size:13px;line-height:1.6;color:#b8b8b8">${esc(data.paystackNote)}</p>`
+          : ""
+      }
+    </div>`
+    : "";
+
+  const intro = payUrl
+    ? "We've got it. Pay by card using the button below and we'll confirm as soon as it clears."
+    : eft
     ? "We've got it. Pay by EFT using the details below and we'll confirm as soon as the payment reflects."
     : "We've got it. We'll confirm availability and payment with you shortly.";
 
@@ -532,6 +554,7 @@ export async function sendOrderConfirmation(data: {
       </table>
       <p style="margin:14px 0 0;font-size:12px;color:${MUTED}">Order reference: ${esc(data.reference || data.orderId)}</p>
     </div>
+    ${cardPanel}
     ${eftPanel}
   `;
 

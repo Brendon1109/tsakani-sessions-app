@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Event, Product, Gallery, GalleryPhoto, Ticket } from "@/lib/types";
+import type { Event, Product, Gallery, GalleryPhoto, Ticket, CheckoutOptions } from "@/lib/types";
 import { onSaleTickets } from "@/lib/tickets";
 
 export type EventWithTickets = Event & { tickets: Ticket[] };
@@ -79,17 +79,19 @@ export async function getActiveProducts(): Promise<Product[]> {
 }
 
 /**
- * Whether checkout should offer EFT. The bank details themselves are admin
- * only, so this is a yes or no and nothing more; a buyer gets the account after
- * their order exists, from create_merch_order.
+ * Which checkout buttons the shop may draw. Two booleans and nothing more: the
+ * bank account and the Paystack link stay admin only, and the buyer gets what
+ * they need after their order exists, from create_merch_order.
  */
-export async function getEftAvailable(): Promise<boolean> {
+export async function getCheckoutOptions(): Promise<CheckoutOptions> {
   const supabase = createClient();
-  if (!supabase) return false;
+  const off = { eft: false, paystack: false };
+  if (!supabase) return off;
 
-  const { data, error } = await supabase.rpc("eft_available");
-  if (error) return false;
-  return data === true;
+  const { data, error } = await supabase.rpc("checkout_options");
+  if (error) return off;
+  const row = (Array.isArray(data) ? data[0] : data) as CheckoutOptions | undefined;
+  return { eft: row?.eft === true, paystack: row?.paystack === true };
 }
 
 export async function getGalleries(): Promise<(Gallery & { photo_count: number; event: Event | null })[]> {

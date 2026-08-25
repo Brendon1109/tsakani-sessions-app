@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, MessageCircle, Minus, Plus, Landmark } from "lucide-react";
+import { ShoppingBag, MessageCircle, Minus, Plus, Landmark, CreditCard } from "lucide-react";
 import { createOrderMessage } from "@/lib/whatsapp";
 import { track } from "@/lib/analytics";
 import Turnstile from "@/components/Turnstile";
-import type { Product } from "@/lib/types";
+import type { Product, CheckoutOptions } from "@/lib/types";
 
 const PENDING_ORDER_KEY = "tsakani_pending_order_v1";
 
@@ -32,6 +32,8 @@ interface EftDetails {
   reference: string;
 }
 
+type PayMethod = "paystack" | "eft" | "whatsapp";
+
 const CART_STORAGE_KEY = "tsakani_cart_v1";
 
 const PLACEHOLDER = "/images/tsakani-logo.png";
@@ -47,6 +49,8 @@ const colorHex: Record<string, string> = {
   Stone: "#c9c2b6",
   Cream: "#f0e6d2",
   Grey: "#b0b0b0",
+  Olive: "#5b6236",
+  Red: "#a4232b",
   Orange: "#e8602c",
   Gold: "#ffd700",
 };
@@ -60,11 +64,13 @@ function photosOf(product: Product): string[] {
 
 export default function ShopClient({
   products,
-  eftAvailable,
+  checkout,
 }: {
   products: Product[];
-  eftAvailable: boolean;
+  checkout: CheckoutOptions;
 }) {
+  const eftAvailable = checkout.eft;
+  const cardAvailable = checkout.paystack;
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
@@ -76,7 +82,7 @@ export default function ShopClient({
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
-  const [submitting, setSubmitting] = useState<"eft" | "whatsapp" | null>(null);
+  const [submitting, setSubmitting] = useState<PayMethod | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
 
   // Hydrate cart from localStorage
@@ -161,10 +167,14 @@ export default function ShopClient({
     0
   );
 
-  const handleCheckout = async (method: "eft" | "whatsapp") => {
+  const handleCheckout = async (method: PayMethod) => {
     if (!customerName || !customerPhone) return;
     if (method === "eft" && !customerEmail) {
       setCheckoutError("Add your email so we can send you the bank details.");
+      return;
+    }
+    if (method === "paystack" && !customerEmail) {
+      setCheckoutError("Card payment needs your email for the receipt.");
       return;
     }
     setCheckoutError("");
@@ -229,6 +239,8 @@ export default function ShopClient({
             method,
             reference: data.payment_reference || null,
             eft: (data.eft as EftDetails | null) || null,
+            paystackUrl: data.paystack_url || null,
+            paystackNote: data.paystack_note || null,
           })
         );
       } catch {
@@ -546,7 +558,9 @@ export default function ShopClient({
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
                       placeholder={
-                        eftAvailable
+                        cardAvailable
+                          ? "Email * (for your receipt)"
+                          : eftAvailable
                           ? "Email * (we send the bank details here)"
                           : "Email (optional, for confirmation)"
                       }
@@ -567,45 +581,64 @@ export default function ShopClient({
                     </p>
                   )}
 
-                  {eftAvailable ? (
+                  {cardAvailable && (
+                    <>
+                      <button
+                        onClick={() => handleCheckout("paystack")}
+                        disabled={!canCheckout}
+                        className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <CreditCard size={18} aria-hidden="true" />
+                        {submitting === "paystack" ? "Placing order..." : "Pay by card"}
+                      </button>
+                      <p className="text-gray-500 text-xs text-center mt-3 mb-4">
+                        Card, Apple Pay or instant EFT through Paystack. Your
+                        reference shows on the next screen.
+                      </p>
+                    </>
+                  )}
+
+                  {eftAvailable && (
                     <>
                       <button
                         onClick={() => handleCheckout("eft")}
                         disabled={!canCheckout}
-                        className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`w-full font-semibold py-3 rounded-lg transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          cardAvailable
+                            ? "border border-gold-500/40 text-gold-500 hover:bg-gold-500/10"
+                            : "bg-gold-gradient text-black hover:opacity-90"
+                        }`}
                       >
                         <Landmark size={18} aria-hidden="true" />
                         {submitting === "eft" ? "Placing order..." : "Pay by EFT"}
                       </button>
                       <p className="text-gray-500 text-xs text-center mt-3 mb-4">
-                        You get our bank details and a payment reference on the
-                        next screen and by email.
-                      </p>
-                      <button
-                        onClick={() => handleCheckout("whatsapp")}
-                        disabled={!canCheckout}
-                        className="w-full border border-white/15 text-gray-300 hover:text-white hover:border-white/30 font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <MessageCircle size={16} aria-hidden="true" />
-                        {submitting === "whatsapp"
-                          ? "Submitting..."
-                          : "Rather chat on WhatsApp"}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleCheckout("whatsapp")}
-                        disabled={!canCheckout}
-                        className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <MessageCircle size={18} aria-hidden="true" />
-                        {submitting === "whatsapp" ? "Submitting..." : "Order via WhatsApp"}
-                      </button>
-                      <p className="text-gray-500 text-xs text-center mt-3">
-                        Your order is saved and sent via WhatsApp for confirmation
+                        Bank transfer, no card fee. You get our details and a
+                        reference on the next screen and by email.
                       </p>
                     </>
+                  )}
+
+                  <button
+                    onClick={() => handleCheckout("whatsapp")}
+                    disabled={!canCheckout}
+                    className={`w-full flex items-center justify-center gap-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      cardAvailable || eftAvailable
+                        ? "border border-white/15 text-gray-300 hover:text-white hover:border-white/30 font-medium py-2.5"
+                        : "bg-gold-gradient text-black font-semibold py-3 hover:opacity-90"
+                    }`}
+                  >
+                    <MessageCircle size={16} aria-hidden="true" />
+                    {submitting === "whatsapp"
+                      ? "Submitting..."
+                      : cardAvailable || eftAvailable
+                      ? "Rather chat on WhatsApp"
+                      : "Order via WhatsApp"}
+                  </button>
+                  {!cardAvailable && !eftAvailable && (
+                    <p className="text-gray-500 text-xs text-center mt-3">
+                      Your order is saved and sent via WhatsApp for confirmation
+                    </p>
                   )}
                 </>
               )}

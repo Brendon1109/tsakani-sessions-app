@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, MessageCircle, ShoppingBag, Copy, Landmark } from "lucide-react";
+import { Check, MessageCircle, ShoppingBag, Copy, Landmark, CreditCard } from "lucide-react";
 
 const STORAGE_KEY = "tsakani_pending_order_v1";
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "27769961477";
@@ -22,9 +22,11 @@ interface EftDetails {
 interface PendingOrder {
   message: string;
   total: number;
-  method?: "eft" | "whatsapp";
+  method?: "paystack" | "eft" | "whatsapp";
   reference?: string | null;
   eft?: EftDetails | null;
+  paystackUrl?: string | null;
+  paystackNote?: string | null;
 }
 
 /** One line of bank details, with its own copy button. */
@@ -79,6 +81,7 @@ function SuccessContent() {
 
   const totalRand = payload?.total ?? (totalParam ? Number(totalParam) : null);
   const eft = payload?.method === "eft" ? payload.eft : null;
+  const card = payload?.method === "paystack" ? payload.paystackUrl || null : null;
   const reference = payload?.reference || orderId;
 
   async function copy(key: string, value: string) {
@@ -116,7 +119,9 @@ function SuccessContent() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold mb-1">Order received</h1>
             <p className="text-gray-400 text-sm leading-relaxed">
-              {eft
+              {card
+                ? "One step left. Pay by card below and we'll confirm as soon as it clears."
+                : eft
                 ? "Pay the amount below into our account using your reference, and we'll confirm as soon as it reflects."
                 : "We've saved your order. Send it through on WhatsApp so we can confirm availability and payment details."}
             </p>
@@ -141,7 +146,9 @@ function SuccessContent() {
             </button>
           </div>
           <p className="text-gray-500 text-xs mt-2">
-            {eft
+            {card
+              ? "Type this into the order reference field on the payment page so we can match your payment to this order."
+              : eft
               ? "Use this as the reference on your payment so we can match it to your order."
               : "Keep this handy in case you need to reference your order."}
           </p>
@@ -156,7 +163,28 @@ function SuccessContent() {
           </div>
         )}
 
-        {eft ? (
+        {card ? (
+          <>
+            <a
+              href={card}
+              data-track="order_paystack_click"
+              className="w-full bg-gold-gradient text-black font-semibold py-3.5 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 mb-3"
+            >
+              <CreditCard size={18} aria-hidden="true" />
+              Pay R{(totalRand ?? 0).toLocaleString("en-ZA")} now
+            </a>
+            <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+              The amount is locked, so there is nothing to type in but your card
+              and the reference above. We&apos;ve emailed you the same link in
+              case you want to pay later.
+            </p>
+            {payload?.paystackNote && (
+              <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+                {payload.paystackNote}
+              </p>
+            )}
+          </>
+        ) : eft ? (
           <>
             <div className="bg-dark-300/40 border border-gold-500/20 rounded-xl p-5 mb-5">
               <div className="flex items-center gap-2 mb-3">
@@ -280,7 +308,13 @@ function SuccessContent() {
             What happens next
           </h2>
           <ol className="text-sm text-gray-400 space-y-1.5 list-decimal pl-5">
-            {eft ? (
+            {card ? (
+              <>
+                <li>You pay by card on the Paystack page, reference included.</li>
+                <li>We match the payment and confirm your order.</li>
+                <li>We dispatch or hand over once payment clears.</li>
+              </>
+            ) : eft ? (
               <>
                 <li>You pay the amount above, using your reference.</li>
                 <li>We match the payment and confirm your order.</li>

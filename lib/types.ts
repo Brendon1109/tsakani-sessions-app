@@ -100,7 +100,17 @@ export interface StoreSettings {
   account_type: string | null;
   payment_email: string | null;
   eft_instructions: string | null;
+  /** Card checkout through a hosted Paystack payment page. */
+  paystack_enabled: boolean;
+  paystack_url: string | null;
+  paystack_note: string | null;
   updated_at?: string | null;
+}
+
+/** Which checkout buttons the shop is allowed to draw. */
+export interface CheckoutOptions {
+  eft: boolean;
+  paystack: boolean;
 }
 
 export interface Order {
@@ -112,7 +122,7 @@ export interface Order {
   items: OrderItem[];
   total_zar: number;
   status: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
-  payment_method: "whatsapp" | "eft" | "yoco" | "payfast";
+  payment_method: "whatsapp" | "eft" | "paystack" | "yoco" | "payfast";
   payment_reference: string | null;
   created_at: string;
   updated_at: string;
