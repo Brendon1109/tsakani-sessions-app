@@ -3,12 +3,41 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/captcha";
 import { sendOrderConfirmation, sendAdminOrderAlert } from "@/lib/email";
+import type { EftDetails } from "@/lib/email";
+
+/**
+ * Merch checkout.
+ *
+ * The write goes through the create_merch_order function rather than a plain
+ * insert. Two reasons, and the first one was a live bug: `.insert().select()`
+ * compiles to INSERT ... RETURNING, and the only SELECT policy on orders is
+ * `user_id = auth.uid()`, which a visitor does not have. Every checkout failed
+ * on the read-back, which is why the orders table was empty. The same trap is
+ * documented in supabase/create_ticket_order_fn.sql.
+ *
+ * Second, prices, sizes and colours are resolved inside that function from the
+ * products table, so nothing a client posts about money is trusted here.
+ */
 
 interface ClientOrderItem {
   product_id: string;
-  size: string;
-  color: string;
+  size?: string;
+  color?: string;
   qty: number;
+}
+
+interface MerchOrderResult {
+  order_id: string;
+  total_zar: number;
+  payment_reference: string;
+  eft_enabled: boolean;
+  account_holder: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  branch_code: string | null;
+  account_type: string | null;
+  payment_email: string | null;
+  eft_instructions: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -22,18 +51,22 @@ export async function POST(request: NextRequest) {
     customer_phone,
     customer_email,
     items,
+    payment_method,
     captcha_token,
   } = body as {
     customer_name: string;
     customer_phone: string;
     customer_email?: string;
     items: ClientOrderItem[];
+    payment_method?: string;
     captcha_token?: string;
   };
 
   if (!customer_name || !customer_phone || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+
+  const method = payment_method === "eft" ? "eft" : "whatsapp";
 
   // CAPTCHA verification (if configured)
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
@@ -45,91 +78,89 @@ export async function POST(request: NextRequest) {
   const supabase = createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
-  // Validate product IDs and look up authoritative prices from DB
-  const productIds = Array.from(new Set(items.map((i) => i.product_id)));
-  const { data: products, error: productsError } = await supabase
-    .from("products")
-    .select("id, name, price_zar, is_active, sizes, colors")
-    .in("id", productIds);
-
-  if (productsError || !products) {
-    return NextResponse.json({ error: "Failed to validate products" }, { status: 500 });
-  }
-
-  const productMap = new Map(products.map((p) => [p.id, p]));
-
-  // Build authoritative items from DB prices
-  const validated: {
-    product_id: string;
-    name: string;
-    size: string;
-    color: string;
-    qty: number;
-    price: number;
-  }[] = [];
-  let total_zar = 0;
-
-  for (const item of items) {
-    const product = productMap.get(item.product_id);
-    if (!product || !product.is_active) {
-      return NextResponse.json(
-        { error: `Product ${item.product_id} unavailable` },
-        { status: 400 }
-      );
-    }
-    if (!product.sizes.includes(item.size)) {
-      return NextResponse.json({ error: `Invalid size: ${item.size}` }, { status: 400 });
-    }
-    if (!product.colors.includes(item.color)) {
-      return NextResponse.json({ error: `Invalid color: ${item.color}` }, { status: 400 });
-    }
-    if (!Number.isInteger(item.qty) || item.qty < 1 || item.qty > 50) {
-      return NextResponse.json({ error: "Invalid quantity" }, { status: 400 });
-    }
-
-    const priceInRand = product.price_zar / 100;
-    validated.push({
+  const { data, error } = await supabase.rpc("create_merch_order", {
+    p_customer_name: customer_name,
+    p_customer_phone: customer_phone,
+    p_customer_email: customer_email || null,
+    p_items: items.map((item) => ({
       product_id: item.product_id,
-      name: product.name,
-      size: item.size,
-      color: item.color,
+      size: item.size || "",
+      color: item.color || "",
       qty: item.qty,
-      price: priceInRand,
-    });
-    total_zar += product.price_zar * item.qty;
-  }
-
-  const { data, error } = await supabase
-    .from("orders")
-    .insert({
-      customer_name,
-      customer_phone,
-      customer_email: customer_email || null,
-      items: validated,
-      total_zar,
-      status: "pending",
-      payment_method: "whatsapp",
-    })
-    .select()
-    .single();
+    })),
+    p_payment_method: method,
+  });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // 22023 is what the function raises for anything a buyer can fix by
+    // changing their input, so that message is safe to show them. Anything
+    // else is ours and stays generic.
+    if (error.code === "22023") {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Could not place the order" }, { status: 500 });
   }
 
-  // Fire-and-forget email notifications
-  const summary = validated
-    .map((v) => `${v.name} (${v.size}, ${v.color}) x${v.qty} — R${v.price * v.qty}`)
+  const row = (Array.isArray(data) ? data[0] : data) as MerchOrderResult | undefined;
+  if (!row) {
+    return NextResponse.json({ error: "Could not place the order" }, { status: 500 });
+  }
+
+  const eft: EftDetails | null = row.eft_enabled
+    ? {
+        account_holder: row.account_holder,
+        bank_name: row.bank_name,
+        account_number: row.account_number,
+        branch_code: row.branch_code,
+        account_type: row.account_type,
+        payment_email: row.payment_email,
+        eft_instructions: row.eft_instructions,
+        reference: row.payment_reference,
+      }
+    : null;
+
+  // Names and prices for the emails come from the products table, not from the
+  // client, so a tampered cart cannot put a fake price in a confirmation.
+  const { data: storedProducts } = await supabase
+    .from("products")
+    .select("id, name, price_zar")
+    .in("id", Array.from(new Set(items.map((i) => i.product_id))));
+
+  const productById = new Map((storedProducts || []).map((p) => [p.id, p]));
+  const emailItems = items.map((item) => {
+    const product = productById.get(item.product_id);
+    return {
+      name: product?.name || "Item",
+      size: item.size || "",
+      color: item.color || "",
+      qty: item.qty,
+      // Per unit, in Rand, matching what the email template multiplies out.
+      price: product ? product.price_zar / 100 : 0,
+    };
+  });
+
+  const summary = emailItems
+    .map(
+      (item) =>
+        `${item.name}${
+          item.size || item.color
+            ? ` (${[item.size, item.color].filter(Boolean).join(", ")})`
+            : ""
+        } x${item.qty} — R${(item.price * item.qty).toLocaleString("en-ZA")}`
+    )
     .join("\n");
 
+  // Fire-and-forget email notifications
   Promise.all([
     customer_email
       ? sendOrderConfirmation({
           to: customer_email,
           customerName: customer_name,
-          items: validated,
-          total: total_zar / 100,
-          orderId: data.id,
+          items: emailItems,
+          total: row.total_zar / 100,
+          orderId: row.order_id,
+          reference: row.payment_reference,
+          eft,
         })
       : Promise.resolve(false),
     sendAdminOrderAlert({
@@ -137,13 +168,20 @@ export async function POST(request: NextRequest) {
       customerName: customer_name,
       customerPhone: customer_phone,
       customerEmail: customer_email,
-      summary,
-      total: total_zar / 100,
-      orderId: data.id,
+      summary: `${summary}\nPayment: ${method.toUpperCase()} — ref ${row.payment_reference}`,
+      total: row.total_zar / 100,
+      orderId: row.order_id,
     }),
   ]).catch(() => {});
 
-  return NextResponse.json({ ...data, validated_total_zar: total_zar });
+  return NextResponse.json({
+    id: row.order_id,
+    total_zar: row.total_zar,
+    validated_total_zar: row.total_zar,
+    payment_method: method,
+    payment_reference: row.payment_reference,
+    eft,
+  });
 }
 
 export async function GET() {

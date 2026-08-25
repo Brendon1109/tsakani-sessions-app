@@ -3,14 +3,61 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, MessageCircle, ShoppingBag, Copy } from "lucide-react";
+import { Check, MessageCircle, ShoppingBag, Copy, Landmark } from "lucide-react";
 
 const STORAGE_KEY = "tsakani_pending_order_v1";
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "27769961477";
 
+interface EftDetails {
+  account_holder: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  branch_code: string | null;
+  account_type: string | null;
+  payment_email: string | null;
+  eft_instructions: string | null;
+  reference: string;
+}
+
 interface PendingOrder {
   message: string;
   total: number;
+  method?: "eft" | "whatsapp";
+  reference?: string | null;
+  eft?: EftDetails | null;
+}
+
+/** One line of bank details, with its own copy button. */
+function BankRow({
+  label,
+  value,
+  onCopy,
+  copied,
+}: {
+  label: string;
+  value: string;
+  onCopy: () => void;
+  copied: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-white/5 last:border-0">
+      <span className="text-gray-500 text-xs uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-white text-sm font-medium truncate">{value}</span>
+        <button
+          onClick={onCopy}
+          className="shrink-0 text-gray-500 hover:text-gold-500 transition-colors"
+          aria-label={`Copy ${label}`}
+        >
+          {copied ? (
+            <Check size={14} className="text-green-400" />
+          ) : (
+            <Copy size={14} />
+          )}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function SuccessContent() {
@@ -19,7 +66,7 @@ function SuccessContent() {
   const totalParam = params.get("total");
   const [payload, setPayload] = useState<PendingOrder | null>(null);
   const [sent, setSent] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -31,6 +78,18 @@ function SuccessContent() {
   }, []);
 
   const totalRand = payload?.total ?? (totalParam ? Number(totalParam) : null);
+  const eft = payload?.method === "eft" ? payload.eft : null;
+  const reference = payload?.reference || orderId;
+
+  async function copy(key: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2000);
+    } catch {
+      // ignore — clipboard might be unavailable
+    }
+  }
 
   function sendWhatsApp() {
     if (!payload) return;
@@ -47,17 +106,6 @@ function SuccessContent() {
     }
   }
 
-  async function copyOrderId() {
-    if (!orderId) return;
-    try {
-      await navigator.clipboard.writeText(orderId);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore — clipboard might be unavailable
-    }
-  }
-
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
       <div className="bg-dark-500 border border-gold-500/20 rounded-2xl p-8 sm:p-10">
@@ -66,50 +114,130 @@ function SuccessContent() {
             <Check size={24} className="text-gold-500" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">
-              Order received
-            </h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1">Order received</h1>
             <p className="text-gray-400 text-sm leading-relaxed">
-              We&apos;ve saved your order. Send it through on WhatsApp so we
-              can confirm availability and payment details.
+              {eft
+                ? "Pay the amount below into our account using your reference, and we'll confirm as soon as it reflects."
+                : "We've saved your order. Send it through on WhatsApp so we can confirm availability and payment details."}
             </p>
           </div>
         </div>
 
-        {orderId && (
-          <div className="bg-dark-300/60 border border-white/10 rounded-xl p-4 mb-5">
-            <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-              Your order ID
-            </p>
-            <div className="flex items-center justify-between gap-3">
-              <code className="text-gold-500 font-mono text-sm break-all">
-                {orderId}
-              </code>
-              <button
-                onClick={copyOrderId}
-                className="shrink-0 flex items-center gap-1.5 text-xs text-gray-400 hover:text-gold-500 transition-colors"
-                aria-label="Copy order ID"
-              >
-                <Copy size={13} aria-hidden="true" />
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-            <p className="text-gray-500 text-xs mt-2">
-              Keep this handy in case you need to reference your order.
-            </p>
+        <div className="bg-dark-300/60 border border-white/10 rounded-xl p-4 mb-5">
+          <p className="text-xs uppercase tracking-wider text-gray-500 mb-1">
+            Your payment reference
+          </p>
+          <div className="flex items-center justify-between gap-3">
+            <code className="text-gold-500 font-mono text-lg break-all">
+              {reference}
+            </code>
+            <button
+              onClick={() => copy("reference", reference)}
+              className="shrink-0 flex items-center gap-1.5 text-xs text-gray-400 hover:text-gold-500 transition-colors"
+              aria-label="Copy payment reference"
+            >
+              <Copy size={13} aria-hidden="true" />
+              {copiedKey === "reference" ? "Copied" : "Copy"}
+            </button>
           </div>
-        )}
+          <p className="text-gray-500 text-xs mt-2">
+            {eft
+              ? "Use this as the reference on your payment so we can match it to your order."
+              : "Keep this handy in case you need to reference your order."}
+          </p>
+        </div>
 
         {totalRand !== null && (
           <div className="flex items-center justify-between mb-6 bg-dark-300/40 rounded-xl px-4 py-3">
-            <span className="text-gray-400 text-sm">Total</span>
+            <span className="text-gray-400 text-sm">Amount due</span>
             <span className="text-gold-500 font-bold text-lg">
-              R{totalRand}
+              R{totalRand.toLocaleString("en-ZA")}
             </span>
           </div>
         )}
 
-        {!sent ? (
+        {eft ? (
+          <>
+            <div className="bg-dark-300/40 border border-gold-500/20 rounded-xl p-5 mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Landmark size={17} className="text-gold-500" aria-hidden="true" />
+                <h2 className="font-semibold">Banking details</h2>
+              </div>
+              {eft.account_holder && (
+                <BankRow
+                  label="Account holder"
+                  value={eft.account_holder}
+                  onCopy={() => copy("holder", eft.account_holder!)}
+                  copied={copiedKey === "holder"}
+                />
+              )}
+              {eft.bank_name && (
+                <BankRow
+                  label="Bank"
+                  value={eft.bank_name}
+                  onCopy={() => copy("bank", eft.bank_name!)}
+                  copied={copiedKey === "bank"}
+                />
+              )}
+              {eft.account_number && (
+                <BankRow
+                  label="Account number"
+                  value={eft.account_number}
+                  onCopy={() => copy("account", eft.account_number!)}
+                  copied={copiedKey === "account"}
+                />
+              )}
+              {eft.branch_code && (
+                <BankRow
+                  label="Branch code"
+                  value={eft.branch_code}
+                  onCopy={() => copy("branch", eft.branch_code!)}
+                  copied={copiedKey === "branch"}
+                />
+              )}
+              {eft.account_type && (
+                <BankRow
+                  label="Account type"
+                  value={eft.account_type}
+                  onCopy={() => copy("type", eft.account_type!)}
+                  copied={copiedKey === "type"}
+                />
+              )}
+              {eft.payment_email && (
+                <p className="text-sm text-gray-400 mt-4 leading-relaxed">
+                  Send proof of payment to{" "}
+                  <a
+                    href={`mailto:${eft.payment_email}`}
+                    className="text-gold-500 hover:text-gold-400 underline"
+                  >
+                    {eft.payment_email}
+                  </a>
+                  .
+                </p>
+              )}
+              {eft.eft_instructions && (
+                <p className="text-sm text-gray-400 mt-2 leading-relaxed">
+                  {eft.eft_instructions}
+                </p>
+              )}
+            </div>
+
+            <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+              We&apos;ve emailed these details to you as well, so you don&apos;t
+              have to keep this page open.
+            </p>
+
+            {payload && (
+              <button
+                onClick={sendWhatsApp}
+                className="w-full border border-white/15 text-gray-300 hover:text-white hover:border-white/30 font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <MessageCircle size={16} aria-hidden="true" />
+                {sent ? "WhatsApp opened" : "Send us the order on WhatsApp too"}
+              </button>
+            )}
+          </>
+        ) : !sent ? (
           payload ? (
             <button
               onClick={sendWhatsApp}
@@ -130,7 +258,7 @@ function SuccessContent() {
               >
                 +{WHATSAPP_NUMBER.replace(/^27/, "27 ")}
               </a>{" "}
-              and quote the order ID above to confirm payment details.
+              and quote the reference above to confirm payment details.
             </div>
           )
         ) : (
@@ -152,9 +280,19 @@ function SuccessContent() {
             What happens next
           </h2>
           <ol className="text-sm text-gray-400 space-y-1.5 list-decimal pl-5">
-            <li>We confirm availability and send you payment details.</li>
-            <li>You pay via EFT or as agreed in the WhatsApp chat.</li>
-            <li>We dispatch or hand over your order once payment clears.</li>
+            {eft ? (
+              <>
+                <li>You pay the amount above, using your reference.</li>
+                <li>We match the payment and confirm your order.</li>
+                <li>We dispatch or hand over once payment clears.</li>
+              </>
+            ) : (
+              <>
+                <li>We confirm availability and send you payment details.</li>
+                <li>You pay via EFT or as agreed in the WhatsApp chat.</li>
+                <li>We dispatch or hand over your order once payment clears.</li>
+              </>
+            )}
           </ol>
           <p className="text-xs text-gray-500 mt-4">
             Orders that aren&apos;t paid within 48 hours are automatically

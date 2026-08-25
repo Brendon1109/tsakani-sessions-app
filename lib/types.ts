@@ -58,17 +58,49 @@ export interface GalleryPhoto {
   created_at: string;
 }
 
+export type ProductCategory =
+  | "tshirt"
+  | "hoodie"
+  | "hat"
+  | "cup"
+  | "accessory"
+  | "other";
+
 export interface Product {
   id: string;
   name: string;
   description: string | null;
+  /** CENTS. R450 is stored as 45000. */
   price_zar: number;
-  category: "tshirt" | "cup" | "accessory";
+  category: ProductCategory;
+  /** The main shot, shown on the card and in search results. */
   image_url: string | null;
+  /** Extra shots, in display order. Empty is normal. */
+  images: string[];
   sizes: string[];
   colors: string[];
+  /**
+   * Sold out is not the same as hidden. in_stock false keeps the product on the
+   * shop with a sold out badge; is_active false removes it entirely.
+   */
+  in_stock: boolean;
   is_active: boolean;
+  sort_order: number;
   created_at: string;
+  updated_at?: string | null;
+}
+
+/** Bank details for EFT checkout. One row, admin managed, never public. */
+export interface StoreSettings {
+  eft_enabled: boolean;
+  account_holder: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  branch_code: string | null;
+  account_type: string | null;
+  payment_email: string | null;
+  eft_instructions: string | null;
+  updated_at?: string | null;
 }
 
 export interface Order {
@@ -80,7 +112,7 @@ export interface Order {
   items: OrderItem[];
   total_zar: number;
   status: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
-  payment_method: "whatsapp" | "yoco" | "payfast";
+  payment_method: "whatsapp" | "eft" | "yoco" | "payfast";
   payment_reference: string | null;
   created_at: string;
   updated_at: string;
