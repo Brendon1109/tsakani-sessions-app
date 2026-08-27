@@ -105,6 +105,21 @@ export default function RootLayout({
         <Footer />
         <PWARegister />
         <AnalyticsTracker />
+        {/*
+          Breazy Analytics beacon. Second pipeline, running alongside
+          AnalyticsTracker above and not replacing it, see app/api/e/route.ts
+          for why both exist.
+
+          A plain script tag rather than next/script on purpose: bz.js reads its
+          own data-site through document.currentScript, which is only reliable
+          for a parser-inserted classic script. next/script injects the element
+          at runtime and would put that on a knife edge for no gain, since this
+          file is 9 KB, deferred, and same origin.
+
+          It posts to /api/e, which the CSP in next.config.mjs already permits
+          under connect-src 'self'. No CSP change was needed for this.
+        */}
+        <script src="/bz.js" data-site="tsakani" defer />
       </body>
     </html>
   );
