@@ -1,6 +1,41 @@
 /**
  * First-party, privacy-friendly (POPIA-conscious) event tracking.
  *
+ * ===========================================================================
+ * THIS SITE RUNS TWO ANALYTICS PIPELINES ON PURPOSE. DO NOT MERGE THEM.
+ * ===========================================================================
+ *
+ * This file and /api/track are the older pipeline. app/api/e is Breazy
+ * Analytics, which was EXTRACTED from this one, so the new one is this one's
+ * descendant rather than its replacement. Neither is dead code.
+ *
+ *   this one   knows the PRODUCT. Fifteen named events with a props bag, so it
+ *              can answer which event sold tickets, which tee was viewed, which
+ *              booking form was abandoned. It cannot see any other site.
+ *
+ *   /api/e     knows the VISIT, across every site Brendon runs. Time actually
+ *              on screen, returning versus new, and one place to compare this
+ *              site against the rest. It carries no product detail and never
+ *              will, and it redacts ticket and order codes out of paths.
+ *
+ * Deleting either loses something the other cannot answer. If a future change
+ * looks like a tidy up that collapses them, it is a feature removal wearing a
+ * refactor's clothes.
+ *
+ * They share exactly one thing, deliberately: the opt out. A visitor who
+ * objects on /privacy stops BOTH. See `objected()` below.
+ *
+ * app/api/e/core.ts and app/api/e/route.ts are byte for byte copies of the
+ * shared upstream in Brendon1109/breazy-analytics. Never hand edit them. A fix
+ * goes upstream and is copied down, otherwise the cookie rules drift between
+ * sites and the drift is invisible until one site behaves differently.
+ *
+ * Because they are vendored, .eslintrc.json turns off no-explicit-any for those
+ * two paths only. `collect(body: any, ...)` in the shared core would otherwise
+ * fail this repo's lint and CI runs lint. That override is the price of keeping
+ * the copy identical, and it is scoped to those two files so nothing else in
+ * the app loses the rule.
+ *
  * - No third-party scripts, no cookies, no cross-site identifiers.
  * - A random session id is kept in localStorage only (cleared by the user any
  *   time). No personal data is sent from the client.

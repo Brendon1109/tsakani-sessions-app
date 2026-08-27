@@ -128,8 +128,20 @@ export default function PrivacyPage() {
               things: the date you first visited, how many separate days you
               have visited on, and the date you were last here. Two people who
               first came on the same day and have been back the same number of
-              times carry an identical cookie, and nothing on our side can tell
-              them apart.
+              times carry an identical cookie.
+            </li>
+            <li>
+              A <strong>daily counting value</strong>. We will be straight about
+              this one, because it is the only part that is genuinely about you
+              rather than about the page. It is a scrambled value worked out from
+              your network address, your browser and today&rsquo;s date. We do
+              not store your network address, only the scrambled result. It{" "}
+              <strong>changes every day at midnight</strong> and it is scrambled
+              differently on every site we run, so it cannot be used to follow
+              you from one day to the next or from this site to another one.
+              Within a single day it does tie your page views together, which is
+              the only way to count how many people visited rather than how many
+              pages were opened.
             </li>
             <li>The page addresses you open on this site.</li>
             <li>
@@ -151,6 +163,14 @@ export default function PrivacyPage() {
             abuse, and then it is gone. Neither one records your name, your
             email address, your phone number, or your exact location, and
             neither is shared with an advertising network or sold to anyone.
+          </p>
+          <p className="mt-3">
+            Page addresses are also <strong>cleaned before they are stored</strong>
+            . Your ticket links and order links contain a private code that is
+            what proves the ticket is yours, so anything in an address that looks
+            like a code is replaced before it is recorded. We would rather lose a
+            little detail in our own reporting than keep a live ticket code in a
+            list of pages.
           </p>
 
           <h3 className="text-lg font-semibold text-white mt-6 mb-2">
@@ -273,11 +293,17 @@ export default function PrivacyPage() {
           </p>
           <p className="mt-3">
             For the visit counting described above, Breazy Analytics keeps the
-            individual records for <strong>90 days</strong>. After that they are
-            deleted automatically and only daily totals remain, which are counts
-            with nothing in them about any one visitor. Our own event tracking
-            records are kept while they are useful for planning events and
-            stock, and you can ask us to delete them.
+            individual records for <strong>three days</strong>. After that they
+            are deleted automatically and only daily totals remain, which are
+            counts with nothing in them about any one visitor. So rather than
+            claiming we store nothing about you, which would not be true, the
+            honest version is this:{" "}
+            <strong>
+              nothing about you survives three days, and nothing can be matched
+              to you on another day or on another of our sites
+            </strong>
+            . Our own event tracking records are kept while they are useful for
+            planning events and stock, and you can ask us to delete them.
           </p>
         </section>
 

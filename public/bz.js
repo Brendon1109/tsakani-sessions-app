@@ -86,6 +86,10 @@
   }
 
   function send(event, path, dwellMs) {
+    // Re-checked on every send, not only at load. Somebody who objects while
+    // the page is open must stop being counted at that moment, not at their
+    // next navigation. Section 11(4) allows no balancing here.
+    if (closed || optedOut()) return;
     var payload = {
       site: SITE,
       event: event,
@@ -110,10 +114,9 @@
   // absurd duration.
   // ---------------------------------------------------------------------
   var path = location.pathname || "/";
+  var closed = false;
   var visibleMs = 0;
   var resumedAt = document.visibilityState === "visible" ? performance.now() : null;
-  var lastSent = -1;
-  var closed = false;
 
   function accumulate() {
     if (resumedAt !== null) {
@@ -126,32 +129,45 @@
     if (resumedAt === null) resumedAt = performance.now();
   }
 
-  function flush(force) {
-    accumulate();
-    var whole = Math.round(visibleMs / 1000);
-    // Re-send only when the total has grown meaningfully. A visitor who tabs
-    // away and back repeatedly would otherwise generate a write per switch,
-    // and rows written is the binding free tier constraint.
-    if (!force && whole - lastSent < 5) { resume(); return; }
-    lastSent = whole;
-    send("leave", path, visibleMs);
-    resume();
-  }
-
-  function openView(newPath) {
-    path = newPath;
-    visibleMs = 0;
-    lastSent = -1;
-    closed = false;
-    resumedAt = document.visibilityState === "visible" ? performance.now() : null;
-    send("view", path);
-  }
-
+  /**
+   * Close the current view. EXACTLY ONCE per view, and the `closed` guard is
+   * what enforces it.
+   *
+   * Three separate bugs lived here and a review caught all three:
+   *
+   *   A growth gate took a `force` argument that both call sites passed as
+   *   true, so it never once evaluated. Dead code that read as a protection.
+   *
+   *   On an ordinary navigation Chrome fires visibilitychange to hidden AND
+   *   pagehide, so every page view sent two leave events, not one. That is
+   *   50 per cent more rows than the schema is designed around, and a phone
+   *   switching apps repeatedly sent one more each time with no ceiling.
+   *
+   *   Worse, each send carried the CUMULATIVE visible time rather than a
+   *   delta, and the nightly rollup sums them. Three sends at 10s, 25s and
+   *   40s recorded 75 seconds against three separate readings, so the average
+   *   time on every page came out wrong in both directions at once.
+   *
+   * One leave per view fixes all three. The honest cost: a visitor who leaves
+   * a tab, comes back and reads more has only their time up to the first
+   * departure counted. That undercounts rather than inventing, which is the
+   * right direction to be wrong in, and it keeps the write budget at the two
+   * events per page view every capacity figure assumes.
+   */
   function closeView() {
     if (closed) return;
     closed = true;
     accumulate();
     send("leave", path, visibleMs);
+  }
+
+  function openView(newPath) {
+    if (optedOut()) { closed = true; return; }
+    path = newPath;
+    visibleMs = 0;
+    closed = false;
+    resumedAt = document.visibilityState === "visible" ? performance.now() : null;
+    send("view", path);
   }
 
   // ---------------------------------------------------------------------
@@ -169,11 +185,14 @@
   // kept purely as a backstop for older Safari.
   // ---------------------------------------------------------------------
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "hidden") flush(true);
+    if (document.visibilityState === "hidden") closeView();
     else resume();
   });
 
-  window.addEventListener("pagehide", function () { flush(true); });
+  // Kept as a backstop for older Safari, which historically did not fire
+  // visibilitychange when navigating away. The `closed` guard means it costs
+  // nothing on the browsers that fire both.
+  window.addEventListener("pagehide", function () { closeView(); });
 
   // A restore from the back forward cache is a genuinely new view. Keeping the
   // old timer running would attribute time spent on another page to this one.
@@ -196,23 +215,53 @@
     openView(next);
   }
 
+  // BOTH detection paths are installed, not one or the other, and that choice
+  // is the difference between this working on the Next.js sites and barely
+  // working at all.
+  //
+  // The original code took the Navigation API where present and patched
+  // history only as a fallback. The Navigation API has been baseline since
+  // January 2026, so on current browsers the fallback never installed. But
+  // Next's App Router navigates by calling history.pushState directly, and
+  // neither MDN nor the WICG appendix states plainly whether pushState fires
+  // the navigate event. If it does not, that arrangement recorded the entry
+  // page and missed every soft navigation after it, on most of the estate,
+  // while looking like it worked.
+  //
+  // Rather than bet on an unverified spec detail, install both. route() below
+  // returns early when the path has not actually changed, so a navigation seen
+  // by both listeners is recorded once. Being right by construction beats
+  // being right by reading.
   if (window.navigation && typeof window.navigation.addEventListener === "function") {
     window.navigation.addEventListener("navigate", function (e) {
       if (e.navigationType === "reload") return;
-      try { route(new URL(e.destination.url).pathname); } catch (err) {}
+      // The navigate event also fires for CROSS document navigations, which
+      // the history patch structurally cannot do, so the two branches are not
+      // equivalent and this guard is what makes them safe together. Without
+      // it, clicking a link to another page records a view for a page this
+      // document never displayed. On a site that sells tickets, a same tab
+      // payment redirect would write a phantom view for a path that does not
+      // exist here.
+      try {
+        if (e.destination && e.destination.sameDocument === false) return;
+        var u = new URL(e.destination.url);
+        if (u.origin !== location.origin) return;
+        route(u.pathname);
+      } catch (err) {}
     });
-  } else {
-    ["pushState", "replaceState"].forEach(function (m) {
-      var orig = history[m];
-      if (typeof orig !== "function") return;
-      history[m] = function () {
-        var r = orig.apply(this, arguments);
-        route(location.pathname);
-        return r;
-      };
-    });
-    window.addEventListener("popstate", function () { route(location.pathname); });
   }
+
+  ["pushState", "replaceState"].forEach(function (m) {
+    var orig = history[m];
+    if (typeof orig !== "function") return;
+    history[m] = function () {
+      var r = orig.apply(this, arguments);
+      // After the call, so location already reflects the new URL.
+      try { route(location.pathname); } catch (err) {}
+      return r;
+    };
+  });
+  window.addEventListener("popstate", function () { route(location.pathname); });
 
   // ---------------------------------------------------------------------
   // Public control surface.
@@ -220,18 +269,34 @@
   // Withdrawal has to be as easy as the collection was, and reachable rather
   // than buried. A site wires these to a control on its privacy page.
   // ---------------------------------------------------------------------
+  /**
+   * Stop counting on THIS page, now.
+   *
+   * It deliberately does NOT write the objection cookie, and that is the whole
+   * point of the function.
+   *
+   * The objection cookie must be set by the SERVER, through DELETE /api/e.
+   * Writing it here with document.cookie would replace the server set one with
+   * a script created one, and a script created cookie is precisely what Safari
+   * deletes after seven days without a return visit. A visitor could object,
+   * stay away a week, come back and be counted again, with no way for them to
+   * know. On a site where iOS is 40 per cent of traffic that is not a corner
+   * case, and it would quietly undo the single mechanism this whole design is
+   * built around.
+   *
+   * So the division is: the server owns the durable record of the objection,
+   * this owns stopping the current page. localStorage is kept only as a belt
+   * for the case where the page has not yet round tripped.
+   */
   function setOptOut() {
     try { localStorage.setItem(OPT_OUT_KEY, "1"); } catch (e) {}
-    // Two year cookie so the choice survives a cleared localStorage, and it is
-    // what the server side collect route reads before it records anything.
-    document.cookie = "bz_optout=1; path=/; max-age=63072000; SameSite=Lax; Secure";
     closed = true;
     return true;
   }
 
+  /** Mirror of the above. The server clears the cookie via PUT /api/e. */
   function clearOptOut() {
     try { localStorage.removeItem(OPT_OUT_KEY); } catch (e) {}
-    document.cookie = "bz_optout=; path=/; max-age=0; SameSite=Lax; Secure";
     return true;
   }
 
