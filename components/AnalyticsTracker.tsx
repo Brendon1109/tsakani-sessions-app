@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { track } from "@/lib/analytics";
+import { enforceObjection, track } from "@/lib/analytics";
 
 /**
  * Render-null client component that powers first-party analytics:
@@ -17,6 +17,16 @@ import { track } from "@/lib/analytics";
  */
 export default function AnalyticsTracker() {
   const pathname = usePathname();
+
+  // If the visitor has objected (POPIA s11(3), set on /privacy), clear the
+  // session id this pipeline left behind. Runs before the first page_view, and
+  // it is a no-op for everyone who has not objected. This matters for the
+  // visitor who objects and then returns weeks later on the same browser: the
+  // cookie still says stop, and their old ts_sid should not still be sitting
+  // there waiting for the day somebody flips the switch back.
+  useEffect(() => {
+    enforceObjection();
+  }, []);
 
   // Page views (intentionally keyed on pathname only — no useSearchParams, so
   // no Suspense/CSR-bailout requirement at build time).
