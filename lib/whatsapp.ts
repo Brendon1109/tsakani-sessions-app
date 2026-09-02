@@ -23,6 +23,10 @@ export interface OrderData {
     price: number;
   }[];
   total: number;
+  /** Payment reference from the order, once it exists. */
+  reference?: string | null;
+  /** True when the buyer paid by EFT and is sending proof of payment. */
+  paidByEft?: boolean;
 }
 
 export interface TicketOrderData {
@@ -74,7 +78,14 @@ export function createOrderMessage(data: OrderData): string {
   });
 
   message += `\n💰 *Total:* R${data.total}\n`;
-  message += `\n🙏 Please confirm availability and payment details.`;
+  if (data.reference) {
+    message += `🔖 *Reference:* ${data.reference}\n`;
+  }
+  if (data.paidByEft) {
+    message += `\n✅ Paid by EFT. Proof of payment attached below.`;
+  } else {
+    message += `\n🙏 Please confirm availability and payment details.`;
+  }
   return message;
 }
 

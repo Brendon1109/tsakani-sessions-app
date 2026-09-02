@@ -182,10 +182,6 @@ export default function ShopClient({
 
   const handleCheckout = async (method: PayMethod) => {
     if (!customerName || !customerPhone) return;
-    if (method === "eft" && !customerEmail) {
-      setCheckoutError("Add your email so we can send you the bank details.");
-      return;
-    }
     if (method === "paystack" && !customerEmail) {
       setCheckoutError("Card payment needs your email for the receipt.");
       return;
@@ -238,6 +234,8 @@ export default function ShopClient({
           price: item.price,
         })),
         total: cartTotal,
+        reference: data.payment_reference || null,
+        paidByEft: method === "eft",
       });
 
       // Stash what the success page needs. The bank details ride along here
@@ -251,6 +249,7 @@ export default function ShopClient({
             total: cartTotal,
             method,
             reference: data.payment_reference || null,
+            hasEmail: !!customerEmail,
             eft: (data.eft as EftDetails | null) || null,
             paystackUrl: data.paystack_url || null,
             paystackNote: data.paystack_note || null,
@@ -601,7 +600,7 @@ export default function ShopClient({
                         cardAvailable
                           ? "Email * (for your receipt)"
                           : eftAvailable
-                          ? "Email * (we send the bank details here)"
+                          ? "Email (optional, we send the bank details here too)"
                           : "Email (optional, for confirmation)"
                       }
                       aria-label="Email"
@@ -653,8 +652,9 @@ export default function ShopClient({
                         {submitting === "eft" ? "Placing order..." : "Pay by EFT"}
                       </button>
                       <p className="text-gray-500 text-xs text-center mt-3 mb-4">
-                        Bank transfer, no card fee. You get our details and a
-                        reference on the next screen and by email.
+                        Our bank details and your reference show on the next
+                        screen. Pay, then send us your proof of payment on
+                        WhatsApp.
                       </p>
                     </>
                   )}

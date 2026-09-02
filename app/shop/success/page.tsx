@@ -24,6 +24,8 @@ interface PendingOrder {
   total: number;
   method?: "paystack" | "eft" | "whatsapp";
   reference?: string | null;
+  /** Whether the buyer gave an email, so the "we emailed you" line is true. */
+  hasEmail?: boolean;
   eft?: EftDetails | null;
   paystackUrl?: string | null;
   paystackNote?: string | null;
@@ -122,7 +124,7 @@ function SuccessContent() {
               {card
                 ? "One step left. Pay by card below and we'll confirm as soon as it clears."
                 : eft
-                ? "Pay the amount below into our account using your reference, and we'll confirm as soon as it reflects."
+                ? "Pay the amount below into our account using your reference, then send us your proof of payment on WhatsApp."
                 : "We've saved your order. Send it through on WhatsApp so we can confirm availability and payment details."}
             </p>
           </div>
@@ -250,19 +252,47 @@ function SuccessContent() {
               )}
             </div>
 
-            <p className="text-sm text-gray-400 mb-4 leading-relaxed">
-              We&apos;ve emailed these details to you as well, so you don&apos;t
-              have to keep this page open.
-            </p>
+            {payload?.hasEmail && (
+              <p className="text-sm text-gray-400 mb-4 leading-relaxed">
+                We&apos;ve emailed these details to you as well, so you
+                don&apos;t have to keep this page open.
+              </p>
+            )}
 
-            {payload && (
+            {payload && !sent ? (
               <button
                 onClick={sendWhatsApp}
-                className="w-full border border-white/15 text-gray-300 hover:text-white hover:border-white/30 font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+                data-track="order_pop_whatsapp"
+                className="w-full bg-gold-gradient text-black font-semibold py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
               >
-                <MessageCircle size={16} aria-hidden="true" />
-                {sent ? "WhatsApp opened" : "Send us the order on WhatsApp too"}
+                <MessageCircle size={18} aria-hidden="true" />
+                Send proof of payment on WhatsApp
               </button>
+            ) : payload ? (
+              <div className="bg-gold-500/10 border border-gold-500/30 rounded-xl p-4 flex items-start gap-3">
+                <Check
+                  size={18}
+                  className="text-gold-500 mt-0.5 shrink-0"
+                  aria-hidden="true"
+                />
+                <p className="text-sm text-gray-200 leading-relaxed">
+                  WhatsApp opened in a new tab. Attach your proof of payment
+                  there and we&apos;ll confirm your order.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-dark-300/40 border border-white/10 rounded-xl p-4 text-sm text-gray-400 leading-relaxed">
+                Once paid, WhatsApp your proof of payment to{" "}
+                <a
+                  href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gold-500 hover:text-gold-400 underline"
+                >
+                  +{WHATSAPP_NUMBER.replace(/^27/, "27 ")}
+                </a>{" "}
+                with your reference.
+              </div>
             )}
           </>
         ) : !sent ? (
@@ -317,8 +347,8 @@ function SuccessContent() {
             ) : eft ? (
               <>
                 <li>You pay the amount above, using your reference.</li>
-                <li>We match the payment and confirm your order.</li>
-                <li>We dispatch or hand over once payment clears.</li>
+                <li>You send us the proof of payment on WhatsApp.</li>
+                <li>We confirm your order and dispatch or hand over.</li>
               </>
             ) : (
               <>
