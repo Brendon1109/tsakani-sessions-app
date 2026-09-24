@@ -39,7 +39,7 @@ Cloudflare Images gives every account 5,000 unique transformations a month free,
 
 ## Before anything else
 
-1. **Upgrade the personal account to Workers Paid**, USD 5 a month. Manage Account, Billing, Subscriptions, Upgrade. Workers Free allows 10 ms of CPU per request and the Next apps on this account average 38 to 49 ms.
+1. **The account stays on Workers Free, watched.** Brendon's call on 24 September 2026, after Cloudflare's documented slack for occasional overruns and 30 days of NO-Q data on this account (2 refusals in 12,107 requests) made Free worth trying. Free allows 10 ms of CPU per request. After cutover, watch the Worker's `exceededResources` count (error 1102 for a visitor). If refusals show up steadily, upgrade to Workers Paid, USD 5 a month (Manage Account, Billing, Subscriptions).
 2. **Export every DNS record** for tsakanisessions.co.za from the domains.co.za panel. Public DNS cannot list everything, and the list below is only what it shows.
 3. **Bank every value** in the vault before it is needed, using the table below. Cloudflare secrets are write only, so bank each new one the moment it is created.
 
@@ -47,7 +47,7 @@ Cloudflare Images gives every account 5,000 unique transformations a month free,
 
 ### Build variables
 
-`NEXT_PUBLIC_*` values are baked into the bundle at build time. Set them under the Worker's Settings, Build, Variables and secrets, which is separate from the runtime variables. A build without them ships a site that cannot reach Supabase.
+**None are set in the dashboard.** The three public values live in the committed `.env.production` (PR 8), which Workers Builds reads like any build. Keep them bare there: PR 8 copied them from a `vercel env pull` with their `\n` escapes but without the quotes that make dotenv read one as a newline, so on the Worker every Supabase call went to `/n/rest/v1` and got 401, and the shop and gallery showed their empty states. PR 9 fixed it and `__tests__/envProduction.test.ts` now guards the file. Vercel never saw the problem, its own env vars win over the file. The table below is where each value comes from.
 
 | Name | Value comes from |
 |---|---|
@@ -82,7 +82,7 @@ Set each as a Secret (Worker, Settings, Variables and secrets, or `npx wrangler 
    - Deploy command: `npx opennextjs-cloudflare deploy`
    - Production branch: `master`. Root directory: the repo root.
    - Builds for non production branches: off. `preview_urls` is off, so they would upload versions nobody can open.
-   - Add the build variables **before** the first build runs.
+   - No build variables, see above.
 
    Workers Builds reads `.node-version` (22) and runs `npm ci`, which the `Workers build` GitHub check proves on every pull request. Never build or deploy from the laptop: OpenNext bakes any local `.env*` file into the bundle, and its bundle step fails on Windows.
 4. **Set the runtime secrets**, then retry the latest build so a version carries them.
@@ -132,5 +132,5 @@ After step 9, remove the two Custom Domains from the Worker and re-add the apex 
 ## Known gaps
 
 - The cron alert fires when a run fails. A run that never starts sends nothing. The next morning check in step 11 covers the first week.
-- Workers Free would fail these pages on CPU. Nothing here works until the account is on Workers Paid.
+- The account is on Workers Free (see Before anything else). A page that runs past its CPU allowance too often is refused with error 1102, so the `exceededResources` count is the number to watch in the first week.
 - The rate limiter still writes to `rate_limits`, which has RLS on and no policy, so it has never limited anything. That is an existing bug, unchanged by the move.
