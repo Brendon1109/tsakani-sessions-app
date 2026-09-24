@@ -24,7 +24,7 @@ export async function rateLimit(
   const now = Date.now();
   const expiresAt = new Date(now + windowSeconds * 1000).toISOString();
 
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return null;
 
   // Cleanup expired entries inline (cheap)

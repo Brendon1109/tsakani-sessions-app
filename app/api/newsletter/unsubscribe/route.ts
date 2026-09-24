@@ -19,7 +19,7 @@ async function unsubscribe(token: string) {
     return { ok: false as const, status: 400, error: "That unsubscribe link isn't valid." };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return { ok: false as const, status: 503, error: "Not configured" };
 
   const { data, error } = await supabase.rpc("unsubscribe_newsletter", { p_token: token });

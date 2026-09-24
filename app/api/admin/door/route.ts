@@ -19,7 +19,7 @@ import { ticketUrl } from "@/lib/qr";
 export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return { supabase: null, user: null };
   const {
     data: { user },

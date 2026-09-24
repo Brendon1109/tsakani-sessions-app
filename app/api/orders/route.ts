@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "CAPTCHA failed" }, { status: 400 });
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
   const { data, error } = await supabase.rpc("create_merch_order", {
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
   const { data: { user } } = await supabase.auth.getUser();

@@ -11,7 +11,7 @@ export type EventWithTickets = Event & { tickets: Ticket[] };
  */
 
 export async function getPublishedEvents(): Promise<EventWithTickets[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return [];
 
   const { data } = await supabase
@@ -28,7 +28,7 @@ export async function getPublishedEvents(): Promise<EventWithTickets[]> {
 }
 
 export async function getFeaturedEvents(): Promise<EventWithTickets[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return [];
 
   const { data } = await supabase
@@ -47,7 +47,7 @@ export async function getFeaturedEvents(): Promise<EventWithTickets[]> {
 }
 
 export async function getEventBySlug(slug: string): Promise<EventWithTickets | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return null;
 
   const { data } = await supabase
@@ -63,7 +63,7 @@ export async function getEventBySlug(slug: string): Promise<EventWithTickets | n
 }
 
 export async function getActiveProducts(): Promise<Product[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return [];
 
   // sort_order first so an admin can put the hero piece at the top of the grid,
@@ -84,7 +84,7 @@ export async function getActiveProducts(): Promise<Product[]> {
  * they need after their order exists, from create_merch_order.
  */
 export async function getCheckoutOptions(): Promise<CheckoutOptions> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const off = { eft: false, paystack: false };
   if (!supabase) return off;
 
@@ -95,7 +95,7 @@ export async function getCheckoutOptions(): Promise<CheckoutOptions> {
 }
 
 export async function getGalleries(): Promise<(Gallery & { photo_count: number; event: Event | null })[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return [];
 
   const { data: galleries } = await supabase
@@ -123,7 +123,7 @@ export async function getGalleries(): Promise<(Gallery & { photo_count: number; 
 export async function getGalleryBySlug(
   slug: string
 ): Promise<{ gallery: Gallery; photos: GalleryPhoto[]; event: Event | null } | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return null;
 
   const { data: gallery } = await supabase

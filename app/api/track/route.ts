@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) {
     return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
   }

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "CAPTCHA failed" }, { status: 400 });
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
   // Reserves the seats and writes the order atomically. Price is taken from the

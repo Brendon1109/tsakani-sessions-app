@@ -51,7 +51,7 @@ const SELECT_WITHOUT_DRIVE =
   "id, title, slug, event:events(date), photos:gallery_photos(id, storage_path, caption, sort_order)";
 
 export default async function GalleryPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const sections: Array<{
     id: string;
     title: string;
