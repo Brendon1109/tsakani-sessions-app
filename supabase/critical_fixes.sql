@@ -24,18 +24,40 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Rollback helper for when checkout fails after reservation
+-- Service role only. Nothing in the app calls it, and open to anon it let
+-- anyone fill an event's capacity. See lock_down_inventory_functions.sql.
+REVOKE ALL ON FUNCTION reserve_tickets(uuid, integer) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION reserve_tickets(uuid, integer) TO service_role;
+
+-- Gives seats back when an admin cancels an order. Admins and the service
+-- role only: open to anon it let anyone make an event oversell. Kept in step
+-- with lock_down_inventory_functions.sql.
 CREATE OR REPLACE FUNCTION release_tickets(
   p_ticket_id uuid,
   p_quantity integer
 )
-RETURNS void AS $$
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
-  UPDATE tickets
+  IF coalesce(auth.role(), '') <> 'service_role' AND NOT public.is_current_user_admin() THEN
+    RAISE EXCEPTION 'Admins only' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_quantity IS NULL OR p_quantity < 1 THEN
+    RAISE EXCEPTION 'Quantity must be at least 1' USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.tickets
   SET quantity_sold = GREATEST(0, quantity_sold - p_quantity)
   WHERE id = p_ticket_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+REVOKE ALL ON FUNCTION release_tickets(uuid, integer) FROM public, anon;
+GRANT EXECUTE ON FUNCTION release_tickets(uuid, integer) TO authenticated, service_role;
 
 -- Rate limit tracking table
 CREATE TABLE IF NOT EXISTS rate_limits (

@@ -22,6 +22,7 @@ applied is safe.
 | 11 | `supabase/add_external_ticket_url.sql` | Adds `events.external_ticket_url` for per-event external checkout (e.g. FestFlow). |
 | 12 | `supabase/ticket_confirmation.sql` | **Ticket confirmations.** Adds `events.payment_url` / `payment_note`, the generated `ticket_orders.order_ref`, and `newsletter_subscribers.unsubscribe_token`. Replaces `create_ticket_order` (now returns event + payment details, and honours the sale window) and `subscribe_newsletter` (now returns the unsubscribe token). Adds `get_ticket_order` and `unsubscribe_newsletter`. Must run after 8, 9, 10 and 11. |
 | 13 | `supabase/merch_store.sql` | **The merch store.** Widens `products.category` to cover hoodies and hats, adds `images`, `sort_order`, `in_stock`; allows `eft` as an order payment method; adds the admin-only `store_settings` table holding the EFT bank details. Adds `create_merch_order` (the merch equivalent of 9, and the fix for merch checkout failing on RLS at the read-back), `eft_available`, and `cleanup_stale_merch_orders`. Must run after schema.sql. |
+| 14 | `supabase/lock_down_inventory_functions.sql` | **Closes three functions anyone with the anon key could call.** `reserve_tickets` becomes service role only (nothing in the app calls it), `release_tickets` refuses anyone who is not an admin or the service role and any quantity below 1, and `cleanup_stale_merch_orders` becomes service role only with a 48 hour floor. Run it after the deploy that moves the cleanup cron onto the service role key, and again if 2, 10 or 13 is ever re-run. |
 
 Optional, order-independent once `schema.sql` has run: `analytics_events.sql`
 (first-party analytics), `booking_enquiries.sql` (the /services form),
@@ -38,7 +39,7 @@ order number, and note what existing state it assumes.
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Settings → API | Database + auth |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Settings → API (anon public) | Client queries |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Settings → API (service role secret) | Admin operations |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Settings → API (service role secret) | Server only. The cleanup cron uses it for `cleanup_stale_merch_orders`, and `scripts/signups.mjs` reads it locally. Never used in a route a visitor can reach |
 
 ### Optional (app works without, but features degrade gracefully)
 
@@ -78,7 +79,10 @@ file and re-run it.
 
 Configured in `vercel.json`:
 - `/api/cron/cleanup-orders` runs daily at 03:00 UTC — cancels stale pending
-  orders (>48h) and releases reserved tickets.
+  orders (>48h) and releases reserved tickets. The merch half runs on the
+  service role key. The ticket half still runs on the anon key, which RLS
+  keeps from seeing any ticket orders, so it does nothing; switching it on
+  would auto cancel unpaid EFT ticket orders and is a business decision.
 
 ## Video pipeline
 

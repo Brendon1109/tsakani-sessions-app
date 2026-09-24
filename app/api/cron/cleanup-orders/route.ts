@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -54,7 +55,20 @@ async function handle(request: NextRequest) {
   // is the admin one, so it silently matched zero rows every night and reported
   // "cancelled_orders: 0" as if there had been nothing to do. See
   // supabase/merch_store.sql.
-  const { data: cancelledCount, error: ordersError } = await supabase.rpc(
+  //
+  // It runs on the service role key. Since
+  // supabase/lock_down_inventory_functions.sql the function is not executable
+  // by anon or authenticated, because anyone holding the public anon key could
+  // otherwise cancel every pending merch order older than an hour.
+  const service = createServiceClient();
+  if (!service) {
+    console.error(
+      "[cron/cleanup-orders] SUPABASE_SERVICE_ROLE_KEY is not set, so the merch cleanup cannot run."
+    );
+    return NextResponse.json({ error: "Not configured" }, { status: 503 });
+  }
+
+  const { data: cancelledCount, error: ordersError } = await service.rpc(
     "cleanup_stale_merch_orders",
     { p_hours: 48 }
   );
@@ -64,6 +78,14 @@ async function handle(request: NextRequest) {
   }
 
   // Cancel stale ticket orders + release reservations
+  //
+  // Deliberately left on the anon client. RLS hides ticket_orders from anon,
+  // so this select finds nothing and the half below has never run. Moving it
+  // onto the service role key would switch on automatic cancellation of every
+  // pending ticket order older than 48 hours, including EFT orders that were
+  // paid and not yet confirmed by hand, which is a decision for the business
+  // rather than a side effect of a security fix.
+  //
   // gt("total_zar", 0) so a free ticket is never swept up here. create_ticket_order
   // now writes free orders as 'confirmed' for exactly this reason, but a
   // free order that reaches 'pending' by any other route (an old row, a manual
