@@ -18,8 +18,6 @@ import EventJsonLd from "@/components/EventJsonLd";
 import BreadcrumbJsonLd from "@/components/BreadcrumbJsonLd";
 import TicketCheckout from "@/components/TicketCheckout";
 
-export const revalidate = 60;
-
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://tsakanisessions.co.za";
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "27769961477";

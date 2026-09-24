@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { clientIp } from "@/lib/request-meta";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -15,10 +16,9 @@ export async function rateLimit(
   limit: number,
   windowSeconds: number
 ): Promise<NextResponse | null> {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "anonymous";
+  // Only the header the current host's edge writes. On Cloudflare the first
+  // x-forwarded-for entry is whatever the caller sent. See lib/request-meta.ts.
+  const ip = clientIp(request.headers) || "anonymous";
 
   const key = `${bucket}:${ip}`;
   const now = Date.now();

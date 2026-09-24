@@ -1,0 +1,48 @@
+// The Cloudflare Worker for tsakanisessions.co.za, built with OpenNext.
+// The cutover runbook is docs/CLOUDFLARE-MOVE.md. Until DNS moves, Vercel is
+// production and this Worker only answers on its workers.dev address.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tsakani-sessions-app",
+  // Brendon's personal Cloudflare account. Never another account.
+  "account_id": "def57486f42c3f50263d4ae8edf11cd0",
+  // A thin wrapper around OpenNext's generated worker that adds the nightly
+  // cron. It imports .open-next/worker.js, so it only bundles after
+  // `npx opennextjs-cloudflare build`.
+  "main": "custom-worker.ts",
+  "compatibility_date": "2026-09-20",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // next/image goes through Cloudflare Images. Without this binding OpenNext
+  // would proxy full size originals through the Worker. See the runbook for
+  // the free allowance.
+  "images": {
+    "binding": "IMAGES"
+  },
+  // The two Vercel crons, cleanup-orders and finalize-events, both at 03:00
+  // UTC. custom-worker.ts runs both from this one trigger.
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
+  // Declared here rather than in the dashboard so they ship with the code and
+  // cannot drift apart. lib/request-meta.ts and app/api/e/route.ts read them
+  // to decide which edge headers to trust. Do not also set them as secrets.
+  "vars": {
+    "HOST_PLATFORM": "cloudflare",
+    "BZ_PLATFORM": "cloudflare"
+  },
+  // The workers.dev address is where the Worker is tested before DNS moves.
+  "workers_dev": true,
+  // No per version preview hostnames. The admin screens and the cron routes
+  // sit behind this Worker, so every version should not get its own address.
+  "preview_urls": false,
+  "observability": {
+    "logs": {
+      "enabled": true
+    }
+  }
+  // No routes or custom domains yet. They are added at cutover, runbook step 9.
+}

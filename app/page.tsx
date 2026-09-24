@@ -14,8 +14,6 @@ import { getLatestYouTubeVideos } from "@/lib/youtube";
 import { getFeaturedPosts } from "@/lib/social";
 import { eventDateShort, isEventPast } from "@/lib/date";
 
-export const revalidate = 60; // Cache for 1 minute, reduces DB hits
-
 // Organization / LocalBusiness / WebSite structured data is now rendered
 // site-wide via <SiteJsonLd /> in the root layout (see lib/seo.ts).
 

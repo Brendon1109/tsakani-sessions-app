@@ -6,8 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { eventDateShort } from "@/lib/date";
 import GalleryClient from "./GalleryClient";
 
-export const revalidate = 30;
-
 function ComingSoon({ slug }: { slug: string }) {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4 py-16">

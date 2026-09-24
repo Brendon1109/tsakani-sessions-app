@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/request-meta";
 import { verifyTurnstile } from "@/lib/captcha";
 import { sendNewsletterWelcome } from "@/lib/email";
 import { SITE_URL } from "@/lib/seo";
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = clientIp(request.headers) ?? undefined;
   const captchaOk = await verifyTurnstile(captcha_token, ip);
   if (!captchaOk) {
     return NextResponse.json({ error: "CAPTCHA failed" }, { status: 400 });

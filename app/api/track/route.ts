@@ -1,13 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { clientGeo } from "@/lib/request-meta";
 
 /**
  * First-party analytics ingest. Public, anonymous, fire-and-forget.
  *
  * - Stores only coarse, non-personal data: event name, path, referrer host,
- *   a client session id, derived city/region/country (from Vercel edge
- *   headers), a device hint and a small props bag. No raw IP is persisted
+ *   a client session id, derived city/region/country (from the host's edge,
+ *   see lib/request-meta.ts), a device hint and a small props bag. No raw IP is persisted
  *   (the IP is used transiently for rate-limiting only). POPIA-conscious.
  * - Accepts both same-origin (app) and cross-origin (static marketing site)
  *   beacons. Cross-origin beacons must use a CORS-safelisted content type
@@ -66,19 +67,9 @@ export async function POST(request: NextRequest) {
 
   const site = ALLOWED_SITES.has(String(payload.site)) ? String(payload.site) : "app";
 
-  // Coarse geo from Vercel edge headers (city is percent-encoded).
+  // Coarse geo from whichever edge is in front of the app.
   const h = request.headers;
-  const rawCity = h.get("x-vercel-ip-city");
-  let city: string | null = null;
-  if (rawCity) {
-    try {
-      city = decodeURIComponent(rawCity).slice(0, 120);
-    } catch {
-      city = rawCity.slice(0, 120);
-    }
-  }
-  const region = h.get("x-vercel-ip-country-region")?.slice(0, 120) || null;
-  const country = h.get("x-vercel-ip-country")?.slice(0, 8) || null;
+  const { city, region, country } = clientGeo(h);
   const device = deviceFromUA(h.get("user-agent") || "");
 
   // Keep props small and string-ish; cap the serialized size.
