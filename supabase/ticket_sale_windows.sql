@@ -53,6 +53,12 @@ BEGIN
 END;
 $function$;
 
+-- Service role only since 24 September 2026. Nothing in the app calls it, and
+-- open to anon it let anyone fill an event's capacity. See
+-- lock_down_inventory_functions.sql.
+REVOKE ALL ON FUNCTION public.reserve_tickets(uuid, integer) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reserve_tickets(uuid, integer) TO service_role;
+
 
 -- ── 2. Helper: default windows for an event ─────────────────
 -- Free entry runs until the door opens, then door tickets take over

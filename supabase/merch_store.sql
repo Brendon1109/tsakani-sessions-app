@@ -114,7 +114,10 @@ as $$
 declare
   v_count integer;
 begin
-  if p_hours is null or p_hours < 1 then
+  -- Never shorter than the 48 hours the nightly cron uses. It used to accept
+  -- anything from 1, which let any caller cancel every pending order older
+  -- than an hour.
+  if p_hours is null or p_hours < 48 then
     p_hours := 48;
   end if;
 
@@ -131,8 +134,10 @@ begin
 end;
 $$;
 
-revoke all on function public.cleanup_stale_merch_orders(integer) from public;
-grant execute on function public.cleanup_stale_merch_orders(integer) to anon, authenticated;
+-- Service role only since 24 September 2026. The cron calls it with the
+-- service role key. See lock_down_inventory_functions.sql.
+revoke all on function public.cleanup_stale_merch_orders(integer) from public, anon, authenticated;
+grant execute on function public.cleanup_stale_merch_orders(integer) to service_role;
 
 -- Whether the shop should offer an EFT button at all. This is the only thing
 -- about the bank account a visitor can learn before ordering: yes or no.
