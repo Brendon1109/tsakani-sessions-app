@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { type Lead, describeConsents, sortLeadsByDateDesc } from "@/lib/leads";
 
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
   const { data: { user } } = await supabase.auth.getUser();

@@ -3,8 +3,11 @@ import { cookies } from "next/headers";
 
 /**
  * Creates a Supabase server client. Returns null if env vars are not set.
+ *
+ * Async since Next 15, because cookies() returns a promise, and Next 16
+ * removed the synchronous fallback. Every caller awaits it.
  */
-export function createClient() {
+export async function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -12,7 +15,7 @@ export function createClient() {
     return null;
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(url, key,
     {

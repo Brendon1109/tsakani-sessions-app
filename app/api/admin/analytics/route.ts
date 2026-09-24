@@ -81,7 +81,7 @@ function tally(rows: Row[], pick: (r: Row) => string | null): Record<string, num
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase)
     return NextResponse.json({ error: "Not configured" }, { status: 503 });
 

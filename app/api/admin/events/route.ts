@@ -18,7 +18,7 @@ function normaliseInstant(value: unknown): string | null {
 }
 
 async function requireAdmin() {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return { supabase: null, user: null, email: null };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { supabase, user: null, email: null };
@@ -82,7 +82,7 @@ function normalizePaymentNote(value: unknown): { note: string | null } | { error
 }
 
 async function executeTicketPlan(
-  supabase: NonNullable<ReturnType<typeof createClient>>,
+  supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>,
   eventId: string,
   plan: TicketSyncPlan,
 ): Promise<{ error?: string; status?: number }> {

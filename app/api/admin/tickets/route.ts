@@ -11,7 +11,7 @@ function pickOne<T>(value: T | T[] | null | undefined): T | undefined {
 }
 
 async function requireAdmin() {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return { supabase: null, user: null };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { supabase, user: null };

@@ -2,8 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 async function requireAdmin() {
-  const supabase = createClient();
-  if (!supabase) return { supabase: null as ReturnType<typeof createClient>, user: null };
+  const supabase = await createClient();
+  if (!supabase) return { supabase: null as Awaited<ReturnType<typeof createClient>>, user: null };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { supabase, user: null };
   const { data: profile } = await supabase

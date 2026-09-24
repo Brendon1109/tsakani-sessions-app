@@ -49,16 +49,17 @@ function ComingSoon({ slug }: { slug: string }) {
 export default async function GallerySlugPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const data = await getGalleryBySlug(params.slug);
-  if (!data) return <ComingSoon slug={params.slug} />;
+  const { slug } = await params;
+  const data = await getGalleryBySlug(slug);
+  if (!data) return <ComingSoon slug={slug} />;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = supabase ? (await supabase.auth.getUser()).data.user : null;
 
   if (!user) {
-    redirect(`/auth/signin?redirectTo=/gallery/${params.slug}`);
+    redirect(`/auth/signin?redirectTo=/gallery/${slug}`);
   }
 
   if (supabase) {
@@ -74,7 +75,7 @@ export default async function GallerySlugPage({
 
   return (
     <GalleryClient
-      slug={params.slug}
+      slug={slug}
       title={data.gallery.title}
       description={data.gallery.description}
       date={data.event?.date ? eventDateShort(data.event.date) : null}

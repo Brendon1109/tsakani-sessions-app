@@ -53,7 +53,7 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
   // An event is finished once 04:00 SAST has passed on the morning after

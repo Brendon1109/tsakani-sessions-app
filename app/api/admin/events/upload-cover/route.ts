@@ -5,7 +5,7 @@ const MAX_BYTES = 8 * 1024 * 1024;
 const BUCKET = "gallery-photos";
 
 export async function POST(request: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
   const { data: { user } } = await supabase.auth.getUser();

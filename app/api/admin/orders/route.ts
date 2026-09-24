@@ -11,7 +11,7 @@ const ORDER_STATUSES = [
 ] as const;
 
 async function requireAdmin() {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return { supabase: null, user: null, email: null };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { supabase, user: null, email: null };

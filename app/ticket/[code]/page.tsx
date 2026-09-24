@@ -94,12 +94,13 @@ function TicketNotFound() {
   );
 }
 
-export default async function TicketPage({ params }: { params: { code: string } }) {
-  const supabase = createClient();
+export default async function TicketPage({ params }: { params: Promise<{ code: string }> }) {
+  const { code } = await params;
+  const supabase = await createClient();
   if (!supabase) return <TicketNotFound />;
 
   const { data, error } = await supabase.rpc("get_ticket_order", {
-    p_qr_code: decodeURIComponent(params.code),
+    p_qr_code: decodeURIComponent(code),
   });
 
   const order = (Array.isArray(data) ? data[0] : data) as TicketOrderView | undefined;
@@ -108,7 +109,7 @@ export default async function TicketPage({ params }: { params: { code: string } 
   const isFree = order.total_zar <= 0;
   const confirmed = order.status === "confirmed" || order.status === "used";
   const payUrl = isFree ? null : httpUrl(order.payment_url);
-  const ticketUrl = `${(process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "")}/ticket/${params.code}`;
+  const ticketUrl = `${(process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "")}/ticket/${code}`;
 
   const waMessage = encodeURIComponent(
     `Hi Tsakani Sessions! I'm asking about my ticket order ${order.order_ref} for "${order.event_title}".`

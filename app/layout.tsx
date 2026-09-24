@@ -97,7 +97,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-ZA" className={`${inter.variable} ${dancingScript.variable}`}>
+    // data-scroll-behavior keeps route changes jumping straight to the top
+    // while globals.css scrolls smoothly within a page. Next 16 stopped doing
+    // that by default.
+    <html
+      lang="en-ZA"
+      className={`${inter.variable} ${dancingScript.variable}`}
+      data-scroll-behavior="smooth"
+    >
       <body className="font-sans bg-black text-white min-h-screen flex flex-col">
         <SiteJsonLd />
         <Navbar />

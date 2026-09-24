@@ -14,7 +14,7 @@ export interface FeaturedPost {
 export async function getFeaturedPosts(
   platform?: FeaturedPost["platform"]
 ): Promise<FeaturedPost[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return [];
 
   let query = supabase

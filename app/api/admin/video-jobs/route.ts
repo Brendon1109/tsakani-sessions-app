@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logAudit } from "@/lib/audit";
 
 async function requireAdmin() {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return { supabase: null, user: null, email: null };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { supabase, user: null, email: null };
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
  * Worker updates job status/progress.
  */
 export async function PATCH(request: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
 
   const workerSecret = request.headers.get("x-worker-secret");
