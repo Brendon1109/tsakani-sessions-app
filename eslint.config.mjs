@@ -40,6 +40,9 @@ export default defineConfig([
     // `next lint` never looked here either.
     "public/**",
     // Generated or local only, never source.
+    ".open-next/**",
+    ".wrangler/**",
+    "dist-dryrun/**",
     "coverage/**",
     "venv/**",
     ".vercel/**",

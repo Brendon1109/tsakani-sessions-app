@@ -15,7 +15,24 @@ export interface YouTubeVideo {
   views: number | null;
 }
 
+// The fetch below is cached for an hour by Next's data cache on Vercel. The
+// Cloudflare Worker runs without an incremental cache (see
+// docs/CLOUDFLARE-MOVE.md), so there that option does nothing and every home
+// page render would refetch the feed. This keeps the last good result for an
+// hour inside each isolate instead. Plain data only, never a pending promise,
+// and a failure is not remembered, so the next request tries again.
+const MEMO_MS = 60 * 60 * 1000;
+const memo = new Map<number, { at: number; videos: YouTubeVideo[] }>();
+
 export async function getLatestYouTubeVideos(limit = 4): Promise<YouTubeVideo[]> {
+  const hit = memo.get(limit);
+  if (hit && Date.now() - hit.at < MEMO_MS) return hit.videos;
+  const videos = await fetchLatestYouTubeVideos(limit);
+  if (videos.length > 0) memo.set(limit, { at: Date.now(), videos });
+  return videos;
+}
+
+async function fetchLatestYouTubeVideos(limit: number): Promise<YouTubeVideo[]> {
   try {
     const response = await fetch(FEED_URL, {
       next: { revalidate: 3600 }, // cache for 1 hour

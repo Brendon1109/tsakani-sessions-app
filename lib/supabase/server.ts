@@ -6,6 +6,11 @@ import { cookies } from "next/headers";
  *
  * Async since Next 15, because cookies() returns a promise, and Next 16
  * removed the synchronous fallback. Every caller awaits it.
+ *
+ * Reading cookies makes every page that calls this render per request. That
+ * is why the public pages carry no `revalidate`: it never took effect on
+ * them, and the Worker runs without an incremental cache on purpose. See
+ * docs/CLOUDFLARE-MOVE.md before adding one.
  */
 export async function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

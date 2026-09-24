@@ -5,8 +5,6 @@ import { Camera, Calendar, ExternalLink, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { eventDateShort } from "@/lib/date";
 
-export const revalidate = 60;
-
 const PUBLIC_PREVIEW_COUNT = 4;
 
 export const metadata: Metadata = {

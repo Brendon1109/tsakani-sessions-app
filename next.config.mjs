@@ -64,6 +64,26 @@ const nextConfig = {
       },
     ],
   },
+  // www to apex, the same two rules as vercel.json but inside the app, so they
+  // also run on the Cloudflare Worker, which never reads vercel.json. Vercel
+  // applies its own copy first. Drop the vercel.json copy with the project.
+  async redirects() {
+    const www = [{ type: "host", value: "www.tsakanisessions.co.za" }];
+    return [
+      {
+        source: "/",
+        has: www,
+        destination: "https://tsakanisessions.co.za/",
+        permanent: true,
+      },
+      {
+        source: "/:path+",
+        has: www,
+        destination: "https://tsakanisessions.co.za/:path+",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

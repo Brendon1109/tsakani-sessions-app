@@ -12,8 +12,6 @@ import {
   isEventPast,
 } from "@/lib/date";
 
-export const revalidate = 60;
-
 export const metadata: Metadata = {
   title: "Upcoming Events & Past Highlights",
   description:

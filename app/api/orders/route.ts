@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/request-meta";
 import { verifyTurnstile } from "@/lib/captcha";
 import { sendOrderConfirmation, sendAdminOrderAlert } from "@/lib/email";
 import type { EftDetails } from "@/lib/email";
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
       : "whatsapp";
 
   // CAPTCHA verification (if configured)
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = clientIp(request.headers) ?? undefined;
   const captchaOk = await verifyTurnstile(captcha_token, ip);
   if (!captchaOk) {
     return NextResponse.json({ error: "CAPTCHA failed" }, { status: 400 });

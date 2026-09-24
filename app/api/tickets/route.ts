@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/request-meta";
 import { verifyTurnstile } from "@/lib/captcha";
 import { sendAdminOrderAlert, sendTicketConfirmation } from "@/lib/email";
 import { ticketQrPng, ticketUrl } from "@/lib/qr";
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Quantity must be 1-20" }, { status: 400 });
   }
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = clientIp(request.headers) ?? undefined;
   const captchaOk = await verifyTurnstile(captcha_token, ip);
   if (!captchaOk) {
     return NextResponse.json({ error: "CAPTCHA failed" }, { status: 400 });
