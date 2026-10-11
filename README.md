@@ -1,12 +1,12 @@
 # Tsakani Sessions
 
-The site for Tsakani Sessions, a Cape Town DJ and live music events brand: events and tickets, the merch shop, photo galleries, bookings and the admin behind them. Live at https://tsakanisessions.co.za.
+The site for Tsakani Sessions, a Cape Town DJ and live music events brand: events and tickets, the DJ roster, the merch shop, photo galleries, bookings and the admin behind them. Live at https://tsakanisessions.co.za.
 
 ## Stack
 
 - Next.js 16 (app router), React 19, TypeScript, Tailwind CSS
 - Supabase for Postgres, Google sign in and photo storage. The schema is hand run SQL in `supabase/`
-- Resend for email, Turnstile for bot defence on forms
+- Resend for email. Turnstile bot defence is wired into the forms but switched off until its keys are set
 - Hosted on a Cloudflare Worker through OpenNext. Workers Builds deploys every merge to `master`, nothing is deployed from a laptop
 
 ## Commands
