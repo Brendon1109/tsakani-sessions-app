@@ -44,13 +44,16 @@ export async function POST(request: NextRequest) {
   // so a subscriber who returns and ticks merch as well keeps events AND gains
   // merch, while nobody can resubmit someone else's address to strip it.
   // See supabase/subscribe_newsletter_fn.sql and supabase/ticket_confirmation.sql.
+  //
+  // No IP address goes in. The IP above is only handed to Turnstile. The signup
+  // time, the boxes ticked and the welcome email are the record of consent.
+  // See supabase/newsletter_no_ip.sql.
   const normalised = email.toLowerCase().trim();
   const { data, error } = await supabase.rpc("subscribe_newsletter", {
     p_email: normalised,
     p_consent_events: wantsEvents,
     p_consent_merch: wantsMerch,
     p_source: "website",
-    p_consent_ip: ip || null,
   });
 
   if (error) {
