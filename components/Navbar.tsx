@@ -10,6 +10,7 @@ import type { User } from "@supabase/supabase-js";
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/events", label: "Events" },
+  { href: "/djs", label: "DJs" },
   { href: "/services", label: "Services" },
   { href: "/gallery", label: "Gallery" },
   { href: "/shop", label: "Shop" },
@@ -78,7 +79,9 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
+          {/* gap-4 until lg: six links plus Sign In and Book Now only fit
+              on one line between 800 and 1024px with the tighter gap. */}
+          <div className="hidden md:flex items-center gap-4 lg:gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}

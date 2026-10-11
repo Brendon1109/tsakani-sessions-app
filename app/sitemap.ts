@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getPublishedEvents } from "@/lib/queries";
+import { getDjs, getPublishedEvents } from "@/lib/queries";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl =
@@ -8,6 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     "/",
     "/events",
+    "/djs",
     "/services",
     "/shop",
     "/gallery",
@@ -36,5 +37,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Fall back to static routes if Supabase is unreachable.
   }
 
-  return [...staticRoutes, ...eventRoutes];
+  let djRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const djs = await getDjs();
+    djRoutes = djs.map((dj) => ({
+      url: `${baseUrl}/djs/${dj.slug}`,
+      lastModified: new Date(dj.updated_at || dj.created_at),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    }));
+  } catch {
+    // Same fallback as events.
+  }
+
+  return [...staticRoutes, ...eventRoutes, ...djRoutes];
 }

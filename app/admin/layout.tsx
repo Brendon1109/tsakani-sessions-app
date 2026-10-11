@@ -20,6 +20,7 @@ import {
   UserCheck,
   ScanLine,
   Gift,
+  Headphones,
   ChevronLeft,
   Menu,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const adminNav = [
   { href: "/admin/door", label: "Door / Check-in", icon: ScanLine },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/events", label: "Events", icon: Calendar },
+  { href: "/admin/djs", label: "DJs", icon: Headphones },
   { href: "/admin/gallery", label: "Gallery", icon: ImageIcon },
   { href: "/admin/tickets", label: "Tickets", icon: Ticket },
   { href: "/admin/comp-tickets", label: "Comp Tickets", icon: Gift },
