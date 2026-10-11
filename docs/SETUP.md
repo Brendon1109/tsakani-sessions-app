@@ -24,6 +24,7 @@ applied is safe.
 | 13 | `supabase/merch_store.sql` | **The merch store.** Widens `products.category` to cover hoodies and hats, adds `images`, `sort_order`, `in_stock`; allows `eft` as an order payment method; adds the admin-only `store_settings` table holding the EFT bank details. Adds `create_merch_order` (the merch equivalent of 9, and the fix for merch checkout failing on RLS at the read-back), `eft_available`, and `cleanup_stale_merch_orders`. Must run after schema.sql. |
 | 14 | `supabase/lock_down_inventory_functions.sql` | **Closes three functions anyone with the anon key could call.** `reserve_tickets` becomes service role only (nothing in the app calls it), `release_tickets` refuses anyone who is not an admin or the service role and any quantity below 1, and `cleanup_stale_merch_orders` becomes service role only with a 48 hour floor. Run it after the deploy that moves the cleanup cron onto the service role key, and again if 2, 10 or 13 is ever re-run. |
 | 15 | `supabase/djs.sql` | **The DJ roster.** Adds the `djs` table behind `/djs` and `/admin/djs` (name, slug, picture path under `djs/` in `gallery-photos`, description, genres, YouTube, TikTok, Instagram and SoundCloud links). Every row is public, admins write. Adds `requested_dj_id` and `requested_dj_name` to `booking_enquiries`, with a restrictive insert policy so a DJ on an enquiry must be a real DJ under their own name. Must run after `schema.sql` and `booking_enquiries.sql`. |
+| 16 | `supabase/drop_video_pipeline.sql` | **Drops the dead video pipeline tables**, `video_jobs` and `video_projects`. The app stopped using them when the admin Video and Social Uploads pages were removed. Refuses to drop a table that has rows. Run it after the deploy that removes the pipeline code. A no-op on a fresh project, because 1 and 2 no longer create them. |
 
 Optional, order-independent once `schema.sql` has run: `analytics_events.sql`
 (first-party analytics), `booking_enquiries.sql` (the /services form),
@@ -55,7 +56,6 @@ order number, and note what existing state it assumes.
 | `ADMIN_EMAIL` | Where admin alerts go | Your email |
 | `NEXT_PUBLIC_SENTRY_DSN` | Error tracking | sentry.io |
 | `CRON_SECRET` | Protects cron endpoints | Generate with `openssl rand -hex 32` |
-| `WORKER_SECRET` | Auth for video worker | Generate with `openssl rand -hex 32` |
 
 ### Set via Vercel CLI
 
@@ -84,9 +84,3 @@ Configured in `vercel.json`:
   service role key. The ticket half still runs on the anon key, which RLS
   keeps from seeing any ticket orders, so it does nothing; switching it on
   would auto cancel unpaid EFT ticket orders and is a business decision.
-
-## Video pipeline
-
-1. Admin queues a job via `/admin/video`
-2. Run `python scripts/video_worker.py` on a machine with FFmpeg + your footage
-3. Worker picks up queued jobs, runs `video_merge.py`, reports status back

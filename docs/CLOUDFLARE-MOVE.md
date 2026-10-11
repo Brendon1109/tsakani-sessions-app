@@ -69,7 +69,6 @@ Set each as a Secret (Worker, Settings, Variables and secrets, or `npx wrangler 
 | `RESEND_FROM_EMAIL`, `REPLY_TO_EMAIL`, `ADMIN_EMAIL` | Vercel production (readable) | `ADMIN_EMAIL` also receives the cron failure alert |
 | `BZ_SITE`, `BZ_SALT`, `BZ_INGEST_SECRET`, `BZ_ENDPOINT` | Vercel production (readable) | Same values as Vercel, so visitor counts stay continuous. The collector lives on a different Cloudflare account, so a plain fetch reaches it. If it ever moves onto this account, switch to a service binding, because a Worker cannot fetch another Worker's workers.dev address on the same account |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile | Only when Turnstile is switched on |
-| `WORKER_SECRET` | The local video worker's config | Not set on Vercel. Only if the video pipeline talks to production |
 
 **Never set** `HOST_PLATFORM` or `BZ_PLATFORM` in the dashboard. They live in `wrangler.jsonc`, and a secret with the same name makes the deploy fail.
 
