@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   path          text,
   referrer_host text,
   session_id    text,                               -- anonymous, client-generated
-  city          text,                               -- coarse geo (Vercel edge)
+  city          text,                               -- coarse geo (Cloudflare request.cf)
   region        text,
   country       text,
   device        text,                               -- mobile | tablet | desktop

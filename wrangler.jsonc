@@ -34,7 +34,8 @@
   "vars": {
     "BZ_PLATFORM": "cloudflare"
   },
-  // The workers.dev address is where the Worker is tested before DNS moves.
+  // The workers.dev address stays on as a second way in for checks. If it is
+  // ever switched off, drop its Supabase redirect URL too (runbook step 12).
   "workers_dev": true,
   // No per version preview hostnames. The admin screens and the cron routes
   // sit behind this Worker, so every version should not get its own address.
@@ -44,5 +45,7 @@
       "enabled": true
     }
   }
-  // No routes or custom domains yet. They are added at cutover, runbook step 9.
+  // The apex and www are Custom Domains, added in the dashboard at cutover on
+  // 24 September 2026. Moving them into "routes" here is runbook step 10,
+  // still to do.
 }

@@ -59,7 +59,7 @@ order number, and note what existing state it assumes.
 
 ### Where they live
 
-The three public build values (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`) are in the committed `.env.production`. Everything else is a secret on the Worker:
+Every `NEXT_PUBLIC_` value is baked into the bundle at build time, so it goes in the committed `.env.production` (today the Supabase URL, the anon key and the site URL). A Worker secret never reaches the bundle. Only server values are secrets on the Worker:
 
 ```bash
 npx wrangler secret put VARNAME

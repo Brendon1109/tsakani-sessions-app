@@ -13,12 +13,24 @@ import { getCloudflareContext } from "@opennextjs/cloudflare/cloudflare-context"
  *   City and region never arrive as headers unless the zone turns on a
  *   managed transform, so they are not read from headers here.
  *
- * There is no platform switch. Outside the Worker (next dev, next start, the
- * tests) none of this exists, so the IP is null and the geo is empty.
+ * cf-connecting-ip and cf-ipcountry are only Cloudflare's when the request
+ * really came through the Worker. Anywhere else (next dev, next start, an old
+ * Vercel deployment, the tests) a caller can send them by hand, so both are
+ * read only when OpenNext's Cloudflare context exists, and off the Worker the
+ * IP is null and the geo is empty. There is no platform switch.
  */
 
+/** The Worker's request data, or null when this is not running on the Worker. */
+export interface WorkerRequest {
+  cf: CfGeo | undefined;
+}
+
 /** The client IP Cloudflare vouches for, or null. */
-export function clientIp(headers: Headers): string | null {
+export function clientIp(
+  headers: Headers,
+  worker: WorkerRequest | null = workerRequest()
+): string | null {
+  if (!worker) return null;
   return headers.get("cf-connecting-ip")?.trim() || null;
 }
 
@@ -40,7 +52,12 @@ export interface CfGeo {
  * subdivision code (WC for the Western Cape), the same form the rows written
  * before the move to Cloudflare used, so old and new rows line up.
  */
-export function clientGeo(headers: Headers, cf: CfGeo | undefined = requestCf()): Geo {
+export function clientGeo(
+  headers: Headers,
+  worker: WorkerRequest | null = workerRequest()
+): Geo {
+  if (!worker) return { city: null, region: null, country: null };
+  const cf = worker.cf;
   return {
     city: clip(cf?.city, 120),
     region: clip(cf?.regionCode, 120),
@@ -48,12 +65,12 @@ export function clientGeo(headers: Headers, cf: CfGeo | undefined = requestCf())
   };
 }
 
-/** request.cf for the current request on the Worker, or undefined anywhere else. */
-function requestCf(): CfGeo | undefined {
+/** The current request on the Worker, or null anywhere else. */
+function workerRequest(): WorkerRequest | null {
   try {
-    return getCloudflareContext().cf as CfGeo | undefined;
+    return { cf: getCloudflareContext().cf as CfGeo | undefined };
   } catch {
-    return undefined;
+    return null;
   }
 }
 
