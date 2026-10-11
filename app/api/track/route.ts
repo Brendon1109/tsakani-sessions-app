@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { clientGeo } from "@/lib/request-meta";
+import { redactPath } from "@/app/api/e/core";
 
 /**
  * First-party analytics ingest. Public, anonymous, fire-and-forget.
@@ -10,6 +11,12 @@ import { clientGeo } from "@/lib/request-meta";
  *   a client session id, derived city/region/country (from the host's edge,
  *   see lib/request-meta.ts), a device hint and a small props bag. No raw IP is persisted
  *   (the IP is used transiently for rate-limiting only). POPIA-conscious.
+ * - Never stores a code. A ticket link is /ticket/<code>, and that code is
+ *   the whole proof the ticket is yours, so the path and every string in the
+ *   props go through redactPath, the same redaction Breazy Analytics applies
+ *   (app/api/e/core.ts), and the referrer is cut back to a host. Before this
+ *   every visit to a ticket page wrote a working ticket code into
+ *   analytics_events. supabase/scrub_analytics_codes.sql cleans the old rows.
  * - Accepts both same-origin (app) and cross-origin (static marketing site)
  *   beacons. Cross-origin beacons must use a CORS-safelisted content type
  *   (text/plain) to avoid a preflight that sendBeacon cannot perform; the body
@@ -29,6 +36,31 @@ function clamp(v: unknown, max: number): string | null {
   if (typeof v !== "string") return null;
   const s = v.trim();
   return s ? s.slice(0, max) : null;
+}
+
+// Anything shaped like a code (a UUID, a long hex or mixed run, a capability
+// prefix) becomes [id]. Applied to every string, keys included, at any depth.
+function redactProps(value: unknown): unknown {
+  if (typeof value === "string") return value ? redactPath(value) : value;
+  if (Array.isArray(value)) return value.map(redactProps);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [redactPath(k), redactProps(v)])
+    );
+  }
+  return value;
+}
+
+// The tracker sends the referrer's host only. Whatever arrives is cut back to
+// a host anyway, so a full link, and any code in it, is never stored.
+function referrerHost(v: unknown): string | null {
+  const raw = clamp(v, 255);
+  if (!raw) return null;
+  try {
+    return new URL(raw.includes("://") ? raw : `https://${raw}`).host || null;
+  } catch {
+    return null;
+  }
 }
 
 function deviceFromUA(ua: string): "mobile" | "tablet" | "desktop" {
@@ -77,7 +109,9 @@ export async function POST(request: NextRequest) {
   if (payload.props && typeof payload.props === "object") {
     try {
       const json = JSON.stringify(payload.props);
-      if (json.length <= 2000) props = payload.props as Record<string, unknown>;
+      if (json.length <= 2000) {
+        props = redactProps(payload.props) as Record<string, unknown>;
+      }
     } catch {
       props = {};
     }
@@ -88,11 +122,13 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
   }
 
+  const rawPath = clamp(payload.path, 512);
+
   await supabase.from("analytics_events").insert({
     site,
     event_name: event,
-    path: clamp(payload.path, 512),
-    referrer_host: clamp(payload.referrer, 255),
+    path: rawPath ? redactPath(rawPath) : null,
+    referrer_host: referrerHost(payload.referrer),
     session_id: clamp(payload.session_id, 64),
     city,
     region,
