@@ -15,7 +15,6 @@
     "signups": "node scripts/signups.mjs"
   },
   "dependencies": {
-    "@sentry/nextjs": "^10.49.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
     "browser-image-compression": "^2.0.2",

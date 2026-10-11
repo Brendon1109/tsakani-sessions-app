@@ -54,7 +54,6 @@ order number, and note what existing state it assumes.
 | `RESEND_API_KEY` | Transactional emails | resend.com |
 | `RESEND_FROM_EMAIL` | From address | `Tsakani Sessions <hello@yourdomain>` |
 | `ADMIN_EMAIL` | Where admin alerts go | Your email |
-| `NEXT_PUBLIC_SENTRY_DSN` | Error tracking | sentry.io |
 | `CRON_SECRET` | Protects cron endpoints | Generate with `openssl rand -hex 32` |
 
 ### Set via Vercel CLI
