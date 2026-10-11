@@ -28,6 +28,7 @@ applied is safe.
 | 17 | `supabase/finalize_past_events.sql` | **Finished events become past.** Adds `finalize_past_events`, service role only, which the nightly finalize-events cron calls to mark published events that started more than 28 hours ago as past and close their ticket sales in one transaction. Adds the "Public read past events" policy so a past event stays on /events, on its own page and in the sitemap. Run it before the deploy that moves the cron onto the function. Safe to re-run. |
 | 18 | `supabase/scrub_analytics_codes.sql` | **Ticket codes out of the analytics table.** One off. /api/track used to store `/ticket/<code>` paths as they arrived, so working ticket codes sat in `analytics_events`. Step 1 counts the rows, read only. Step 2 runs the same redaction as `redactPath` in `app/api/e/core.ts` over the stored paths. Run it after the deploy that adds the redaction to /api/track. A no-op on a fresh project. |
 | 19 | `supabase/newsletter_no_ip.sql` | **The newsletter stops storing IP addresses.** Replaces `subscribe_newsletter` in place with the same signature, so it ignores `p_consent_ip` and never writes `consent_ip`. Safe before or after the deploy that stops /api/newsletter sending it. Part 2, clearing the addresses already stored, is commented out and run by hand once after that deploy. Must run after 12. |
+| 20 | `supabase/retention.sql` | **Retention.** Adds `booking_enquiries.updated_at`, stamped by a trigger on every update, and `apply_retention`, service role only, which the nightly retention cron calls to delete `analytics_events` older than 12 months and booking enquiries two years after their last update (or creation). Run it before the deploy that adds the cron. Safe to re-run. |
 
 Optional, order-independent once `schema.sql` has run: `analytics_events.sql`
 (first-party analytics), `booking_enquiries.sql` (the /services form),
@@ -90,3 +91,7 @@ Configured in `vercel.json`:
   started more than 28 hours ago as past and closes their ticket sales,
   through `finalize_past_events` on the service role key. Running it again
   changes nothing.
+- `/api/cron/retention` runs daily at 03:00 UTC from the Worker cron only,
+  deletes analytics events older than 12 months and booking enquiries two
+  years after their last update, through `apply_retention` on the service
+  role key. Running it again deletes nothing.

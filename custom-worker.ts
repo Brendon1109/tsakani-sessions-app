@@ -1,9 +1,10 @@
 /**
  * Worker entry: OpenNext's generated handler for every request, plus the
- * nightly jobs that vercel.json runs as Vercel crons.
+ * nightly jobs. The first two are the ones vercel.json runs as Vercel crons;
+ * retention runs here only.
  *
- * The cron does not reimplement anything. It calls the same two route
- * handlers Vercel calls, through the same fetch handler, with the same
+ * The cron does not reimplement anything. It calls the cron route handlers
+ * through the same fetch handler, with the same
  * CRON_SECRET bearer token, so the auth check, the fail closed rule and the
  * job logic stay in one place: app/api/cron/*.
  *
@@ -41,7 +42,11 @@ interface Controller {
 // a direct call, so this only has to be a host the app treats as its own.
 const ORIGIN = "https://tsakanisessions.co.za";
 
-const NIGHTLY_JOBS = ["/api/cron/cleanup-orders", "/api/cron/finalize-events"];
+const NIGHTLY_JOBS = [
+  "/api/cron/cleanup-orders",
+  "/api/cron/finalize-events",
+  "/api/cron/retention",
+];
 
 async function runJob(path: string, env: Env, ctx: Ctx): Promise<string | null> {
   try {
@@ -94,8 +99,8 @@ const worker = {
 
   async scheduled(controller: Controller, env: Env, ctx: Ctx): Promise<void> {
     const failures: string[] = [];
-    // One after the other, and both always run: finalize-events does not
-    // depend on cleanup-orders succeeding.
+    // One after the other, and every one always runs: no job depends on
+    // another succeeding.
     for (const path of NIGHTLY_JOBS) {
       const failure = await runJob(path, env, ctx);
       if (failure) failures.push(failure);
