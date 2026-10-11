@@ -37,6 +37,19 @@ describe("whatsapp message builders", () => {
     expect(msg).toContain("DJ, Content");
   });
 
+  it("names the requested DJ only when there is one", () => {
+    const data = {
+      name: "A",
+      email: "a@a.com",
+      phone: "1",
+      eventType: "DJ & Live Performance",
+      eventDate: "d",
+      venue: "v",
+    };
+    expect(createBookingMessage({ ...data, dj: "KENDOUR" })).toContain("*DJ:* KENDOUR");
+    expect(createBookingMessage(data)).not.toContain("*DJ:*");
+  });
+
   it("builds an order message with totals", () => {
     const msg = createOrderMessage({
       customerName: "Jane",

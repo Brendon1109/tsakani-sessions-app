@@ -5,6 +5,7 @@ import { clientIp } from "@/lib/request-meta";
 import { verifyTurnstile } from "@/lib/captcha";
 import { sendAdminOrderAlert } from "@/lib/email";
 import { validateBookingInput } from "@/lib/bookings";
+import { resolveRequestedDj, type DjResolution } from "@/lib/djs";
 
 /**
  * Saves a booking enquiry from /services before the form hands off to WhatsApp.
@@ -14,6 +15,11 @@ import { validateBookingInput } from "@/lib/bookings";
  * anon visitors, since only admins hold a SELECT policy on booking_enquiries
  * (the same trap documented in create_ticket_order_fn.sql). We mint the id here
  * and insert it, so we can hand it back without reading the row.
+ *
+ * "Book this DJ" sends a slug and nothing else about the DJ. The DJ is looked
+ * up here, and the id and name stored are the roster's own. A slug that is not
+ * on the roster is refused rather than quietly dropped, and the restrictive
+ * policy in supabase/djs.sql holds the same line for direct writes.
  */
 export async function POST(request: NextRequest) {
   // Rate limit: 5 enquiries per 10 min per IP.
@@ -38,6 +44,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not configured" }, { status: 503 });
   }
 
+  let requested: DjResolution;
+  try {
+    requested = await resolveRequestedDj(booking.dj, async (slug) => {
+      const { data, error } = await supabase
+        .from("djs")
+        .select("id, name")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data;
+    });
+  } catch (err) {
+    console.error("[bookings] dj lookup failed:", (err as Error).message);
+    return NextResponse.json(
+      { error: "Could not save your booking. Please try again." },
+      { status: 500 }
+    );
+  }
+  if (!requested.ok) {
+    return NextResponse.json({ error: requested.error }, { status: 400 });
+  }
+  const dj = requested.dj;
+
   const id = crypto.randomUUID();
   const { error } = await supabase.from("booking_enquiries").insert({
     id,
@@ -49,6 +78,8 @@ export async function POST(request: NextRequest) {
     venue: booking.venue,
     message: booking.message,
     source: "services_form",
+    requested_dj_id: dj?.id ?? null,
+    requested_dj_name: dj?.name ?? null,
   });
 
   if (error) {
@@ -64,6 +95,7 @@ export async function POST(request: NextRequest) {
   const summary =
     [
       booking.event_type && `Service: ${booking.event_type}`,
+      dj && `DJ: ${dj.name}`,
       booking.event_date && `Date: ${booking.event_date}`,
       booking.venue && `Venue: ${booking.venue}`,
       booking.message && `Notes: ${booking.message}`,

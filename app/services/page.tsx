@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PartyPopper,
   Music,
@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { createBookingMessage, openWhatsApp, type BookingData } from "@/lib/whatsapp";
 import { track } from "@/lib/analytics";
+import { createClient } from "@/lib/supabase/client";
 import Turnstile from "@/components/Turnstile";
+
+/** Picked by "Book this DJ" on a DJ page, which links here as /services?dj=slug. */
+const DJ_SERVICE_ID = "dj-performance";
+
+type DjOption = { slug: string; name: string };
 
 const services = [
   {
@@ -88,7 +94,42 @@ export default function ServicesPage() {
     message: "",
   });
 
+  const [djOptions, setDjOptions] = useState<DjOption[]>([]);
+  const [selectedDj, setSelectedDj] = useState("");
+
   const captchaRequired = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  // The roster for the DJ picker, and the DJ a DJ page sent us here with. The
+  // slug is only a preselection: /api/bookings looks the DJ up again itself.
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("djs")
+        .select("slug, name")
+        .order("created_at", { ascending: true });
+      if (cancelled || !data) return;
+      const options = data as DjOption[];
+      setDjOptions(options);
+
+      const wanted = new URLSearchParams(window.location.search).get("dj");
+      const dj = wanted ? options.find((o) => o.slug === wanted) : undefined;
+      if (!dj) return;
+      const service = services.find((s) => s.id === DJ_SERVICE_ID)?.title || "";
+      setSelectedService(DJ_SERVICE_ID);
+      setSelectedDj(dj.slug);
+      setFormData((prev) => ({ ...prev, eventType: service }));
+      setShowBooking(true);
+      track("open_booking_modal", { service, dj: dj.slug });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedDjName = djOptions.find((o) => o.slug === selectedDj)?.name;
 
   const closeBooking = () => {
     setShowBooking(false);
@@ -108,9 +149,12 @@ export default function ServicesPage() {
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
-    track("submit_booking", { service: formData.eventType });
+    track("submit_booking", {
+      service: formData.eventType,
+      ...(selectedDj ? { dj: selectedDj } : {}),
+    });
 
-    const message = createBookingMessage(formData);
+    const message = createBookingMessage({ ...formData, dj: selectedDjName });
 
     // Save the enquiry FIRST so WhatsApp only ever carries a booking we have
     // kept. Budget has no column of its own, so it rides along in the notes.
@@ -133,6 +177,7 @@ export default function ServicesPage() {
           event_date: formData.eventDate,
           venue: formData.venue,
           message: storedMessage,
+          dj: selectedDj || undefined,
           captcha_token: captchaToken,
         }),
       });
@@ -244,7 +289,11 @@ export default function ServicesPage() {
           <div className="bg-dark-500 border border-gold-500/20 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex items-center justify-between p-6 border-b border-white/10">
               <h3 className="text-xl font-bold">
-                {submitted ? "Booking received" : "Book a Service"}
+                {submitted
+                  ? "Booking received"
+                  : selectedDjName
+                    ? `Book ${selectedDjName}`
+                    : "Book a Service"}
               </h3>
               <button
                 onClick={closeBooking}
@@ -298,6 +347,29 @@ export default function ServicesPage() {
                   ))}
                 </select>
               </div>
+              {djOptions.length > 0 && (
+                <div>
+                  <label
+                    htmlFor="booking-dj"
+                    className="block text-sm text-gray-400 mb-1.5"
+                  >
+                    DJ
+                  </label>
+                  <select
+                    id="booking-dj"
+                    value={selectedDj}
+                    onChange={(e) => setSelectedDj(e.target.value)}
+                    className="w-full bg-dark-300 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:border-gold-500 focus:outline-none transition-colors"
+                  >
+                    <option value="">No preference</option>
+                    {djOptions.map((dj) => (
+                      <option key={dj.slug} value={dj.slug}>
+                        {dj.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">
