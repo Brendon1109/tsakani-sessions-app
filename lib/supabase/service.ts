@@ -5,9 +5,10 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
  * not set.
  *
  * It bypasses RLS, so it must never be imported by a client component and
- * never used in a route a stranger can reach. Today its only caller is the
- * cleanup cron, which is behind CRON_SECRET. See
- * supabase/lock_down_inventory_functions.sql for why that job needs it.
+ * never used in a route a stranger can reach. Today its only callers are the
+ * cleanup and finalize-events crons, both behind CRON_SECRET. See
+ * supabase/lock_down_inventory_functions.sql and
+ * supabase/finalize_past_events.sql for why those jobs need it.
  */
 export function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

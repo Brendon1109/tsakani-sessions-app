@@ -35,8 +35,11 @@ export const metadata: Metadata = {
 export default async function EventsPage() {
   const events = await getPublishedEvents();
 
-  const upcomingEvents = events.filter((e) => !isEventPast(e.date));
-  const pastEvents = events.filter((e) => isEventPast(e.date));
+  // Past by date, or marked past by the nightly cron or an admin, the same
+  // test the event page itself uses.
+  const isPast = (e: (typeof events)[number]) => e.status === "past" || isEventPast(e.date);
+  const upcomingEvents = events.filter((e) => !isPast(e));
+  const pastEvents = events.filter(isPast);
 
   return (
     <div>

@@ -25,6 +25,7 @@ applied is safe.
 | 14 | `supabase/lock_down_inventory_functions.sql` | **Closes three functions anyone with the anon key could call.** `reserve_tickets` becomes service role only (nothing in the app calls it), `release_tickets` refuses anyone who is not an admin or the service role and any quantity below 1, and `cleanup_stale_merch_orders` becomes service role only with a 48 hour floor. Run it after the deploy that moves the cleanup cron onto the service role key, and again if 2, 10 or 13 is ever re-run. |
 | 15 | `supabase/djs.sql` | **The DJ roster.** Adds the `djs` table behind `/djs` and `/admin/djs` (name, slug, picture path under `djs/` in `gallery-photos`, description, genres, YouTube, TikTok, Instagram and SoundCloud links). Every row is public, admins write. Adds `requested_dj_id` and `requested_dj_name` to `booking_enquiries`, with a restrictive insert policy so a DJ on an enquiry must be a real DJ under their own name. Must run after `schema.sql` and `booking_enquiries.sql`. |
 | 16 | `supabase/drop_video_pipeline.sql` | **Drops the dead video pipeline tables**, `video_jobs` and `video_projects`. The app stopped using them when the admin Video and Social Uploads pages were removed. Refuses to drop a table that has rows. Run it after the deploy that removes the pipeline code. A no-op on a fresh project, because 1 and 2 no longer create them. |
+| 17 | `supabase/finalize_past_events.sql` | **Finished events become past.** Adds `finalize_past_events`, service role only, which the nightly finalize-events cron calls to mark published events that started more than 28 hours ago as past and close their ticket sales in one transaction. Adds the "Public read past events" policy so a past event stays on /events, on its own page and in the sitemap. Run it before the deploy that moves the cron onto the function. Safe to re-run. |
 
 Optional, order-independent once `schema.sql` has run: `analytics_events.sql`
 (first-party analytics), `booking_enquiries.sql` (the /services form),
@@ -83,3 +84,7 @@ Configured in `vercel.json`:
   service role key. The ticket half still runs on the anon key, which RLS
   keeps from seeing any ticket orders, so it does nothing; switching it on
   would auto cancel unpaid EFT ticket orders and is a business decision.
+- `/api/cron/finalize-events` runs daily at 03:00 UTC, marks events that
+  started more than 28 hours ago as past and closes their ticket sales,
+  through `finalize_past_events` on the service role key. Running it again
+  changes nothing.
