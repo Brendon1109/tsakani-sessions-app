@@ -64,9 +64,8 @@ const nextConfig = {
       },
     ],
   },
-  // www to apex, the same two rules as vercel.json but inside the app, so they
-  // also run on the Cloudflare Worker, which never reads vercel.json. Vercel
-  // applies its own copy first. Drop the vercel.json copy with the project.
+  // www to apex. These run inside the app on the Cloudflare Worker, so the
+  // zone needs no redirect rule of its own.
   async redirects() {
     const www = [{ type: "host", value: "www.tsakanisessions.co.za" }];
     return [
