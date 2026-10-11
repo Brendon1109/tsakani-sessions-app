@@ -138,6 +138,9 @@ export default function ServicesPage() {
 
   const handleBook = (serviceId: string) => {
     setSelectedService(serviceId);
+    // A DJ picked on the way in belongs to a DJ booking. Starting a different
+    // service clears it, so a content shoot is never sent as a DJ request.
+    if (serviceId !== DJ_SERVICE_ID) setSelectedDj("");
     const service = services.find((s) => s.id === serviceId)?.title || "";
     setFormData((prev) => ({ ...prev, eventType: service }));
     setSubmitted(false);

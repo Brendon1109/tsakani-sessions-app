@@ -96,8 +96,9 @@ export interface Product {
 }
 
 /**
- * A DJ on the public roster. Every row is public, in the order added. Nothing
- * personal lives here.
+ * A DJ on the public roster. Every row is public, in the order added. It is
+ * public personal information about the DJ, shown with their OK, and holds no
+ * contact details.
  */
 export interface Dj {
   id: string;

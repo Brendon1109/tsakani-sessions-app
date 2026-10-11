@@ -78,10 +78,9 @@ export default function Navbar() {
             <span className="font-bold text-lg text-white">Tsakani <span className="text-gold-500">Sessions</span></span>
           </Link>
 
-          {/* Desktop Nav */}
-          {/* gap-4 until lg: six links plus Sign In and Book Now only fit
-              on one line between 800 and 1024px with the tighter gap. */}
-          <div className="hidden md:flex items-center gap-4 lg:gap-8">
+          {/* Desktop Nav, from lg. Six links plus Sign In and Book Now wrap
+              onto two lines below 1024px, so tablets get the menu button. */}
+          <div className="hidden lg:flex items-center gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -144,7 +143,7 @@ export default function Navbar() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 text-white hover:text-gold-500 transition-colors"
+            className="lg:hidden p-2 text-white hover:text-gold-500 transition-colors"
             aria-label={isOpen ? "Close menu" : "Open menu"}
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -153,7 +152,7 @@ export default function Navbar() {
 
         {/* Mobile Nav */}
         {isOpen && (
-          <div className="md:hidden animate-slide-down pb-6 border-t border-gold-500/10 mt-2">
+          <div className="lg:hidden animate-slide-down pb-6 border-t border-gold-500/10 mt-2">
             <div className="flex flex-col gap-1 pt-4">
               {navLinks.map((link) => (
                 <Link

@@ -4,34 +4,52 @@ import { useState } from "react";
 import Image from "next/image";
 import { djMonogram, type DjImage } from "@/lib/djs";
 
+interface DjPhotoProps {
+  image: DjImage;
+  name: string;
+  sizes: string;
+  priority?: boolean;
+  variant?: "card" | "hero";
+  /**
+   * True where the DJ's name is already right next to the picture, as on a
+   * roster card, so a screen reader does not read the name twice.
+   */
+  decorative?: boolean;
+}
+
 /**
  * A DJ's picture, filling its parent (which must be position relative and
  * sized). The fallback chain runs in the browser because only the browser
  * learns that a thumbnail 404'd: uploaded photo, then the video's sharp
  * thumbnail, then the plain one with its letterbox bars cropped off, then a
  * gold monogram so a card is never an empty grey box.
+ *
+ * Keyed on the first choice, so when the picture changes (an admin uploads a
+ * photo to a DJ who was showing the monogram) the chain starts again rather
+ * than staying on the step the old picture reached.
  */
-export default function DjPhoto({
+export default function DjPhoto(props: DjPhotoProps) {
+  const key = props.image.kind === "monogram" ? "monogram" : props.image.src;
+  return <DjPhotoChain key={key} {...props} />;
+}
+
+function DjPhotoChain({
   image,
   name,
   sizes,
   priority = false,
   variant = "card",
-}: {
-  image: DjImage;
-  name: string;
-  sizes: string;
-  priority?: boolean;
-  variant?: "card" | "hero";
-}) {
+  decorative = false,
+}: DjPhotoProps) {
   // 0: first choice, 1: the hqdefault fallback, 2: monogram.
   const [step, setStep] = useState(image.kind === "monogram" ? 2 : 0);
 
   if (image.kind === "monogram" || step === 2) {
     return (
       <div
-        role="img"
-        aria-label={name}
+        {...(decorative
+          ? { "aria-hidden": true }
+          : { role: "img", "aria-label": name })}
         className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gold-900/30 via-dark-500 to-dark-700"
       >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,215,0,0.10)_0%,_transparent_70%)]" />
@@ -56,7 +74,7 @@ export default function DjPhoto({
       <Image
         key={src}
         src={src}
-        alt={name}
+        alt={decorative ? "" : name}
         fill
         sizes={sizes}
         priority={priority}

@@ -17,9 +17,12 @@ import { resolveRequestedDj, type DjResolution } from "@/lib/djs";
  * and insert it, so we can hand it back without reading the row.
  *
  * "Book this DJ" sends a slug and nothing else about the DJ. The DJ is looked
- * up here, and the id and name stored are the roster's own. A slug that is not
- * on the roster is refused rather than quietly dropped, and the restrictive
- * policy in supabase/djs.sql holds the same line for direct writes.
+ * up here, and the id and name stored are the roster's own, never a name from
+ * the request. A malformed slug is turned away. A slug that is not on the
+ * roster (a DJ removed while the form was open) keeps the enquiry with no DJ
+ * and a note saying who was asked for, because a lost lead costs more than a
+ * missing DJ. The restrictive policy in supabase/djs.sql holds the same line
+ * for anyone writing to the table directly.
  */
 export async function POST(request: NextRequest) {
   // Rate limit: 5 enquiries per 10 min per IP.
@@ -62,10 +65,16 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-  if (!requested.ok) {
+  if (!requested.ok && requested.reason === "malformed") {
     return NextResponse.json({ error: requested.error }, { status: 400 });
   }
-  const dj = requested.dj;
+  const dj = requested.ok ? requested.dj : null;
+  // Only a well formed slug reaches here, so it is safe to quote.
+  const djNote = requested.ok
+    ? null
+    : `Asked for DJ "${booking.dj}", who is not on the roster.`;
+  const message =
+    [booking.message, djNote].filter(Boolean).join("\n\n") || null;
 
   const id = crypto.randomUUID();
   const { error } = await supabase.from("booking_enquiries").insert({
@@ -76,7 +85,7 @@ export async function POST(request: NextRequest) {
     event_type: booking.event_type,
     event_date: booking.event_date,
     venue: booking.venue,
-    message: booking.message,
+    message,
     source: "services_form",
     requested_dj_id: dj?.id ?? null,
     requested_dj_name: dj?.name ?? null,
@@ -98,7 +107,7 @@ export async function POST(request: NextRequest) {
       dj && `DJ: ${dj.name}`,
       booking.event_date && `Date: ${booking.event_date}`,
       booking.venue && `Venue: ${booking.venue}`,
-      booking.message && `Notes: ${booking.message}`,
+      message && `Notes: ${message}`,
     ]
       .filter(Boolean)
       .join("\n") || "New booking enquiry";
@@ -112,5 +121,5 @@ export async function POST(request: NextRequest) {
     orderId: id,
   }).catch(() => {});
 
-  return NextResponse.json({ ok: true, id });
+  return NextResponse.json(djNote ? { ok: true, id, dj_not_found: true } : { ok: true, id });
 }

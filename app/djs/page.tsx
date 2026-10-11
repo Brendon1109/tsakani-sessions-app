@@ -11,16 +11,20 @@ export const metadata: Metadata = {
   description:
     "Meet the Tsakani Sessions DJs. Deep house, amapiano, gqom and more, live across Cape Town. Book your DJ.",
   alternates: { canonical: "/djs" },
+  // Images restated: Next replaces openGraph and twitter whole per page, so
+  // the layout's share image does not carry over on its own.
   openGraph: {
     title: "Tsakani Sessions DJs",
     description: "Meet the DJs behind the sound. Book yours.",
     url: "/djs",
     type: "website",
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "Tsakani Sessions" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Tsakani Sessions DJs",
     description: "Meet the DJs behind the sound. Book yours.",
+    images: ["/og-image.jpg"],
   },
 };
 
@@ -78,6 +82,7 @@ export default async function DjsPage() {
                         name={dj.name}
                         sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                         priority={index < 4}
+                        decorative
                       />
                     </div>
                     <div className="p-3 sm:p-4">

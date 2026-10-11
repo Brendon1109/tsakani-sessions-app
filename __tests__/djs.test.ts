@@ -6,6 +6,7 @@ import {
   djMonogram,
   djPhotoUrl,
   djShareImage,
+  publicDjLinks,
   resolveRequestedDj,
   slugify,
   uniqueDjSlug,
@@ -123,6 +124,7 @@ describe("resolveRequestedDj (the booking API's DJ check)", () => {
   it("rejects a DJ who is not on the roster", async () => {
     expect(await resolveRequestedDj("black-coffee", lookup)).toEqual({
       ok: false,
+      reason: "not_found",
       error: DJ_NOT_FOUND,
     });
   });
@@ -130,9 +132,27 @@ describe("resolveRequestedDj (the booking API's DJ check)", () => {
   it("rejects a malformed slug without asking the database", async () => {
     lookup.mockClear();
     for (const bad of ["KENDOUR", "../admin", "a b", "x".repeat(61), "kendour-"]) {
-      expect((await resolveRequestedDj(bad, lookup)).ok).toBe(false);
+      expect(await resolveRequestedDj(bad, lookup)).toMatchObject({ ok: false, reason: "malformed" });
     }
     expect(lookup).not.toHaveBeenCalled();
+  });
+});
+
+describe("publicDjLinks", () => {
+  it("draws only links on their own site, in a fixed order", () => {
+    const links = publicDjLinks({
+      youtube_url: "https://www.youtube.com/@tsakanisessions",
+      tiktok_url: "https://evil.example/@kendour",
+      instagram_url: "javascript:alert(1)",
+      soundcloud_url: "https://soundcloud.com/kendour",
+    });
+    expect(links.map((l) => l.key)).toEqual(["youtube_url", "soundcloud_url"]);
+  });
+
+  it("drops a link that is not https, even on the right site", () => {
+    expect(
+      publicDjLinks({ youtube_url: null, tiktok_url: "http://www.tiktok.com/@x", instagram_url: null, soundcloud_url: null })
+    ).toEqual([]);
   });
 });
 

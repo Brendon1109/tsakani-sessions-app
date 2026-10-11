@@ -3,9 +3,10 @@ import { NextRequest } from "next/server";
 
 /**
  * /api/bookings with "Book this DJ". The browser sends a slug and the route
- * must look the DJ up itself: an unknown DJ is refused before anything is
- * written, and a real one is stored with the roster's own id and name, never
- * a name the request made up.
+ * must look the DJ up itself. A real DJ is stored with the roster's own id and
+ * name, never a name the request made up. A DJ who is not on the roster is
+ * never stored as the DJ: the enquiry is kept without one so the lead is not
+ * lost. A malformed slug is turned away before anything is written.
  */
 
 const roster: Record<string, { id: string; name: string }> = {
@@ -74,16 +75,22 @@ beforeEach(() => {
 });
 
 describe("POST /api/bookings with a requested DJ", () => {
-  it("rejects a DJ who is not on the roster and writes nothing", async () => {
-    const res = await POST(request({ ...base, dj: "black-coffee" }));
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/not on the roster/);
-    expect(inserted).toHaveLength(0);
+  it("never stores a DJ who is not on the roster, and keeps the enquiry", async () => {
+    const res = await POST(
+      request({ ...base, dj: "black-coffee", requested_dj_name: "Black Coffee", message: "Sunset set" })
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, dj_not_found: true });
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0]).toMatchObject({ requested_dj_id: null, requested_dj_name: null });
+    expect(String(inserted[0].message)).toContain('Asked for DJ "black-coffee", who is not on the roster.');
+    expect(String(inserted[0].message)).toContain("Sunset set");
   });
 
-  it("rejects a malformed slug without a lookup", async () => {
+  it("turns away a malformed slug without a lookup or a write", async () => {
     const res = await POST(request({ ...base, dj: "../KENDOUR" }));
     expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/not on the roster/);
     expect(lookedUp).toHaveLength(0);
     expect(inserted).toHaveLength(0);
   });

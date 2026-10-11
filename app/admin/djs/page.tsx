@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DjPhoto from "@/components/DjPhoto";
-import { cleanGenres, djImage, djPhotoUrl } from "@/lib/djs";
+import { cleanGenres, djImage, djPhotoUrl, DJ_LINKS, type DjLinkKey } from "@/lib/djs";
 import type { Dj } from "@/lib/types";
 
 /**
@@ -28,6 +28,8 @@ import type { Dj } from "@/lib/types";
 
 interface DjForm {
   id?: string;
+  /** What the row said when the form opened, so a save can tell it is stale. */
+  updated_at?: string | null;
   name: string;
   description: string;
   photo_path: string | null;
@@ -53,12 +55,13 @@ const emptyForm: DjForm = {
 const inputClass =
   "w-full bg-dark-300 border border-white/10 rounded-lg px-4 py-2.5 text-white text-base focus:border-gold-500 focus:outline-none";
 
-const LINKS: { key: "youtube_url" | "tiktok_url" | "instagram_url" | "soundcloud_url"; label: string; placeholder: string }[] = [
-  { key: "youtube_url", label: "YouTube", placeholder: "https://www.youtube.com/watch?v=..." },
-  { key: "tiktok_url", label: "TikTok", placeholder: "https://www.tiktok.com/@..." },
-  { key: "instagram_url", label: "Instagram", placeholder: "https://www.instagram.com/..." },
-  { key: "soundcloud_url", label: "SoundCloud", placeholder: "https://soundcloud.com/..." },
-];
+const PLACEHOLDERS: Record<DjLinkKey, string> = {
+  youtube_url: "https://www.youtube.com/watch?v=...",
+  tiktok_url: "https://www.tiktok.com/@...",
+  instagram_url: "https://www.instagram.com/...",
+  soundcloud_url: "https://soundcloud.com/...",
+};
+const LINKS = DJ_LINKS.map((l) => ({ ...l, placeholder: PLACEHOLDERS[l.key] }));
 
 export default function AdminDjsPage() {
   const [djs, setDjs] = useState<Dj[]>([]);
@@ -93,6 +96,7 @@ export default function AdminDjsPage() {
     setError("");
     setForm({
       id: dj.id,
+      updated_at: dj.updated_at ?? null,
       name: dj.name,
       description: dj.description || "",
       photo_path: dj.photo_path,
@@ -220,7 +224,7 @@ export default function AdminDjsPage() {
                 className="bg-dark-500 border border-white/10 rounded-xl overflow-hidden flex"
               >
                 <div className="relative w-28 shrink-0 bg-dark-300 overflow-hidden">
-                  <DjPhoto image={djImage(dj)} name={dj.name} sizes="112px" />
+                  <DjPhoto image={djImage(dj)} name={dj.name} sizes="112px" decorative />
                 </div>
                 <div className="p-4 flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-1">

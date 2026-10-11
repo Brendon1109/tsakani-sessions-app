@@ -3,11 +3,14 @@
 -- Two things happen in this file.
 --
 -- 1. A djs table. One row per DJ: a name, a short description, a photo, a
---    few genre tags and four links. Nothing personal lives here, no real
---    names, phone numbers or emails, which is why this is a new table rather
---    than more columns on team_members (that one holds phone and email and
---    stays admin only).
---    Every row is public, so adding a DJ is publishing them. Visitors read,
+--    few genre tags and four links. A stage name with a face is still
+--    personal information about the DJ, so this is public personal
+--    information, held and shown with each DJ's OK. Nothing beyond what the
+--    page shows is kept: no real names, phone numbers or emails, which is why
+--    this is a new table rather than more columns on team_members (that one
+--    holds phone and email and stays admin only).
+--    Every row is public, so adding a DJ is publishing them, and removing the
+--    row (and its photo) is how a DJ comes off the site. Visitors read,
 --    admins write, matching the "Admins manage products" policy. The roster
 --    shows DJs in the order they were added.
 --
@@ -56,7 +59,7 @@ create table if not exists public.djs (
 );
 
 comment on table public.djs is
-  'Public DJ roster, in the order added. Nothing personal. Visitors read every row, admins write.';
+  'Public DJ roster, in the order added. Public personal information about each DJ, shown with their OK; no contact details. Visitors read every row, admins write.';
 
 alter table public.djs enable row level security;
 

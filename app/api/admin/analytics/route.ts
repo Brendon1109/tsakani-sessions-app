@@ -16,6 +16,7 @@ const SAST_OFFSET_MS = 2 * 60 * 60 * 1000;
 // Events that represent demand/conversion intent (vs. passive page views).
 const CONVERSION_EVENTS = new Set([
   "book_now_cta_click",
+  "book_dj_click",
   "book_whatsapp_click",
   "open_booking_modal",
   "submit_booking",

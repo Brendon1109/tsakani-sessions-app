@@ -46,6 +46,13 @@ async function removePhoto(supabase: Supabase, path: string | null | undefined) 
   if (error) console.error("[admin/djs] photo cleanup failed:", error.message);
 }
 
+/** Two timestamps for the same moment can be spelled differently. */
+function sameInstant(a: string, b: string | null): boolean {
+  if (!b) return false;
+  const ta = Date.parse(a);
+  return !Number.isNaN(ta) && ta === Date.parse(b);
+}
+
 function revalidateRoster() {
   revalidatePath("/djs", "layout");
 }
@@ -122,11 +129,19 @@ export async function PATCH(request: NextRequest) {
 
   const { data: current, error: readError } = await supabase
     .from("djs")
-    .select("id, name, slug, photo_path")
+    .select("id, name, slug, photo_path, updated_at")
     .eq("id", id)
     .maybeSingle();
   if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
   if (!current) return NextResponse.json({ error: "That DJ is gone" }, { status: 404 });
+
+  // The form sends the updated_at it opened with. If the row has moved on
+  // since (a second tab saved a new photo, say), saving this stale copy would
+  // put back a photo that was already deleted and delete the new one.
+  const stale = "This DJ changed since you opened it. Close the form and try again.";
+  if (typeof body.updated_at === "string" && !sameInstant(body.updated_at, current.updated_at)) {
+    return NextResponse.json({ error: stale }, { status: 409 });
+  }
 
   let slug = current.slug;
   if (payload.name !== current.name) {
@@ -139,9 +154,14 @@ export async function PATCH(request: NextRequest) {
     .from("djs")
     .update({ ...payload, slug, updated_at: new Date().toISOString() })
     .eq("id", id)
+    .eq("updated_at", current.updated_at)
     .select()
-    .single();
+    .maybeSingle();
 
+  if (!error && !data) {
+    // Someone saved between the read above and this write.
+    return NextResponse.json({ error: stale }, { status: 409 });
+  }
   if (error) {
     const message = error.code === "23505" ? "Could not save, try again" : error.message;
     return NextResponse.json({ error: message }, { status: 500 });

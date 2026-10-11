@@ -6,10 +6,12 @@ import { getDjBySlug } from "@/lib/queries";
 import {
   djImage,
   djShareImage,
-  youtubeEmbedUrl,
+  publicDjLinks,
   youtubeVideoId,
+  type DjLinkKey,
 } from "@/lib/djs";
 import DjPhoto from "@/components/DjPhoto";
+import YouTubeEmbed from "@/components/YouTubeEmbed";
 import BreadcrumbJsonLd from "@/components/BreadcrumbJsonLd";
 import {
   InstagramIcon,
@@ -17,6 +19,13 @@ import {
   TikTokIcon,
   YouTubeIcon,
 } from "@/components/SocialIcons";
+
+const ICONS: Record<DjLinkKey, typeof YouTubeIcon> = {
+  youtube_url: YouTubeIcon,
+  tiktok_url: TikTokIcon,
+  instagram_url: InstagramIcon,
+  soundcloud_url: SoundCloudIcon,
+};
 
 export async function generateMetadata({
   params,
@@ -36,7 +45,9 @@ export async function generateMetadata({
   const description =
     dj.description?.replace(/\s+/g, " ").slice(0, 160) ||
     `${genres}${dj.name} plays Tsakani Sessions in Cape Town. Book them for your event.`;
-  const image = djShareImage(dj);
+  // Next replaces openGraph and twitter whole per page, so the layout's share
+  // image has to be restated for a DJ with no photo and no video.
+  const image = djShareImage(dj) ?? "/og-image.jpg";
 
   return {
     title: dj.name,
@@ -47,13 +58,13 @@ export async function generateMetadata({
       description,
       url: `/djs/${dj.slug}`,
       type: "profile",
-      images: image ? [{ url: image, alt: dj.name }] : undefined,
+      images: [{ url: image, alt: dj.name }],
     },
     twitter: {
       card: "summary_large_image",
       title: `${dj.name} | Tsakani Sessions`,
       description,
-      images: image ? [image] : undefined,
+      images: [image],
     },
   };
 }
@@ -68,12 +79,7 @@ export default async function DjPage({
   if (!dj) notFound();
 
   const videoId = youtubeVideoId(dj.youtube_url);
-  const socials = [
-    { href: dj.youtube_url, label: "YouTube", Icon: YouTubeIcon },
-    { href: dj.tiktok_url, label: "TikTok", Icon: TikTokIcon },
-    { href: dj.instagram_url, label: "Instagram", Icon: InstagramIcon },
-    { href: dj.soundcloud_url, label: "SoundCloud", Icon: SoundCloudIcon },
-  ].filter((s): s is typeof s & { href: string } => !!s.href);
+  const socials = publicDjLinks(dj);
 
   return (
     <>
@@ -130,19 +136,25 @@ export default async function DjPage({
             )}
 
             {socials.length > 0 && (
-              <div className="flex items-center gap-5 mb-8">
-                {socials.map(({ href, label, Icon }) => (
-                  <a
-                    key={label}
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`${dj.name} on ${label}`}
-                    className="text-gray-400 hover:text-gold-500 transition-colors"
-                  >
-                    <Icon size={24} />
-                  </a>
-                ))}
+              // Each link pads its 24px icon out to a 44px tap target, and the
+              // row is pulled left by the padding so the first icon still lines
+              // up with the text above it.
+              <div className="flex items-center gap-1 -ml-2.5 mb-8">
+                {socials.map(({ key, href, label }) => {
+                  const Icon = ICONS[key];
+                  return (
+                    <a
+                      key={key}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${dj.name} on ${label}`}
+                      className="p-2.5 text-gray-400 hover:text-gold-500 transition-colors"
+                    >
+                      <Icon size={24} />
+                    </a>
+                  );
+                })}
               </div>
             )}
 
@@ -164,15 +176,7 @@ export default async function DjPage({
               Watch the <span className="text-gold-gradient">Session</span>
             </h2>
             <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-dark-300">
-              <iframe
-                src={youtubeEmbedUrl(videoId)}
-                title={`${dj.name} on Tsakani Sessions`}
-                loading="lazy"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-                className="absolute inset-0 w-full h-full"
-              />
+              <YouTubeEmbed videoId={videoId} title={`${dj.name} on Tsakani Sessions`} />
             </div>
           </section>
         )}

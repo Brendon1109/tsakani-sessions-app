@@ -75,9 +75,12 @@ export function youtubeVideoId(url: string | null | undefined): string | null {
   return id && YOUTUBE_ID_RE.test(id) ? id : null;
 }
 
-/** Privacy enhanced embed. No YouTube cookies until the visitor presses play. */
-export function youtubeEmbedUrl(videoId: string): string {
-  return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
+/**
+ * Privacy enhanced embed. The DJ page only mounts it after the visitor taps
+ * play, so YouTube hears nothing from a visitor who never does.
+ */
+export function youtubeEmbedUrl(videoId: string, autoplay = false): string {
+  return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0${autoplay ? "&autoplay=1" : ""}`;
 }
 
 export function youtubeThumbnail(
@@ -125,7 +128,8 @@ export function djImage(
 
 /**
  * The share image. hqdefault rather than maxres because a crawler gets one
- * try and maxres can 404. Null means the site's default image.
+ * try and maxres can 404. Null means the caller falls back to the site's own
+ * share image; Next does not inherit it from the layout on its own.
  */
 export function djShareImage(
   dj: Pick<Dj, "photo_path" | "youtube_url">,
@@ -158,21 +162,26 @@ export type DjLookup = (slug: string) => Promise<DjLookupRow | null>;
 
 export type DjResolution =
   | { ok: true; dj: DjLookupRow | null }
-  | { ok: false; error: string };
+  | { ok: false; reason: "malformed" | "not_found"; error: string };
 
 /**
  * No slug is fine, most enquiries are not for one DJ. A slug that is malformed
- * or not on the roster is refused. The id and the name that end up on the
- * enquiry come from the database row, never from the request.
+ * or not on the roster is refused as a DJ. The id and the name that end up on
+ * the enquiry come from the database row, never from the request.
+ *
+ * The two refusals differ on purpose. A malformed slug never comes from the
+ * site's own form, so the route turns the request away. A well formed slug
+ * that is not on the roster is a DJ removed while the visitor had the form
+ * open, so the route keeps the enquiry without a DJ rather than lose a lead.
  */
 export async function resolveRequestedDj(
   slug: string | null | undefined,
   lookup: DjLookup
 ): Promise<DjResolution> {
   if (slug == null || slug === "") return { ok: true, dj: null };
-  if (!isDjSlug(slug)) return { ok: false, error: DJ_NOT_FOUND };
+  if (!isDjSlug(slug)) return { ok: false, reason: "malformed", error: DJ_NOT_FOUND };
   const row = await lookup(slug);
-  if (!row) return { ok: false, error: DJ_NOT_FOUND };
+  if (!row) return { ok: false, reason: "not_found", error: DJ_NOT_FOUND };
   return { ok: true, dj: { id: row.id, name: row.name } };
 }
 
@@ -209,6 +218,34 @@ export function cleanGenres(value: unknown): string[] {
       out.push(genre);
     }
     if (out.length >= 8) break;
+  }
+  return out;
+}
+
+/** The one list of which site each link may point at. */
+export const DJ_LINKS = [
+  { key: "youtube_url", label: "YouTube", hosts: ["youtube.com", "youtu.be"] },
+  { key: "tiktok_url", label: "TikTok", hosts: ["tiktok.com"] },
+  { key: "instagram_url", label: "Instagram", hosts: ["instagram.com"] },
+  { key: "soundcloud_url", label: "SoundCloud", hosts: ["soundcloud.com"] },
+] as const;
+
+export type DjLinkKey = (typeof DJ_LINKS)[number]["key"];
+
+/**
+ * The links a DJ page may draw, in the order above. Checked again here, not
+ * only when an admin saves, because a stolen admin session can write the
+ * table straight through the Supabase API and skip that check.
+ */
+export function publicDjLinks(
+  dj: Pick<Dj, DjLinkKey>
+): { key: DjLinkKey; label: string; href: string }[] {
+  const out: { key: DjLinkKey; label: string; href: string }[] = [];
+  for (const link of DJ_LINKS) {
+    const value = dj[link.key];
+    if (!value || !/^https:\/\//i.test(value)) continue;
+    const cleaned = cleanLink(value, [...link.hosts], link.label);
+    if (typeof cleaned === "string") out.push({ key: link.key, label: link.label, href: cleaned });
   }
   return out;
 }
@@ -277,23 +314,18 @@ export function buildDjPayload(
     photo_path = body.photo_path;
   }
 
-  const youtube = cleanLink(body.youtube_url, ["youtube.com", "youtu.be"], "YouTube");
-  if (youtube && typeof youtube === "object") return youtube;
-  const tiktok = cleanLink(body.tiktok_url, ["tiktok.com"], "TikTok");
-  if (tiktok && typeof tiktok === "object") return tiktok;
-  const instagram = cleanLink(body.instagram_url, ["instagram.com"], "Instagram");
-  if (instagram && typeof instagram === "object") return instagram;
-  const soundcloud = cleanLink(body.soundcloud_url, ["soundcloud.com"], "SoundCloud");
-  if (soundcloud && typeof soundcloud === "object") return soundcloud;
+  const links = {} as Record<DjLinkKey, string | null>;
+  for (const link of DJ_LINKS) {
+    const cleaned = cleanLink(body[link.key], [...link.hosts], link.label);
+    if (cleaned && typeof cleaned === "object") return cleaned;
+    links[link.key] = cleaned;
+  }
 
   return {
     name,
     description,
     photo_path,
     genres: cleanGenres(body.genres),
-    youtube_url: youtube,
-    tiktok_url: tiktok,
-    instagram_url: instagram,
-    soundcloud_url: soundcloud,
+    ...links,
   };
 }
