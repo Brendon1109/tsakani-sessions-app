@@ -12,6 +12,9 @@ export type EventWithTickets = Event & { tickets: Ticket[] };
  * Returns empty arrays/null gracefully when Supabase isn't configured.
  */
 
+// Every event a visitor can see: upcoming ones and the ones already over.
+// The nightly finalize-events cron moves a finished event from published to
+// past, and /events still lists it under Past and the sitemap still links it.
 export async function getPublishedEvents(): Promise<EventWithTickets[]> {
   const supabase = await createClient();
   if (!supabase) return [];
@@ -19,7 +22,7 @@ export async function getPublishedEvents(): Promise<EventWithTickets[]> {
   const { data } = await supabase
     .from("events")
     .select("*, tickets(*)")
-    .eq("status", "published")
+    .in("status", ["published", "past"])
     .order("date", { ascending: true });
 
   if (!data) return [];
