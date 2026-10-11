@@ -1,34 +1,37 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { createHmac } from "node:crypto";
 
 /**
- * The rate limiter's key must never hold an IP address. It is an HMAC of the
- * IP under the server only BZ_SALT, the same for the same visitor so the
- * limit still counts, different for a different visitor or another salt.
- * Without the salt the limiter stands aside rather than store the IP.
+ * The rate limiter. Its key must never hold an IP address: it is an HMAC of
+ * the IP under the server only BZ_SALT, the same for the same visitor so the
+ * limit still counts, different for a different visitor or another salt. It
+ * counts through rate_limit_hit on the service role key, answers 429 with
+ * Retry-After when the function says no, and fails open on anything else.
  */
 
-const keysSeen: string[] = [];
-let clientCreated = 0;
+type RpcResult = { data: unknown; error: { message: string } | null };
+
+const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+let rpcResult: RpcResult | (() => never);
+let serviceAvailable = true;
+
+vi.mock("@/lib/supabase/service", () => ({
+  createServiceClient: () =>
+    serviceAvailable
+      ? {
+          rpc: async (fn: string, args: Record<string, unknown>) => {
+            rpcCalls.push({ fn, args });
+            if (typeof rpcResult === "function") return rpcResult();
+            return rpcResult;
+          },
+        }
+      : null,
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => {
-    clientCreated++;
-    const query = {
-      delete: () => query,
-      lt: async () => ({ error: null }),
-      select: () => query,
-      eq: (_col: string, value: string) => {
-        keysSeen.push(value);
-        return query;
-      },
-      single: async () => ({ data: null, error: null }),
-      insert: async (row: { key: string }) => {
-        keysSeen.push(row.key);
-        return { error: null };
-      },
-    };
-    return { from: () => query };
+    throw new Error("the rate limiter must not use the anon client");
   },
 }));
 
@@ -44,9 +47,11 @@ function request(ip?: string) {
 }
 
 beforeEach(() => {
-  keysSeen.length = 0;
-  clientCreated = 0;
+  rpcCalls.length = 0;
+  serviceAvailable = true;
+  rpcResult = { data: [{ allowed: true, retry_after: 60 }], error: null };
   vi.stubEnv("HOST_PLATFORM", "cloudflare");
+  vi.stubEnv("BZ_SALT", "salt-a");
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -73,24 +78,73 @@ describe("rateLimitKey", () => {
     expect((await rateLimitKey("orders", IP, "salt-b")).split(":")[1]).not.toBe(base.split(":")[1]);
   });
 
+  it("is the HMAC of the IP under its own rate-limit prefix, so it shares nothing with the daily counting value", async () => {
+    const expected = createHmac("sha256", "salt-a").update(`rate-limit:${IP}`).digest("hex").slice(0, 32);
+    expect(await rateLimitKey("orders", IP, "salt-a")).toBe(`orders:${expected}`);
+  });
+
   it("falls back to one shared key when there is no IP", async () => {
     expect(await rateLimitKey("orders", null, "salt-a")).toBe("orders:anonymous");
   });
 });
 
 describe("rateLimit", () => {
-  it("never sends the IP to the database", async () => {
-    vi.stubEnv("BZ_SALT", "salt-a");
+  it("lets an allowed request through, counted under the hashed key", async () => {
     expect(await rateLimit(request(IP), "orders", 5, 60)).toBeNull();
-    expect(keysSeen.length).toBeGreaterThan(0);
-    for (const key of keysSeen) expect(key).not.toContain(IP);
-    expect(keysSeen[0]).toBe(await rateLimitKey("orders", IP, "salt-a"));
+    expect(rpcCalls).toEqual([
+      {
+        fn: "rate_limit_hit",
+        args: { p_key: await rateLimitKey("orders", IP, "salt-a"), p_limit: 5, p_window_seconds: 60 },
+      },
+    ]);
+    expect(JSON.stringify(rpcCalls)).not.toContain(IP);
+  });
+
+  it("answers 429 with Retry-After once the function says the limit is reached", async () => {
+    rpcResult = { data: [{ allowed: false, retry_after: 42 }], error: null };
+    const res = await rateLimit(request(IP), "orders", 5, 60);
+    expect(res?.status).toBe(429);
+    expect(res?.headers.get("Retry-After")).toBe("42");
+    expect(await res?.json()).toEqual({ error: "Too many requests. Please slow down." });
+  });
+
+  it("fails open when the database answers with an error", async () => {
+    rpcResult = { data: null, error: { message: "permission denied" } };
+    expect(await rateLimit(request(IP), "orders", 5, 60)).toBeNull();
+  });
+
+  it("fails open when the call throws", async () => {
+    rpcResult = () => {
+      throw new Error("network down");
+    };
+    expect(await rateLimit(request(IP), "orders", 5, 60)).toBeNull();
+  });
+
+  it("fails open on an answer it does not understand", async () => {
+    rpcResult = { data: [], error: null };
+    expect(await rateLimit(request(IP), "orders", 5, 60)).toBeNull();
+  });
+
+  it("stands aside without the service role key", async () => {
+    serviceAvailable = false;
+    expect(await rateLimit(request(IP), "orders", 5, 60)).toBeNull();
+    expect(rpcCalls).toHaveLength(0);
+  });
+
+  it("says once, not on every request, that it is standing aside", async () => {
+    vi.resetModules();
+    const fresh = await import("@/lib/rate-limit");
+    serviceAvailable = false;
+    const spy = vi.mocked(console.error);
+    spy.mockClear();
+    await fresh.rateLimit(request(IP), "orders", 5, 60);
+    await fresh.rateLimit(request(IP), "orders", 5, 60);
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it("stands aside without the salt rather than store the IP", async () => {
     vi.stubEnv("BZ_SALT", "");
     expect(await rateLimit(request(IP), "orders", 5, 60)).toBeNull();
-    expect(clientCreated).toBe(0);
-    expect(keysSeen).toHaveLength(0);
+    expect(rpcCalls).toHaveLength(0);
   });
 });

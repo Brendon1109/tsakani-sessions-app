@@ -115,11 +115,9 @@ async function handle(request: NextRequest) {
       .in("id", staleTickets.map((t) => t.id));
   }
 
-  // Cleanup expired rate limit entries
-  await supabase
-    .from("rate_limits")
-    .delete()
-    .lt("expires_at", new Date().toISOString());
+  // Expired rate limit keys are purged by rate_limit_hit itself and by the
+  // nightly retention job. The delete that used to sit here ran on the anon
+  // key, which RLS refuses, so it never removed anything.
 
   return NextResponse.json({
     cancelled_orders: typeof cancelledCount === "number" ? cancelledCount : 0,
