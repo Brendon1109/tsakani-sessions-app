@@ -128,7 +128,7 @@ export default function AnalyticsToggle() {
         </p>
       )}
 
-      <p className="mt-4 text-xs text-gray-500">
+      <p className="mt-4 text-xs text-gray-400">
         This choice is remembered on this browser only, because it is stored on
         this device rather than against an account. Choose again on your phone
         if you also browse there, and again if you clear your cookies.

@@ -23,7 +23,7 @@ export default function PrivacyPage() {
       <h1 className="text-4xl sm:text-5xl font-bold mb-3">
         <span className="text-gold-gradient">Privacy</span> Policy
       </h1>
-      <p className="text-gray-500 text-sm mb-10">Last updated: {LAST_UPDATED}</p>
+      <p className="text-gray-400 text-sm mb-10">Last updated: {LAST_UPDATED}</p>
 
       <div className="space-y-8 text-gray-300 leading-relaxed">
         <section>
@@ -52,7 +52,8 @@ export default function PrivacyPage() {
               your birthday month and day, we use them to check whether you
               qualify for our birthday package. At the door we may ask to see
               your ID to confirm the birthday. We only record that it was
-              checked. We do not copy or keep your ID.
+              checked. We do not copy or keep your ID. If you qualify, we give
+              the DJ your name for a birthday shout out on the night.
             </li>
             <li>
               <strong>Booking enquiries.</strong> When you use &ldquo;Book this
@@ -105,14 +106,29 @@ export default function PrivacyPage() {
             <li>slow down anyone sending too many requests, and</li>
             <li>
               make the daily counting value described under &ldquo;How we count
-              visits&rdquo;.
+              visits&rdquo;, and
+            </li>
+            <li>
+              if a form asks you to &ldquo;verify you are human&rdquo;, send it
+              to Cloudflare Turnstile, which does that check.
             </li>
           </ul>
           <p className="mt-3">
             To slow down abuse we keep a scrambled version of your IP address
-            for up to 10 minutes, then delete it. Our database never stores your
-            IP address itself. Cloudflare&rsquo;s request logs for the site can
-            include it, and those logs are deleted after 3 days.
+            for up to 10 minutes, then delete it. Breazy Analytics also holds
+            your IP address for a short while in the server&rsquo;s working
+            memory to stop floods of requests. It is never saved, and it is gone
+            when the server restarts.
+          </p>
+          <p className="mt-3">
+            We do not save your IP address in our database, with one exception.
+            If you sign in with Google, the sign in service keeps the IP address
+            of your session for security. It stays until the session ends, and
+            we delete it with your account if you ask.
+          </p>
+          <p className="mt-3">
+            Cloudflare&rsquo;s request logs for the site can include your IP
+            address, and those logs are deleted after 3 days.
           </p>
         </section>
 
@@ -160,8 +176,9 @@ export default function PrivacyPage() {
           <p>
             We measure how this site is used so we know which events, tickets,
             DJs and merch people actually look at, and whether the site is
-            working. We do this ourselves. There is no Google Analytics here, no
-            Meta pixel and no advertising tracker of any kind.
+            working. We do this with our own tools, not an advertising
+            company&rsquo;s. There is no Google Analytics here, no Meta pixel and
+            no advertising tracker of any kind.
           </p>
           <p className="mt-3">
             There are <strong>two</strong> separate systems doing it, and we
@@ -180,7 +197,11 @@ export default function PrivacyPage() {
             <li>
               A <strong>random session id</strong>, kept in your browser&rsquo;s
               storage under the name <Code>ts_sid</Code>. It is made on your
-              device and is not linked to your name, your email or any account.
+              device and is not saved with your name, your email or any account.
+              It stays the same until you clear it or turn counting off. It sits
+              in the same database as orders, so in theory the time of a visit
+              could be matched to an order. We do not do that, and we do not use
+              it to work out who you are.
             </li>
             <li>The page addresses you open on this site.</li>
             <li>
@@ -232,7 +253,10 @@ export default function PrivacyPage() {
               counted.
             </li>
             <li>A rough location, at city level only.</li>
-            <li>Your device type and which browser you use.</li>
+            <li>
+              Your device type, operating system and browser, and whether you
+              are browsing inside another app, like Instagram.
+            </li>
             <li>The website that sent you here, its address only.</li>
           </ul>
           <p className="mt-3">
@@ -244,9 +268,9 @@ export default function PrivacyPage() {
             What neither one keeps
           </h3>
           <p>
-            Neither system stores your IP address, your name, your email, your
-            phone number or your exact location. Neither is shared with an
-            advertising network or sold to anyone.
+            Neither system writes your IP address to storage, and neither stores
+            your name, your email, your phone number or your exact location.
+            Neither is shared with an advertising network or sold to anyone.
           </p>
           <p className="mt-3">
             Both systems <strong>clean page addresses before storing them</strong>
@@ -304,7 +328,8 @@ export default function PrivacyPage() {
               email you your ticket or order.
             </li>
             <li>
-              To check birthday package bookings, if you gave us your birthday.
+              To check birthday package bookings, if you gave us your birthday,
+              and to give the DJ your name for a shout out on the night.
             </li>
             <li>
               To send you event or merch news,{" "}
@@ -312,6 +337,12 @@ export default function PrivacyPage() {
               unsubscribe link.
             </li>
             <li>To reply to you on WhatsApp or email.</li>
+            <li>
+              To follow up on what you asked for. Our team sees one combined list
+              of people who ordered, bought a ticket, sent a booking enquiry or
+              signed up for news, and can download it. Being on that list does
+              not put you on our email list. Only ticking the box does that.
+            </li>
             <li>To keep the site secure and stop abuse.</li>
             <li>To show our DJs and our event photos.</li>
             <li>
@@ -414,7 +445,8 @@ export default function PrivacyPage() {
             </li>
             <li>
               <Code>bz_optout</Code>. Only set if you turn counting off.
-              Remembers your choice. Up to two years.
+              Remembers your choice. Up to two years. A copy is also kept in your
+              browser&rsquo;s storage.
             </li>
             <li>
               <Code>ts_sid</Code>. The session id for our own event tracking.
@@ -424,12 +456,24 @@ export default function PrivacyPage() {
               <strong>Sign in cookies.</strong> Only if you sign in with Google.
               They keep you signed in.
             </li>
+            <li>
+              <strong>Your cart.</strong> The merch in your cart is kept in your
+              browser&rsquo;s storage.
+            </li>
+            <li>
+              <strong>During checkout.</strong> Your browser keeps a short copy
+              of your WhatsApp order message, with your name and phone number,
+              and our EFT bank details. It is cleared when you close the tab.
+            </li>
+            <li>
+              <strong>Saved pages.</strong> The site, and the app if you install
+              it, keeps copies of pages you open so they load faster. That
+              includes your ticket pages and any gallery pages you viewed while
+              signed in. Anyone using your device could see them. Clearing this
+              site&rsquo;s data in your browser removes them.
+            </li>
           </ul>
-          <p className="mt-3">
-            The site can be installed on your phone, and it keeps copies of
-            pages on your device so it loads faster. We do not use advertising
-            cookies.
-          </p>
+          <p className="mt-3">We do not use advertising cookies.</p>
         </section>
 
         <section>
@@ -438,12 +482,20 @@ export default function PrivacyPage() {
           </h2>
           <ul className="list-disc pl-5 space-y-2">
             <li>
-              <strong>Orders and tickets:</strong> five years after the sale,
-              because tax law asks us to keep sale records that long.
+              <strong>Orders and tickets, including any birthday details:</strong>{" "}
+              five years after the sale, because tax law asks us to keep sale
+              records that long. This is not automatic yet, so after five years
+              we delete them by hand.
             </li>
             <li>
-              <strong>Booking enquiries:</strong> two years after we last spoke,
-              then deleted.
+              <strong>Booking enquiries:</strong> two years after the enquiry
+              was last updated, then deleted automatically.
+            </li>
+            <li>
+              <strong>Alert emails in our team inbox:</strong> these carry your
+              name, phone number and what you asked for. They are not deleted
+              automatically. We delete them by hand when you ask us to delete
+              your information.
             </li>
             <li>
               <strong>Email updates:</strong> until you unsubscribe. After that
@@ -452,7 +504,12 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>Sign in accounts:</strong> until you ask us to delete
-              yours.
+              yours. The IP address of a signed in session stays until that
+              session ends.
+            </li>
+            <li>
+              <strong>Our team&rsquo;s log of admin changes:</strong> two years,
+              then deleted automatically.
             </li>
             <li>
               <strong>DJ pages:</strong> while the DJ is on our roster.
@@ -469,17 +526,19 @@ export default function PrivacyPage() {
               <strong>Cloudflare request logs:</strong> 3 days.
             </li>
             <li>
-              <strong>Our own event tracking:</strong> 12 months, then deleted.
+              <strong>Our own event tracking:</strong> 12 months, then deleted
+              automatically.
             </li>
             <li>
-              <strong>Breazy Analytics:</strong> individual records for{" "}
-              <strong>three days</strong>, then they are deleted automatically
-              and only daily totals remain, which say nothing about any one
-              visitor. So rather than claim we store nothing about you, which
-              would not be true, the honest version is this:{" "}
+              <strong>Breazy Analytics:</strong> a daily clean up deletes
+              individual records once they are three days old, so none lasts
+              more than about <strong>four days</strong>. After that only daily
+              totals remain, which say nothing about any one visitor. So rather
+              than claim we store nothing about you, which would not be true, the
+              honest version is this:{" "}
               <strong>
-                nothing about you survives three days, and nothing can be
-                matched to you on another day or on another of our sites.
+                nothing about you survives more than about four days, and nothing
+                can be matched to you on another day or on another of our sites.
               </strong>
             </li>
           </ul>
@@ -543,7 +602,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="pt-4 border-t border-white/10">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-400">
             See also:{" "}
             <Link href="/terms" className={linkClass}>
               Terms of Service
