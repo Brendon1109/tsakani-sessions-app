@@ -176,14 +176,6 @@ create table if not exists team_tasks (
   updated_at timestamptz default now()
 );
 
--- GALLERY_VIEWS (lead capture)
-create table if not exists gallery_views (
-  id uuid default gen_random_uuid() primary key,
-  gallery_id uuid references galleries(id) on delete cascade,
-  user_id uuid references profiles(id),
-  viewed_at timestamptz default now()
-);
-
 -- NEWSLETTER_SUBSCRIBERS
 create table if not exists newsletter_subscribers (
   id uuid default gen_random_uuid() primary key,
@@ -224,7 +216,6 @@ alter table venues enable row level security;
 alter table venue_contacts enable row level security;
 alter table team_members enable row level security;
 alter table team_tasks enable row level security;
-alter table gallery_views enable row level security;
 alter table newsletter_subscribers enable row level security;
 alter table booking_enquiries enable row level security;
 
@@ -297,14 +288,9 @@ create policy "Admins manage team tasks" on team_tasks for all using (
   exists (select 1 from profiles where id = auth.uid() and role = 'admin')
 );
 
--- Gallery views: authenticated insert, admins read all
-create policy "Authenticated insert gallery views" on gallery_views for insert with check (auth.uid() is not null);
-create policy "Admins read gallery views" on gallery_views for select using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
-
--- Newsletter: anyone can subscribe, admins read all
-create policy "Anyone can subscribe" on newsletter_subscribers for insert with check (true);
+-- Newsletter: admins read all
+-- No anon insert policy: every signup goes through the subscribe_newsletter
+-- function (see newsletter_no_ip.sql), so a direct insert is refused.
 create policy "Admins manage subscribers" on newsletter_subscribers for all using (
   exists (select 1 from profiles where id = auth.uid() and role = 'admin')
 );

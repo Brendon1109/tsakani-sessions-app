@@ -96,7 +96,7 @@ export default function AnalyticsToggle() {
       <p className="text-sm text-gray-400 mb-4">
         {state === "off"
           ? "Off. Nothing on this site is counting your visits, and the visit cookie and session id have been deleted from this browser."
-          : "On. We count pages viewed and time on screen. No name, no email, no IP address is kept, and nothing identifies you."}
+          : "On. We count pages viewed and time on screen. No name, no email, no IP address is kept, and nothing that names you."}
       </p>
 
       <button
@@ -128,7 +128,7 @@ export default function AnalyticsToggle() {
         </p>
       )}
 
-      <p className="mt-4 text-xs text-gray-500">
+      <p className="mt-4 text-xs text-gray-400">
         This choice is remembered on this browser only, because it is stored on
         this device rather than against an account. Choose again on your phone
         if you also browse there, and again if you clear your cookies.

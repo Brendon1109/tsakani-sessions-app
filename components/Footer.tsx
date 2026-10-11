@@ -148,7 +148,7 @@ export default function Footer() {
               Stay in the <span className="text-gold-500">loop</span>
             </h3>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Tick what you want to hear about &mdash; events, merch, or both.
+              Tick what you want to hear about, events, merch or both.
               No spam, unsubscribe any time.
             </p>
           </div>

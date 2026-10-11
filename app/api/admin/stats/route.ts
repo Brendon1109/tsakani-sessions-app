@@ -22,7 +22,7 @@ export async function GET() {
     supabase.from("gallery_photos").select("id", { count: "exact", head: true }),
     supabase.from("ticket_orders").select("total_zar").in("status", ["confirmed", "used"]),
     supabase.from("orders").select("total_zar").in("status", ["confirmed", "shipped", "delivered"]),
-    supabase.from("gallery_views").select("user_id", { count: "exact", head: true }),
+    supabase.from("booking_enquiries").select("id", { count: "exact", head: true }),
     supabase.from("newsletter_subscribers").select("id", { count: "exact", head: true }).eq("is_active", true),
   ]);
 

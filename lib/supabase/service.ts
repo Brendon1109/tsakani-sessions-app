@@ -4,11 +4,13 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
  * Service role client, for server side jobs only. Returns null if the key is
  * not set.
  *
- * It bypasses RLS, so it must never be imported by a client component and
- * never used in a route a stranger can reach. Today its only callers are the
- * cleanup and finalize-events crons, both behind CRON_SECRET. See
- * supabase/lock_down_inventory_functions.sql and
- * supabase/finalize_past_events.sql for why those jobs need it.
+ * It bypasses RLS, so it must never be imported by a client component, and in
+ * a route a stranger can reach it may only call a narrow function with values
+ * the server built itself. Its callers: the cleanup, finalize-events and
+ * retention crons, all behind CRON_SECRET, and lib/rate-limit.ts, which only
+ * calls rate_limit_hit with a hashed key. See
+ * supabase/lock_down_inventory_functions.sql, finalize_past_events.sql,
+ * retention.sql and rate_limit_fn.sql for why each needs it.
  */
 export function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

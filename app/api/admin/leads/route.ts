@@ -152,36 +152,5 @@ export async function GET() {
     // ignore
   }
 
-  // Gallery views (dedupe by email, latest view per user, as before)
-  try {
-    type Row = {
-      viewed_at: string;
-      user: { email: string | null; full_name: string | null } | null;
-      gallery: { title: string | null } | null;
-    };
-    const { data, error } = await supabase
-      .from("gallery_views")
-      .select("viewed_at, user:profiles(email, full_name), gallery:galleries(title)")
-      .order("viewed_at", { ascending: false });
-    if (!error && data) {
-      const seen = new Set<string>();
-      for (const row of data as unknown as Row[]) {
-        const email = row.user?.email;
-        if (!email || seen.has(email)) continue;
-        seen.add(email);
-        leads.push({
-          source: "Gallery view",
-          name: row.user?.full_name ?? null,
-          email,
-          phone: null,
-          detail: row.gallery?.title || "Gallery",
-          date: row.viewed_at,
-        });
-      }
-    }
-  } catch {
-    // ignore
-  }
-
   return NextResponse.json(sortLeadsByDateDesc(leads));
 }

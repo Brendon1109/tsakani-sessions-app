@@ -91,7 +91,7 @@ export default function NewsletterForm() {
           required
           maxLength={254}
           autoComplete="email"
-          className="w-full bg-dark-300 border border-white/10 rounded-lg pl-9 pr-4 py-2.5 text-white text-sm focus:border-gold-500 focus:outline-none transition-colors"
+          className="w-full bg-dark-300 border border-white/10 rounded-lg pl-9 pr-4 py-2.5 text-white text-base focus:border-gold-500 focus:outline-none transition-colors"
         />
       </div>
 
@@ -135,16 +135,15 @@ export default function NewsletterForm() {
         {submitting ? "Signing up..." : "Sign up"}
       </button>
 
-      <p className="text-gray-500 text-xs leading-relaxed">
-        By signing up you agree to our{" "}
+      <p className="text-gray-400 text-xs leading-relaxed">
+        We only send what you ticked. We never share or sell your email.
+        Unsubscribe any time.{" "}
         <Link
           href="/privacy"
           className="text-gold-500 hover:text-gold-400 underline"
         >
           Privacy Policy
         </Link>
-        . We may share your email with event partners or collaborating brands
-        to promote Tsakani Sessions. Unsubscribe any time.
       </p>
 
       {message?.kind === "err" && (

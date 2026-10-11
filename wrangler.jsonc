@@ -22,8 +22,9 @@
   "images": {
     "binding": "IMAGES"
   },
-  // The two Vercel crons, cleanup-orders and finalize-events, both at 03:00
-  // UTC. custom-worker.ts runs both from this one trigger.
+  // The nightly jobs at 03:00 UTC: cleanup-orders and finalize-events (also
+  // Vercel crons until that project goes) and retention (Worker only).
+  // custom-worker.ts runs all three from this one trigger.
   "triggers": {
     "crons": ["0 3 * * *"]
   },
