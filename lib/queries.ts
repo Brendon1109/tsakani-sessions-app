@@ -1,6 +1,8 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import type { Event, Product, Gallery, GalleryPhoto, Ticket, CheckoutOptions } from "@/lib/types";
+import type { Event, Product, Gallery, GalleryPhoto, Ticket, CheckoutOptions, Dj } from "@/lib/types";
 import { onSaleTickets } from "@/lib/tickets";
+import { isDjSlug } from "@/lib/djs";
 
 export type EventWithTickets = Event & { tickets: Ticket[] };
 
@@ -77,6 +79,38 @@ export async function getActiveProducts(): Promise<Product[]> {
 
   return (data as Product[]) || [];
 }
+
+/** The DJ roster, in the order the DJs were added. Every row is public. */
+export async function getDjs(): Promise<Dj[]> {
+  const supabase = await createClient();
+  if (!supabase) return [];
+
+  const { data } = await supabase
+    .from("djs")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  return (data as Dj[]) || [];
+}
+
+/**
+ * Wrapped in cache() because the DJ page asks twice per request, once for its
+ * metadata and once to render, and it should cost one query.
+ */
+export const getDjBySlug = cache(async (slug: string): Promise<Dj | null> => {
+  // A slug that could never exist is not worth a database round trip.
+  if (!isDjSlug(slug)) return null;
+  const supabase = await createClient();
+  if (!supabase) return null;
+
+  const { data } = await supabase
+    .from("djs")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  return (data as Dj | null) ?? null;
+});
 
 /**
  * Which checkout buttons the shop may draw. Two booleans and nothing more: the

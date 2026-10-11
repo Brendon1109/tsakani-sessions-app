@@ -4,6 +4,9 @@
  *
  * A valid enquiry needs a name and at least one way to reach the person (email
  * or phone). Everything else is optional context.
+ *
+ * dj is only the slug the browser asked for. It is not trusted here: the route
+ * resolves it against the roster (lib/djs.ts) before anything is stored.
  */
 
 export interface BookingInput {
@@ -14,6 +17,8 @@ export interface BookingInput {
   event_date: string | null;
   venue: string | null;
   message: string | null;
+  /** Slug of the DJ asked for, as sent. Resolved by the route, never stored as is. */
+  dj: string | null;
   captcha_token?: string;
 }
 
@@ -61,6 +66,7 @@ export function validateBookingInput(body: unknown): BookingValidation {
       event_date: clean(b.event_date, 40),
       venue: clean(b.venue, 200),
       message: clean(b.message, 2000),
+      dj: clean(b.dj, 60),
       captcha_token:
         typeof b.captcha_token === "string" ? b.captcha_token : undefined,
     },

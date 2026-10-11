@@ -65,4 +65,11 @@ describe("validateBookingInput", () => {
       expect(result.value.captcha_token).toBe("tok_123");
     }
   });
+
+  it("carries the requested DJ slug through as sent, for the route to resolve", () => {
+    const withDj = validateBookingInput({ name: "Lerato", phone: "071", dj: " kendour " });
+    expect(withDj.ok && withDj.value.dj).toBe("kendour");
+    const without = validateBookingInput({ name: "Lerato", phone: "071" });
+    expect(without.ok && without.value.dj).toBeNull();
+  });
 });

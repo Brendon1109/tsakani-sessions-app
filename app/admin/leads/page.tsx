@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { UserCheck, Download, Mail } from "lucide-react";
+import { UserCheck, Download, Mail, Headphones } from "lucide-react";
 import SearchPagination from "@/components/SearchPagination";
 import { type Lead, type LeadSource, LEAD_SOURCES, sortLeadsByDateDesc } from "@/lib/leads";
 
@@ -43,6 +43,7 @@ export default function AdminLeadsPage() {
         l.name?.toLowerCase().includes(q) ||
         l.phone?.toLowerCase().includes(q) ||
         l.detail?.toLowerCase().includes(q) ||
+        l.dj?.toLowerCase().includes(q) ||
         l.source.toLowerCase().includes(q)
       );
     });
@@ -52,13 +53,14 @@ export default function AdminLeadsPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function downloadCsv() {
-    const headers = ["source", "name", "email", "phone", "detail", "date"];
+    const headers = ["source", "name", "email", "phone", "detail", "dj", "date"];
     const rows = filtered.map((l) => [
       l.source,
       l.name || "",
       l.email || "",
       l.phone || "",
       l.detail || "",
+      l.dj || "",
       l.date,
     ]);
     const csv = [headers, ...rows]
@@ -194,7 +196,15 @@ export default function AdminLeadsPage() {
                           <span className="text-gray-600">—</span>
                         )}
                       </td>
-                      <td className="p-4 text-gray-400">{lead.detail}</td>
+                      <td className="p-4 text-gray-400">
+                        {lead.detail}
+                        {lead.dj && (
+                          <span className="mt-1 flex items-center gap-1 text-xs text-gold-500">
+                            <Headphones size={12} />
+                            {lead.dj}
+                          </span>
+                        )}
+                      </td>
                       <td className="p-4 text-gray-500 whitespace-nowrap">
                         {new Date(lead.date).toLocaleDateString()}
                       </td>

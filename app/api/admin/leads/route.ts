@@ -32,11 +32,12 @@ export async function GET() {
       phone: string | null;
       event_type: string | null;
       venue: string | null;
+      requested_dj_name: string | null;
       created_at: string;
     };
     const { data, error } = await supabase
       .from("booking_enquiries")
-      .select("name, email, phone, event_type, venue, created_at")
+      .select("name, email, phone, event_type, venue, requested_dj_name, created_at")
       .order("created_at", { ascending: false });
     if (!error && data) {
       for (const row of data as unknown as Row[]) {
@@ -46,6 +47,9 @@ export async function GET() {
           email: row.email,
           phone: row.phone,
           detail: row.event_type || row.venue || "Booking enquiry",
+          // The snapshot, not a join, so a booking still names its DJ after
+          // that DJ is removed from the roster.
+          dj: row.requested_dj_name,
           date: row.created_at,
         });
       }

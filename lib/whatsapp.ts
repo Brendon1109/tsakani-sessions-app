@@ -10,6 +10,8 @@ export interface BookingData {
   budget?: string;
   services?: string[];
   message?: string;
+  /** Name of the DJ asked for, as shown on the roster. */
+  dj?: string;
 }
 
 export interface OrderData {
@@ -48,6 +50,9 @@ export function createBookingMessage(data: BookingData): string {
   message += `📧 *Email:* ${data.email}\n`;
   message += `📱 *Phone:* ${data.phone}\n\n`;
   message += `🎉 *Event Type:* ${data.eventType}\n`;
+  if (data.dj) {
+    message += `🎧 *DJ:* ${data.dj}\n`;
+  }
   message += `📅 *Date:* ${data.eventDate}\n`;
   message += `📍 *Venue:* ${data.venue}\n`;
 

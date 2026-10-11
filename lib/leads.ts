@@ -21,6 +21,8 @@ export interface Lead {
   email: string | null;
   phone: string | null;
   detail: string;
+  /** The DJ a booking asked for, by the name they had when it was made. */
+  dj?: string | null;
   date: string;
 }
 

@@ -95,6 +95,30 @@ export interface Product {
   updated_at?: string | null;
 }
 
+/**
+ * A DJ on the public roster. Every row is public, in the order added. It is
+ * public personal information about the DJ, shown with their OK, and holds no
+ * contact details.
+ */
+export interface Dj {
+  id: string;
+  name: string;
+  /** Derived from the name by the admin API. Unique. */
+  slug: string;
+  /** Path inside the gallery-photos bucket, under djs/. Never a full URL. */
+  photo_path: string | null;
+  description: string | null;
+  /** Short tags, "Deep House", "Amapiano". Empty is normal. */
+  genres: string[];
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  soundcloud_url: string | null;
+  /** A channel or a single video. A video is embedded on the DJ page. */
+  youtube_url: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
 /** Bank details for EFT checkout. One row, admin managed, never public. */
 export interface StoreSettings {
   eft_enabled: boolean;
