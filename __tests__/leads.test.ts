@@ -53,12 +53,12 @@ describe("sortLeadsByDateDesc", () => {
   });
 
   it("keeps every conforming lead shape", () => {
-    const lead = make("Gallery view", "2026-04-01T00:00:00Z");
+    const lead = make("Newsletter", "2026-04-01T00:00:00Z");
     const [out] = sortLeadsByDateDesc([lead]);
     expect(out).toEqual({
-      source: "Gallery view",
+      source: "Newsletter",
       name: null,
-      email: "Gallery view@example.com",
+      email: "Newsletter@example.com",
       phone: null,
       detail: "x",
       date: "2026-04-01T00:00:00Z",

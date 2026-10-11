@@ -12,7 +12,6 @@ const sourceStyles: Record<LeadSource, string> = {
   "Ticket buyer": "text-green-400 bg-green-400/10",
   "Merch buyer": "text-blue-400 bg-blue-400/10",
   Newsletter: "text-purple-400 bg-purple-400/10",
-  "Gallery view": "text-gray-300 bg-white/10",
 };
 
 export default function AdminLeadsPage() {
@@ -106,8 +105,8 @@ export default function AdminLeadsPage() {
           </div>
           <h2 className="text-xl font-bold mb-2">No Leads Yet</h2>
           <p className="text-gray-400 text-sm max-w-md mx-auto">
-            Booking enquiries, ticket buyers, merch orders, newsletter sign ups
-            and gallery viewers all land here as they come in.
+            Booking enquiries, ticket buyers, merch orders and newsletter sign
+            ups all land here as they come in.
           </p>
         </div>
       ) : (

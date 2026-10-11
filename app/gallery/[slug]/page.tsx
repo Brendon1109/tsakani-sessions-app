@@ -60,12 +60,8 @@ export default async function GallerySlugPage({
     redirect(`/auth/signin?redirectTo=/gallery/${slug}`);
   }
 
-  if (supabase) {
-    await supabase.from("gallery_views").insert({
-      gallery_id: data.gallery.id,
-      user_id: user.id,
-    });
-  }
+  // Who opened which gallery is no longer recorded. gallery_views had never
+  // held a row in production, and the privacy page does not list it.
 
   const photos = (data.photos as unknown as { url: string; caption: string | null }[]).map(
     (p) => ({ url: p.url, caption: p.caption || undefined })

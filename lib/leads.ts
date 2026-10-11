@@ -12,8 +12,7 @@ export type LeadSource =
   | "Booking"
   | "Ticket buyer"
   | "Merch buyer"
-  | "Newsletter"
-  | "Gallery view";
+  | "Newsletter";
 
 export interface Lead {
   source: LeadSource;
@@ -31,7 +30,6 @@ export const LEAD_SOURCES: LeadSource[] = [
   "Ticket buyer",
   "Merch buyer",
   "Newsletter",
-  "Gallery view",
 ];
 
 /** Human label for which newsletter topics a subscriber opted into. */
