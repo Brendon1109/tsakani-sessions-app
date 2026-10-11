@@ -1,37 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tsakani Sessions
 
-## Getting Started
+The site for Tsakani Sessions, a Cape Town DJ and live music events brand: events and tickets, the DJ roster, the merch shop, photo galleries, bookings and the admin behind them. Live at https://tsakanisessions.co.za.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (app router), React 19, TypeScript, Tailwind CSS
+- Supabase for Postgres, Google sign in and photo storage. The schema is hand run SQL in `supabase/`
+- Resend for email. Turnstile bot defence is wired into the forms but switched off until its keys are set
+- Hosted on a Cloudflare Worker through OpenNext. Workers Builds deploys every merge to `master`, nothing is deployed from a laptop
+
+## Commands
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci                 # install from the lock file, see the note below
+npm run dev            # local dev server on http://localhost:3000
+npm run lint
+npm run type-check
+npm test -- --run
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+CI runs lint, type check, tests and build on every pull request, plus a Linux Worker build and smoke test.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Do not regenerate `package-lock.json` on Windows. npm there drops the `@emnapi/core` and `@emnapi/runtime` entries that Linux `npm ci` needs. After a dependency change, put those two entries back by hand and prove it with a CI run on the branch.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Docs
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
+- [docs/SETUP.md](docs/SETUP.md), the database files in run order, environment variables, sign in and admin roles
+- [docs/CLOUDFLARE-MOVE.md](docs/CLOUDFLARE-MOVE.md), how hosting moved to the Cloudflare Worker, its settings and the checks to run

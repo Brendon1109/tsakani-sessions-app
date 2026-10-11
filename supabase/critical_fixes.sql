@@ -113,26 +113,3 @@ LEFT JOIN LATERAL (
   FROM gallery_photos
   WHERE gallery_id = g.id
 ) p ON true;
-
--- Job queue for video processing
-CREATE TABLE IF NOT EXISTS video_jobs (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  project_id uuid REFERENCES video_projects(id) ON DELETE CASCADE,
-  config jsonb NOT NULL,
-  status text DEFAULT 'queued' CHECK (status IN ('queued','running','done','failed')),
-  progress integer DEFAULT 0,
-  output_path text,
-  error_message text,
-  created_at timestamptz DEFAULT now(),
-  started_at timestamptz,
-  completed_at timestamptz
-);
-
-CREATE INDEX IF NOT EXISTS idx_video_jobs_status ON video_jobs(status, created_at);
-
-ALTER TABLE video_jobs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins manage video jobs" ON video_jobs
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );

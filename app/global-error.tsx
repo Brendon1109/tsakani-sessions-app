@@ -1,23 +1,15 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
-import { useEffect } from "react";
 
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
-  useEffect(() => {
-    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-      Sentry.captureException(error);
-    }
-  }, [error]);
-
   return (
     <html lang="en">
       <body style={{ background: "#000", color: "#fff", fontFamily: "system-ui", padding: 40 }}>
         <div style={{ maxWidth: 500, margin: "10vh auto", textAlign: "center" }}>
           <h1 style={{ fontSize: 32, marginBottom: 16 }}>Something went wrong</h1>
           <p style={{ color: "#a0a0a0", marginBottom: 24 }}>
-            We&apos;ve been notified. Please try again or head back to the homepage.
+            Please try again or head back to the homepage.
           </p>
           <Link
             href="/"

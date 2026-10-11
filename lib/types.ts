@@ -290,17 +290,3 @@ export interface AnalyticsEvent {
   props: Record<string, unknown>;
   created_at: string;
 }
-
-export interface VideoProject {
-  id: string;
-  event_id: string | null;
-  title: string;
-  status: "pending" | "processing" | "complete" | "failed";
-  source_files: Record<string, string>[] | null;
-  output_path: string | null;
-  youtube_url: string | null;
-  instagram_url: string | null;
-  tiktok_url: string | null;
-  created_at: string;
-  updated_at: string;
-}

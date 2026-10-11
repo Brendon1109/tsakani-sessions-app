@@ -208,21 +208,6 @@ create table if not exists booking_enquiries (
   created_at timestamptz default now()
 );
 
--- VIDEO_PROJECTS
-create table if not exists video_projects (
-  id uuid default gen_random_uuid() primary key,
-  event_id uuid references events(id),
-  title text not null,
-  status text default 'pending' check (status in ('pending', 'processing', 'complete', 'failed')),
-  source_files jsonb,
-  output_path text,
-  youtube_url text,
-  instagram_url text,
-  tiktok_url text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
 -- ============================================
 -- ROW LEVEL SECURITY POLICIES
 -- ============================================
@@ -242,7 +227,6 @@ alter table team_tasks enable row level security;
 alter table gallery_views enable row level security;
 alter table newsletter_subscribers enable row level security;
 alter table booking_enquiries enable row level security;
-alter table video_projects enable row level security;
 
 -- Profiles: users read/update own, admins read all
 create policy "Users read own profile" on profiles for select using (auth.uid() = id);
@@ -310,9 +294,6 @@ create policy "Admins manage team members" on team_members for all using (
   exists (select 1 from profiles where id = auth.uid() and role = 'admin')
 );
 create policy "Admins manage team tasks" on team_tasks for all using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
-create policy "Admins manage video projects" on video_projects for all using (
   exists (select 1 from profiles where id = auth.uid() and role = 'admin')
 );
 

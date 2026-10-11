@@ -15,7 +15,6 @@ Until step 9, Vercel is production and every merge to `master` still deploys the
 | Analytics adapter platform | `BZ_PLATFORM=cloudflare`, set next to `HOST_PLATFORM` so they cannot disagree | `wrangler.jsonc` vars |
 | www to apex (two rules in `vercel.json`) | The same two rules in `next.config.mjs` `redirects()`, so no zone rule is needed | `next.config.mjs` |
 | Edge middleware (Supabase session, the /admin gate) | Runs as OpenNext's edge middleware, unchanged. It stays `middleware.ts` on purpose, because `proxy.ts` would force Node middleware, which OpenNext still marks experimental | `middleware.ts` |
-| Sentry | Dormant, `NEXT_PUBLIC_SENTRY_DSN` is unset. `instrumentation.ts` builds under OpenNext | |
 
 ### Size
 
@@ -55,7 +54,7 @@ Cloudflare Images gives every account 5,000 unique transformations a month free,
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same place. Supabase retires the legacy anon and service role keys at the end of 2026, so the key swap is due soon anyway |
 | `NEXT_PUBLIC_SITE_URL` | `https://tsakanisessions.co.za`. Not set on Vercel today, which leaves ticket links relative. Set it here from the first build, so cutover never needs a rebuild |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Not set on Vercel today (open work). Only when Turnstile is switched on |
-| `NEXT_PUBLIC_WHATSAPP_NUMBER`, `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_ANALYTICS_DISABLED` | Not set on Vercel. The code defaults apply |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER`, `NEXT_PUBLIC_ANALYTICS_DISABLED` | Not set on Vercel. The code defaults apply |
 
 ### Runtime secrets
 
@@ -69,7 +68,6 @@ Set each as a Secret (Worker, Settings, Variables and secrets, or `npx wrangler 
 | `RESEND_FROM_EMAIL`, `REPLY_TO_EMAIL`, `ADMIN_EMAIL` | Vercel production (readable) | `ADMIN_EMAIL` also receives the cron failure alert |
 | `BZ_SITE`, `BZ_SALT`, `BZ_INGEST_SECRET`, `BZ_ENDPOINT` | Vercel production (readable) | Same values as Vercel, so visitor counts stay continuous. The collector lives on a different Cloudflare account, so a plain fetch reaches it. If it ever moves onto this account, switch to a service binding, because a Worker cannot fetch another Worker's workers.dev address on the same account |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile | Only when Turnstile is switched on |
-| `WORKER_SECRET` | The local video worker's config | Not set on Vercel. Only if the video pipeline talks to production |
 
 **Never set** `HOST_PLATFORM` or `BZ_PLATFORM` in the dashboard. They live in `wrangler.jsonc`, and a secret with the same name makes the deploy fail.
 

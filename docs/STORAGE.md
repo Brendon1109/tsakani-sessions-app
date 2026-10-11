@@ -52,15 +52,10 @@ Transfer all raw footage to your external SSD in a folder per event:
 **Result:** a 150-photo gallery that was 2 GB raw → ~150 MB on Supabase.
 
 ### 3. Video workflow
-1. Assemble your clip order in the admin Video Pipeline UI → Queue for Worker
-2. On your laptop (with your external SSD attached):
-   ```
-   python scripts/video_worker.py
-   ```
-3. Worker picks up the job, reads footage from the SSD, renders MP4 locally
-4. You upload the final MP4 to YouTube (either manually or via
-   `scripts/youtube_upload.py`)
-5. Raw footage stays on the SSD. Only the ~500 MB finished MP4 goes to YouTube.
+1. Edit and render the aftermovie on your laptop, with the external SSD attached
+2. Upload the final MP4 to the YouTube channel. The home page feed picks it up
+   within the hour
+3. Raw footage stays on the SSD. Only the ~500 MB finished MP4 goes to YouTube.
 
 ### 4. Short-form clips (TikTok / IG Reels / YouTube Shorts)
 1. Edit clips in CapCut / Premiere / whatever
