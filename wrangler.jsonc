@@ -1,6 +1,6 @@
 // The Cloudflare Worker for tsakanisessions.co.za, built with OpenNext.
-// The cutover runbook is docs/CLOUDFLARE-MOVE.md. Until DNS moves, Vercel is
-// production and this Worker only answers on its workers.dev address.
+// Production since 24 September 2026. Settings, secrets and checks are in
+// docs/CLOUDFLARE-MOVE.md.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tsakani-sessions-app",
@@ -22,19 +22,20 @@
   "images": {
     "binding": "IMAGES"
   },
-  // The two Vercel crons, cleanup-orders and finalize-events, both at 03:00
+  // The two nightly jobs, cleanup-orders and finalize-events, both at 03:00
   // UTC. custom-worker.ts runs both from this one trigger.
   "triggers": {
     "crons": ["0 3 * * *"]
   },
-  // Declared here rather than in the dashboard so they ship with the code and
-  // cannot drift apart. lib/request-meta.ts and app/api/e/route.ts read them
-  // to decide which edge headers to trust. Do not also set them as secrets.
+  // Declared here rather than in the dashboard so it ships with the code.
+  // app/api/e/route.ts reads it to decide which edge headers to trust, and
+  // its upstream copy still defaults to vercel when it is unset. Do not also
+  // set it as a secret.
   "vars": {
-    "HOST_PLATFORM": "cloudflare",
     "BZ_PLATFORM": "cloudflare"
   },
-  // The workers.dev address is where the Worker is tested before DNS moves.
+  // The workers.dev address stays on as a second way in for checks. If it is
+  // ever switched off, drop its Supabase redirect URL too (runbook step 12).
   "workers_dev": true,
   // No per version preview hostnames. The admin screens and the cron routes
   // sit behind this Worker, so every version should not get its own address.
@@ -44,5 +45,7 @@
       "enabled": true
     }
   }
-  // No routes or custom domains yet. They are added at cutover, runbook step 9.
+  // The apex and www are Custom Domains, added in the dashboard at cutover on
+  // 24 September 2026. Moving them into "routes" here is runbook step 10,
+  // still to do.
 }

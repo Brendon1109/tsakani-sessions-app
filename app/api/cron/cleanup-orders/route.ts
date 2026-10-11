@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
  * Cron endpoint: cancels stale pending orders (>48h) and releases
  * reserved tickets back to inventory.
  *
- * Configure via Vercel Cron (vercel.json) or call manually:
+ * Run nightly by the Worker's Cron Trigger (custom-worker.ts), or call manually:
  *   POST /api/cron/cleanup-orders
  *   Header: Authorization: Bearer <CRON_SECRET>
  */
@@ -20,7 +20,7 @@ function isAuthorized(request: NextRequest): boolean {
     // In dev, allow unauthenticated calls so it's easy to exercise locally.
     if (process.env.NODE_ENV === "production") {
       console.error(
-        "[cron/cleanup-orders] CRON_SECRET is not set in production — rejecting request. Set the env var in Vercel."
+        "[cron/cleanup-orders] CRON_SECRET is not set in production, rejecting request. Set it as a Worker secret."
       );
       return false;
     }

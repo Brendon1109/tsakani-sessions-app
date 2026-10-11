@@ -30,7 +30,7 @@ function isAuthorized(request: NextRequest): boolean {
     // Fail closed in production, matching cleanup-orders.
     if (process.env.NODE_ENV === "production") {
       console.error(
-        "[cron/finalize-events] CRON_SECRET is not set in production — rejecting request. Set the env var in Vercel."
+        "[cron/finalize-events] CRON_SECRET is not set in production, rejecting request. Set it as a Worker secret."
       );
       return false;
     }

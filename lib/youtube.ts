@@ -15,11 +15,10 @@ export interface YouTubeVideo {
   views: number | null;
 }
 
-// The fetch below is cached for an hour by Next's data cache on Vercel. The
-// Cloudflare Worker runs without an incremental cache (see
-// docs/CLOUDFLARE-MOVE.md), so there that option does nothing and every home
-// page render would refetch the feed. This keeps the last good result for an
-// hour inside each isolate instead. Plain data only, never a pending promise,
+// The Cloudflare Worker runs without an incremental cache (see
+// docs/CLOUDFLARE-MOVE.md), so the `revalidate` option on the fetch below
+// does nothing there and every home page render would refetch the feed.
+// This keeps the last good result for an hour inside each isolate instead. Plain data only, never a pending promise,
 // and a failure is not remembered, so the next request tries again.
 const MEMO_MS = 60 * 60 * 1000;
 const memo = new Map<number, { at: number; videos: YouTubeVideo[] }>();

@@ -1,8 +1,0 @@
-node_modules
-.next
-supabase/.temp
-scripts/footage
-scripts/output
-scripts/temp_merge
-venv
-__pycache__

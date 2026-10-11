@@ -3,7 +3,7 @@ import { defineCloudflareConfig } from "@opennextjs/cloudflare";
 // No incremental cache, tag cache or revalidation queue, on purpose.
 //
 // Every public page reads Supabase through the server client, which reads
-// cookies, so Next renders those pages per request on Vercel today and the
+// cookies, so Next renders those pages per request on any host and the
 // old `revalidate` exports never took effect (Next 14's prerender manifest
 // and Next 16's route table agree). With nothing to revalidate, an R2 cache
 // would add a bucket, a deploy time upload and a queue for no gain. The

@@ -1,11 +1,11 @@
 /**
  * Worker entry: OpenNext's generated handler for every request, plus the
- * nightly jobs that vercel.json runs as Vercel crons.
+ * two nightly jobs.
  *
- * The cron does not reimplement anything. It calls the same two route
- * handlers Vercel calls, through the same fetch handler, with the same
- * CRON_SECRET bearer token, so the auth check, the fail closed rule and the
- * job logic stay in one place: app/api/cron/*.
+ * The cron does not reimplement anything. It calls the two cron route
+ * handlers through the same fetch handler, with the CRON_SECRET bearer
+ * token, so the auth check, the fail closed rule and the job logic stay in
+ * one place: app/api/cron/*.
  *
  * A failed job is logged, emailed to ADMIN_EMAIL through Resend when the key
  * is set, and then thrown so the invocation shows as failed under the
