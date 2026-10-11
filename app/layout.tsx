@@ -88,7 +88,8 @@ export const viewport: Viewport = {
   themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // No maximumScale. It blocks pinch zoom on Android, and the 16px rule in
+  // globals.css is what stops iPhone Safari zooming into a field.
 };
 
 export default function RootLayout({

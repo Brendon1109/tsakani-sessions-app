@@ -66,3 +66,31 @@ html {
   background: rgba(255, 215, 0, 0.3);
   color: #ffffff;
 }
+
+/*
+ * No text field under 16px on a phone.
+ *
+ * iPhone Safari zooms into any input, select or textarea whose font is under
+ * 16px and does not zoom back when the keyboard closes, so the page sits cut
+ * off on the right. Below Tailwind's sm breakpoint every field is 16px
+ * whatever class it carries, and so is every field on iOS at any width,
+ * because an iPhone on its side is wider than 640px. Checkboxes and radios
+ * are left alone, their size never came from the font, and a field already
+ * bigger than 16px keeps its size. Above sm on everything else nothing
+ * changes.
+ */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not(.text-lg):not(.text-xl):not(.text-2xl):not(.text-3xl):not(.text-4xl),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  input:not([type="checkbox"]):not([type="radio"]):not(.text-lg):not(.text-xl):not(.text-2xl):not(.text-3xl):not(.text-4xl),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
