@@ -2,6 +2,8 @@
 
 The cutover runbook. Written 24 September 2026, when the code was prepared (PR 6 for Next 16, PR 7 for the Worker wiring) and nothing had been deployed. Supabase stays exactly where it is. Only the hosting moves.
 
+**Status: cut over on 24 September 2026, 21:05 SAST.** The Worker serves the apex and www. `vercel.json`, `.vercelignore` and the Vercel half of `lib/request-meta.ts` are gone from the code, so a Vercel build of this repo would have no crons, no redirects and the wrong client IP. What is left of step 12 is dashboard work, starting with disconnecting the repo from the Vercel project. The steps below are kept as the record of how the move went.
+
 Until step 9, Vercel is production and every merge to `master` still deploys there. The Worker answers only on its workers.dev address, so every step before step 9 can be undone without anyone noticing.
 
 ## What the code already does
@@ -11,8 +13,8 @@ Until step 9, Vercel is production and every merge to `master` still deploys the
 | Two crons at 03:00 UTC (cleanup-orders, finalize-events) | One Cron Trigger. `custom-worker.ts` calls both existing routes through the same fetch handler with `CRON_SECRET`. A failure is logged, emailed to `ADMIN_EMAIL` and thrown, so it shows as failed under the Worker's cron events | `wrangler.jsonc` triggers, `custom-worker.ts` |
 | ISR (`revalidate` on six pages) | Not needed. Those pages always rendered per request, because the Supabase server client reads cookies. The dead exports are gone and there is no incremental cache. The YouTube feed keeps its own hour long copy per isolate | `open-next.config.ts`, `lib/youtube.ts` |
 | Image optimisation | The Cloudflare Images binding `IMAGES` | `wrangler.jsonc` |
-| IP and geo headers | `lib/request-meta.ts` trusts only the edge named in `HOST_PLATFORM`: `cf-connecting-ip` and `request.cf` on Cloudflare | `wrangler.jsonc` vars |
-| Analytics adapter platform | `BZ_PLATFORM=cloudflare`, set next to `HOST_PLATFORM` so they cannot disagree | `wrangler.jsonc` vars |
+| IP and geo headers | `lib/request-meta.ts` trusts only Cloudflare: `cf-connecting-ip` and `request.cf`. There is no platform switch any more | `lib/request-meta.ts` |
+| Analytics adapter platform | `BZ_PLATFORM=cloudflare` | `wrangler.jsonc` vars |
 | www to apex (two rules in `vercel.json`) | The same two rules in `next.config.mjs` `redirects()`, so no zone rule is needed | `next.config.mjs` |
 | Edge middleware (Supabase session, the /admin gate) | Runs as OpenNext's edge middleware, unchanged. It stays `middleware.ts` on purpose, because `proxy.ts` would force Node middleware, which OpenNext still marks experimental | `middleware.ts` |
 
@@ -69,7 +71,7 @@ Set each as a Secret (Worker, Settings, Variables and secrets, or `npx wrangler 
 | `BZ_SITE`, `BZ_SALT`, `BZ_INGEST_SECRET`, `BZ_ENDPOINT` | Vercel production (readable) | Same values as Vercel, so visitor counts stay continuous. The collector lives on a different Cloudflare account, so a plain fetch reaches it. If it ever moves onto this account, switch to a service binding, because a Worker cannot fetch another Worker's workers.dev address on the same account |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile | Only when Turnstile is switched on |
 
-**Never set** `HOST_PLATFORM` or `BZ_PLATFORM` in the dashboard. They live in `wrangler.jsonc`, and a secret with the same name makes the deploy fail.
+**Never set** `BZ_PLATFORM` in the dashboard. It lives in `wrangler.jsonc`, and a secret with the same name makes the deploy fail.
 
 ## Order of steps
 
@@ -106,7 +108,7 @@ Set each as a Secret (Worker, Settings, Variables and secrets, or `npx wrangler 
     ]
     ```
 11. **Watch for a week.** The morning after, open the Worker's cron events and logs and confirm the 03:00 run passed. Vercel's crons keep running too until step 12. Both jobs are idempotent, so a double run is harmless.
-12. **Retire Vercel after two quiet weeks.** Remove `vercel.json`, remove the domains from the Vercel project and delete it, revoke the old Resend key, and remove the workers.dev entry from Supabase if `workers_dev` is switched off.
+12. **Retire Vercel after two quiet weeks.** Remove `vercel.json` (done, together with `.vercelignore` and the rest of the Vercel leftovers in the code), remove the domains from the Vercel project and delete it, revoke the old Resend key, and remove the workers.dev entry from Supabase if `workers_dev` is switched off.
 
 ## Checklist on the Worker
 

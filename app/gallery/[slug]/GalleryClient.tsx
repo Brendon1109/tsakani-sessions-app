@@ -28,7 +28,7 @@ export default function GalleryClient({
   const galleryUrl =
     typeof window !== "undefined"
       ? window.location.href
-      : `https://tsakani-sessions-app.vercel.app/gallery/${slug}`;
+      : `https://tsakanisessions.co.za/gallery/${slug}`;
 
   const handleShare = async () => {
     if (navigator.share) {

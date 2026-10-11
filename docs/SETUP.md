@@ -57,10 +57,12 @@ order number, and note what existing state it assumes.
 | `ADMIN_EMAIL` | Where admin alerts go | Your email |
 | `CRON_SECRET` | Protects cron endpoints | Generate with `openssl rand -hex 32` |
 
-### Set via Vercel CLI
+### Where they live
+
+The three public build values (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`) are in the committed `.env.production`. Everything else is a secret on the Worker:
 
 ```bash
-echo "value" | npx vercel env add VARNAME production
+npx wrangler secret put VARNAME
 ```
 
 ## Google OAuth (Supabase Auth)
@@ -78,7 +80,8 @@ file and re-run it.
 
 ## Cron jobs
 
-Configured in `vercel.json`:
+Run by the Worker's Cron Trigger (`wrangler.jsonc`, `custom-worker.ts`), which
+also runs `/api/cron/finalize-events` at the same time:
 - `/api/cron/cleanup-orders` runs daily at 03:00 UTC — cancels stale pending
   orders (>48h) and releases reserved tickets. The merch half runs on the
   service role key. The ticket half still runs on the anon key, which RLS
