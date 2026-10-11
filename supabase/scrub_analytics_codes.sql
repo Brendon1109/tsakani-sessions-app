@@ -13,8 +13,14 @@
 -- read the same on the admin analytics page. It also catches event slugs with
 -- a digit in them, which /api/track now does for new rows as well.
 --
+-- Step 2b then replaces the shape of a ticket code (a UUID, with or without
+-- its dashes) wherever it sits in a path, the same second pass /api/track now
+-- makes, for a code that arrived with a bracket or a space stuck to it. On 11
+-- October no stored path had one, and none held a percent escape. Step 3
+-- proves nothing code shaped is left.
+--
 -- props needs no scrub: on 11 October no stored props value had the shape of
--- a code. Step 1 counts it again so that stays checked.
+-- a code. Step 1 and step 3 count it so that stays checked.
 --
 -- RUN AFTER the deploy that adds redactPath to /api/track, otherwise a visit
 -- in between writes a fresh code. Step 1 is read only. Step 2 changes rows.
@@ -25,7 +31,8 @@
 
 -- ── Step 1. Read only. How many rows carry a code ───────────
 -- On 11 October 2026: 48 rows would change, 40 of them /ticket/<code>, and
--- the other 8 the 1st birthday event's slug. 0 props values had a code shape.
+-- the other 8 the 1st birthday event's slug. 0 props values had a code shape,
+-- and 0 paths had a code anywhere but a whole segment.
 
 with cleaned as (
   select a.id, a.path,
@@ -71,3 +78,21 @@ update public.analytics_events a
   from cleaned c
  where a.id = c.id
    and a.path is distinct from c.new_path;
+
+
+-- ── Step 2b. A code anywhere in a path. Changes rows ────────
+
+update public.analytics_events
+   set path = regexp_replace(path,
+         '[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}', '[id]', 'gi')
+ where path ~* '[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}';
+
+
+-- ── Step 3. Read only. Nothing code shaped is left ──────────
+-- Both counts should be 0.
+
+select
+  (select count(*) from public.analytics_events
+    where path ~* '[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}') as paths_with_a_code,
+  (select count(*) from public.analytics_events
+    where props::text ~* '[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}') as props_with_a_code;

@@ -40,7 +40,15 @@ function request(auth?: string) {
 beforeEach(() => {
   rpcCalls.length = 0;
   serviceAvailable = true;
-  rpcResult = { data: { analytics_events_deleted: 12, booking_enquiries_deleted: 1 }, error: null };
+  rpcResult = {
+    data: {
+      analytics_events_deleted: 12,
+      booking_enquiries_deleted: 1,
+      audit_log_deleted: 3,
+      rate_limits_deleted: 7,
+    },
+    error: null,
+  };
   vi.stubEnv("CRON_SECRET", "test-secret");
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -68,14 +76,21 @@ describe("/api/cron/retention", () => {
     const res = await GET(request("Bearer test-secret"));
     expect(res.status).toBe(200);
     expect(rpcCalls).toEqual(["apply_retention"]);
-    expect(await res.json()).toMatchObject({ analytics_events_deleted: 12, booking_enquiries_deleted: 1 });
+    expect(await res.json()).toMatchObject({
+      analytics_events_deleted: 12,
+      booking_enquiries_deleted: 1,
+      audit_log_deleted: 3,
+      rate_limits_deleted: 7,
+    });
   });
 
-  it("reports zeroes on a second run", async () => {
-    rpcResult = { data: { analytics_events_deleted: 0, booking_enquiries_deleted: 0 }, error: null };
+  it("answers POST the same way, and reads a missing count as zero", async () => {
+    rpcResult = { data: { analytics_events_deleted: 2 }, error: null };
     expect(await (await POST(request("Bearer test-secret"))).json()).toMatchObject({
-      analytics_events_deleted: 0,
+      analytics_events_deleted: 2,
       booking_enquiries_deleted: 0,
+      audit_log_deleted: 0,
+      rate_limits_deleted: 0,
     });
   });
 

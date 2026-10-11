@@ -26,9 +26,11 @@ applied is safe.
 | 15 | `supabase/djs.sql` | **The DJ roster.** Adds the `djs` table behind `/djs` and `/admin/djs` (name, slug, picture path under `djs/` in `gallery-photos`, description, genres, YouTube, TikTok, Instagram and SoundCloud links). Every row is public, admins write. Adds `requested_dj_id` and `requested_dj_name` to `booking_enquiries`, with a restrictive insert policy so a DJ on an enquiry must be a real DJ under their own name. Must run after `schema.sql` and `booking_enquiries.sql`. |
 | 16 | `supabase/drop_video_pipeline.sql` | **Drops the dead video pipeline tables**, `video_jobs` and `video_projects`. The app stopped using them when the admin Video and Social Uploads pages were removed. Refuses to drop a table that has rows. Run it after the deploy that removes the pipeline code. A no-op on a fresh project, because 1 and 2 no longer create them. |
 | 17 | `supabase/finalize_past_events.sql` | **Finished events become past.** Adds `finalize_past_events`, service role only, which the nightly finalize-events cron calls to mark published events that started more than 28 hours ago as past and close their ticket sales in one transaction. Adds the "Public read past events" policy so a past event stays on /events, on its own page and in the sitemap. Run it before the deploy that moves the cron onto the function. Safe to re-run. |
-| 18 | `supabase/scrub_analytics_codes.sql` | **Ticket codes out of the analytics table.** One off. /api/track used to store `/ticket/<code>` paths as they arrived, so working ticket codes sat in `analytics_events`. Step 1 counts the rows, read only. Step 2 runs the same redaction as `redactPath` in `app/api/e/core.ts` over the stored paths. Run it after the deploy that adds the redaction to /api/track. A no-op on a fresh project. |
-| 19 | `supabase/newsletter_no_ip.sql` | **The newsletter stops storing IP addresses.** Replaces `subscribe_newsletter` in place with the same signature, so it ignores `p_consent_ip` and never writes `consent_ip`. Safe before or after the deploy that stops /api/newsletter sending it. Part 2, clearing the addresses already stored, is commented out and run by hand once after that deploy. Must run after 12. |
-| 20 | `supabase/retention.sql` | **Retention.** Adds `booking_enquiries.updated_at`, stamped by a trigger on every update, and `apply_retention`, service role only, which the nightly retention cron calls to delete `analytics_events` older than 12 months and booking enquiries two years after their last update (or creation). Run it before the deploy that adds the cron. Safe to re-run. |
+| 18 | `supabase/scrub_analytics_codes.sql` | **Ticket codes out of the analytics table.** One off. /api/track used to store `/ticket/<code>` paths as they arrived, so working ticket codes sat in `analytics_events`. Step 1 counts the rows, read only. Step 2 runs the same redaction as `redactPath` in `app/api/e/core.ts` over the stored paths, step 2b replaces a code's shape anywhere in a path, and step 3 proves none is left. Run it after the deploy that adds the redaction to /api/track. A no-op on a fresh project. |
+| 19 | `supabase/newsletter_no_ip.sql` | **The newsletter stops storing IP addresses.** Replaces `subscribe_newsletter` in place with the same signature, so it ignores `p_consent_ip` and never writes `consent_ip`. Safe before or after the deploy that stops /api/newsletter sending it. Part 2 is commented out and run by hand once after that deploy: it clears the stored addresses, adds a check so `consent_ip` stays empty, and drops the anon insert policy, because every signup goes through the function. Must run after 12. |
+| 20 | `supabase/retention.sql` | **Retention.** Adds `booking_enquiries.updated_at`, stamped by a trigger when the enquiry itself changes, insert triggers that set `created_at` on `analytics_events` and `booking_enquiries` so a caller cannot date a row into the future, and `apply_retention`, service role only, which the nightly retention cron calls to delete analytics older than 12 months, booking enquiries two years after their last update (or creation), `audit_log` rows older than two years and spent rate limit keys. Run it before the deploy that adds the cron. Safe to re-run. |
+| 21 | `supabase/rate_limit_fn.sql` | **The rate limiter works.** Adds `rate_limit_hit`, service role only, which `lib/rate-limit.ts` calls once per request to count a hit against a hashed key and say whether it is allowed. Expired keys are deleted on every call. Until this, the limiter read and wrote `rate_limits` on the anon key, which RLS refuses, so nothing was ever limited. Run it before the deploy that moves the limiter onto it. Safe to re-run. |
+| 22 | `supabase/drop_gallery_views.sql` | **Drops `gallery_views`.** The app stopped recording who opened which gallery, and schema.sql no longer creates the table. Refuses to drop it if it has rows, and uses no CASCADE. Run it after the deploy that stops the app writing it. A no-op on a fresh project. |
 
 Optional, order-independent once `schema.sql` has run: `analytics_events.sql`
 (first-party analytics), `booking_enquiries.sql` (the /services form),
@@ -81,7 +83,7 @@ file and re-run it.
 
 ## Cron jobs
 
-Configured in `vercel.json`:
+One Cron Trigger on the Worker at 03:00 UTC (`wrangler.jsonc`), which `custom-worker.ts` turns into a call to each route below with `CRON_SECRET`. The first two are also Vercel crons in `vercel.json` until that project is deleted:
 - `/api/cron/cleanup-orders` runs daily at 03:00 UTC — cancels stale pending
   orders (>48h) and releases reserved tickets. The merch half runs on the
   service role key. The ticket half still runs on the anon key, which RLS
@@ -92,6 +94,7 @@ Configured in `vercel.json`:
   through `finalize_past_events` on the service role key. Running it again
   changes nothing.
 - `/api/cron/retention` runs daily at 03:00 UTC from the Worker cron only,
-  deletes analytics events older than 12 months and booking enquiries two
-  years after their last update, through `apply_retention` on the service
-  role key. Running it again deletes nothing.
+  deletes analytics events older than 12 months, booking enquiries two years
+  after their last update, admin log rows older than two years and spent rate
+  limit keys, through `apply_retention` on the service role key. Running it
+  again deletes nothing.

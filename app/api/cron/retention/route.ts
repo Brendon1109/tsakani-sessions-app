@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Cron endpoint: deletes what the privacy page says we stop keeping.
  *
- * analytics_events older than 12 months, and booking_enquiries two years
- * after they were last updated (or created, if never updated). One call to
- * apply_retention on the service role key, which does both deletes in one
+ * analytics_events older than 12 months, booking_enquiries two years after
+ * they were last updated (or created, if never updated), audit_log rows older
+ * than two years, and rate limit keys whose window has ended. One call to
+ * apply_retention on the service role key, which does every delete in one
  * transaction and is executable by nobody else. See supabase/retention.sql.
  * Running it twice deletes nothing the second time.
  *
@@ -57,11 +58,15 @@ async function handle(request: NextRequest) {
   const result = (data ?? {}) as {
     analytics_events_deleted?: number;
     booking_enquiries_deleted?: number;
+    audit_log_deleted?: number;
+    rate_limits_deleted?: number;
   };
 
   return NextResponse.json({
     analytics_events_deleted: result.analytics_events_deleted ?? 0,
     booking_enquiries_deleted: result.booking_enquiries_deleted ?? 0,
+    audit_log_deleted: result.audit_log_deleted ?? 0,
+    rate_limits_deleted: result.rate_limits_deleted ?? 0,
     timestamp: new Date().toISOString(),
   });
 }

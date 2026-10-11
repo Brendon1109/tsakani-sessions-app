@@ -38,14 +38,37 @@ function clamp(v: unknown, max: number): string | null {
   return s ? s.slice(0, max) : null;
 }
 
+// A ticket code is a UUID. redactPath replaces it when it is a whole path
+// segment. A link copied out of a chat can carry it with a bracket, a space
+// or a percent escape stuck to it, so the decoded text is also searched for
+// the code's shape anywhere, with or without its dashes.
+const CODE_ANYWHERE = /[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}/gi;
+
+function decodeLoosely(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    // A stray % elsewhere: still decode the single byte escapes, which is
+    // how a digit or a dash inside a code would arrive.
+    return value.replace(/%[0-9a-f]{2}/gi, (m) => {
+      const code = parseInt(m.slice(1), 16);
+      return code < 0x80 ? String.fromCharCode(code) : m;
+    });
+  }
+}
+
+function redact(value: string): string {
+  return redactPath(decodeLoosely(value)).replace(CODE_ANYWHERE, "[id]");
+}
+
 // Anything shaped like a code (a UUID, a long hex or mixed run, a capability
 // prefix) becomes [id]. Applied to every string, keys included, at any depth.
 function redactProps(value: unknown): unknown {
-  if (typeof value === "string") return value ? redactPath(value) : value;
+  if (typeof value === "string") return value ? redact(value) : value;
   if (Array.isArray(value)) return value.map(redactProps);
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [redactPath(k), redactProps(v)])
+      Object.entries(value).map(([k, v]) => [redact(k), redactProps(v)])
     );
   }
   return value;
@@ -104,13 +127,15 @@ export async function POST(request: NextRequest) {
   const { city, region, country } = clientGeo(h);
   const device = deviceFromUA(h.get("user-agent") || "");
 
-  // Keep props small and string-ish; cap the serialized size.
+  // Keep props small and string-ish; cap the serialized size. Measured before
+  // redaction, so a huge body is never walked, and again after, because
+  // [id] can be longer than what it replaced.
   let props: Record<string, unknown> = {};
   if (payload.props && typeof payload.props === "object") {
     try {
-      const json = JSON.stringify(payload.props);
-      if (json.length <= 2000) {
-        props = redactProps(payload.props) as Record<string, unknown>;
+      if (JSON.stringify(payload.props).length <= 2000) {
+        const clean = redactProps(payload.props) as Record<string, unknown>;
+        if (JSON.stringify(clean).length <= 2000) props = clean;
       }
     } catch {
       props = {};
@@ -127,7 +152,7 @@ export async function POST(request: NextRequest) {
   await supabase.from("analytics_events").insert({
     site,
     event_name: event,
-    path: rawPath ? redactPath(rawPath) : null,
+    path: rawPath ? redact(rawPath) : null,
     referrer_host: referrerHost(payload.referrer),
     session_id: clamp(payload.session_id, 64),
     city,

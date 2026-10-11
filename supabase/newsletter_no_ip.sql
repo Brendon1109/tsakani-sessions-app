@@ -82,10 +82,28 @@ grant execute on function public.subscribe_newsletter(text, boolean, boolean, te
 
 -- ── 2. POST DEPLOY, run by hand, once ───────────────────────
 -- Only after the deploy that stops /api/newsletter sending the IP is live AND
--- part 1 above has run, so nothing can write an IP again afterwards. Clears
--- the addresses already stored. On 11 October 2026 that was all 53 rows.
--- Left commented out so running this file never runs it by accident.
+-- part 1 above has run, so nothing can write an IP again afterwards. Left
+-- commented out so running this file never runs it by accident. Run the three
+-- statements together, in this order.
+--
+-- a. Clears the addresses already stored. On 11 October 2026 that was all 53
+--    rows.
+-- b. Makes it structural: no row can hold an IP address again, whatever
+--    writes it.
+-- c. Removes the anon insert policy. Nothing in the app inserts into
+--    newsletter_subscribers directly (checked 11 October 2026: every signup
+--    goes through subscribe_newsletter, which runs as its owner and does not
+--    need the policy), so this only closes the door a direct REST call could
+--    use to add an address without Turnstile or the rate limiter. schema.sql
+--    no longer creates it. Proven in a rolled back transaction on production
+--    the same day: a signup through the function still works and stores no IP,
+--    a direct anon insert is refused.
 --
 -- update public.newsletter_subscribers
 --    set consent_ip = null
 --  where consent_ip is not null;
+--
+-- alter table public.newsletter_subscribers
+--   add constraint newsletter_subscribers_no_ip check (consent_ip is null);
+--
+-- drop policy if exists "Anyone can subscribe" on public.newsletter_subscribers;
