@@ -96,7 +96,7 @@ export default function AnalyticsToggle() {
       <p className="text-sm text-gray-400 mb-4">
         {state === "off"
           ? "Off. Nothing on this site is counting your visits, and the visit cookie and session id have been deleted from this browser."
-          : "On. We count pages viewed and time on screen. No name, no email, no IP address is kept, and nothing identifies you."}
+          : "On. We count pages viewed and time on screen. No name, no email, no IP address is kept, and nothing that names you."}
       </p>
 
       <button

@@ -136,15 +136,14 @@ export default function NewsletterForm() {
       </button>
 
       <p className="text-gray-500 text-xs leading-relaxed">
-        By signing up you agree to our{" "}
+        We only send what you ticked. We never share or sell your email.
+        Unsubscribe any time.{" "}
         <Link
           href="/privacy"
           className="text-gold-500 hover:text-gold-400 underline"
         >
           Privacy Policy
         </Link>
-        . We may share your email with event partners or collaborating brands
-        to promote Tsakani Sessions. Unsubscribe any time.
       </p>
 
       {message?.kind === "err" && (
