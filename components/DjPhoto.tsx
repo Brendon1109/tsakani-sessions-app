@@ -52,7 +52,7 @@ function DjPhotoChain({
           : { role: "img", "aria-label": name })}
         className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gold-900/30 via-dark-500 to-dark-700"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,215,0,0.10)_0%,_transparent_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgb(var(--gold-500)/0.10)_0%,_transparent_70%)]" />
         <span
           className={`relative font-bold text-gold-gradient leading-none ${
             variant === "hero" ? "text-9xl" : "text-6xl sm:text-7xl"
