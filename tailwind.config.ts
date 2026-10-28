@@ -9,17 +9,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // The values live in globals.css as RGB channels so a seasonal theme
+        // can swap them without touching a class. The alpha slot keeps
+        // modifiers like gold-500/20 working.
         gold: {
-          50: "#fffbeb",
-          100: "#fff3c4",
-          200: "#ffe588",
-          300: "#ffd54f",
-          400: "#ffc107",
-          500: "#ffd700",
-          600: "#d4a000",
-          700: "#a67c00",
-          800: "#7a5c00",
-          900: "#4d3900",
+          50: "rgb(var(--gold-50) / <alpha-value>)",
+          100: "rgb(var(--gold-100) / <alpha-value>)",
+          200: "rgb(var(--gold-200) / <alpha-value>)",
+          300: "rgb(var(--gold-300) / <alpha-value>)",
+          400: "rgb(var(--gold-400) / <alpha-value>)",
+          500: "rgb(var(--gold-500) / <alpha-value>)",
+          600: "rgb(var(--gold-600) / <alpha-value>)",
+          700: "rgb(var(--gold-700) / <alpha-value>)",
+          800: "rgb(var(--gold-800) / <alpha-value>)",
+          900: "rgb(var(--gold-900) / <alpha-value>)",
         },
         dark: {
           50: "#f5f5f5",

@@ -5,6 +5,8 @@ import Footer from "@/components/Footer";
 import PWARegister from "@/components/PWARegister";
 import SiteJsonLd from "@/components/SiteJsonLd";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
+import HalloweenBats from "@/components/HalloweenBats";
+import { halloweenScript } from "@/lib/seasonal-theme";
 import "./globals.css";
 
 const inter = Inter({
@@ -100,16 +102,24 @@ export default function RootLayout({
   return (
     // data-scroll-behavior keeps route changes jumping straight to the top
     // while globals.css scrolls smoothly within a page. Next 16 stopped doing
-    // that by default.
+    // that by default. suppressHydrationWarning is for the data-theme the
+    // head script adds before React arrives.
     <html
       lang="en-ZA"
       className={`${inter.variable} ${dancingScript.variable}`}
       data-scroll-behavior="smooth"
+      suppressHydrationWarning
     >
+      <head>
+        {/* Halloween 2026, see lib/seasonal-theme.ts. A plain inline script so
+            it runs before first paint, the CSP already allows inline. */}
+        <script dangerouslySetInnerHTML={{ __html: halloweenScript }} />
+      </head>
       <body className="font-sans bg-black text-white min-h-screen flex flex-col">
         <SiteJsonLd />
         <Navbar />
         <main className="flex-1 pt-16 sm:pt-20">{children}</main>
+        <HalloweenBats />
         <Footer />
         <PWARegister />
         <AnalyticsTracker />

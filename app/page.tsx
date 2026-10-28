@@ -56,7 +56,11 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-black via-black/95 to-black" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,215,0,0.08)_0%,_transparent_70%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgb(var(--gold-500)/0.08)_0%,_transparent_70%)]" />
+        {/* Halloween 2026 only, see lib/seasonal-theme.ts: a purple haze and
+            a harvest moon behind the logo. */}
+        <div className="halloween-only absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.16)_0%,_transparent_60%)]" />
+        <div className="halloween-only halloween-moon absolute top-8 right-[6%] sm:top-12 sm:right-[10%] w-16 h-16 sm:w-28 sm:h-28 rounded-full opacity-80" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 text-center">
           <Image
