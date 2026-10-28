@@ -44,8 +44,9 @@
  * - Respects a per-visitor objection made on /privacy. The kill switch is an
  *   operator control for the whole site and Do-Not-Track is a browser default,
  *   so neither is the POPIA s11(3) right to object. `objected()` below is.
- * - Coarse geo (city/region/country) is derived server-side from Vercel edge
- *   headers in /api/track; the client never sends an IP or precise location.
+ * - Coarse geo (city/region/country) is derived server-side from Cloudflare's
+ *   request data in /api/track (lib/request-meta.ts); the client never sends
+ *   an IP or precise location.
  *
  * Posts same-origin to /api/track via navigator.sendBeacon (with a fetch
  * keepalive fallback). Always fire-and-forget — never throws, never blocks.
