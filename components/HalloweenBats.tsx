@@ -1,12 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { BAT_PATH } from "@/lib/bat-rush/shapes";
 
 /**
  * Halloween 2026 only, delete with lib/seasonal-theme.ts. globals.css hides
  * these outside the window, for reduced motion and in print. Never over a
- * ticket, whose QR a door scanner has to read, and never over admin, where the
- * door scanner itself lives.
+ * ticket, whose QR a door scanner has to read, never over admin, where the
+ * door scanner itself lives, and never over Bat Rush, where a bat you cannot
+ * tap would only confuse.
  */
 const BATS = [
   { top: "14vh", size: 52, duration: 19, delay: 0, reverse: false },
@@ -15,12 +17,13 @@ const BATS = [
   { top: "20vh", size: 36, duration: 21, delay: 16, reverse: true },
 ];
 
-const BAT_PATH =
-  "M50 16L54 8L57 16Q66 9 80 6Q92 5 99 14Q90 15 87 23Q80 19 73 25Q67 22 62 31Q56 28 52 34L50 38L48 34Q44 28 38 31Q33 22 27 25Q20 19 13 23Q10 15 1 14Q8 5 20 6Q34 9 43 16L46 8Z";
-
 export default function HalloweenBats() {
   const pathname = usePathname();
-  if (pathname.startsWith("/admin") || pathname.startsWith("/ticket")) {
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/ticket") ||
+    pathname.startsWith("/halloween")
+  ) {
     return null;
   }
 

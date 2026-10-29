@@ -19,6 +19,7 @@ import {
   ScanLine,
   Gift,
   Headphones,
+  Gamepad2,
   ChevronLeft,
   Menu,
 } from "lucide-react";
@@ -29,6 +30,8 @@ const adminNav = [
   // Second, above everything else: this is the only page anyone opens while
   // standing at an entrance with a queue in front of them.
   { href: "/admin/door", label: "Door / Check-in", icon: ScanLine },
+  // Halloween 2026 only, delete with the rest of Bat Rush.
+  { href: "/admin/halloween", label: "Bat Rush", icon: Gamepad2 },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/events", label: "Events", icon: Calendar },
   { href: "/admin/djs", label: "DJs", icon: Headphones },

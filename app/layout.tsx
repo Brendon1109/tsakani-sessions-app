@@ -7,6 +7,7 @@ import SiteJsonLd from "@/components/SiteJsonLd";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import HalloweenBats from "@/components/HalloweenBats";
 import { halloweenScript } from "@/lib/seasonal-theme";
+import { batRushBannerScript } from "@/lib/bat-rush/banner";
 import "./globals.css";
 
 const inter = Inter({
@@ -114,6 +115,8 @@ export default function RootLayout({
         {/* Halloween 2026, see lib/seasonal-theme.ts. A plain inline script so
             it runs before first paint, the CSP already allows inline. */}
         <script dangerouslySetInnerHTML={{ __html: halloweenScript }} />
+        {/* The Bat Rush banner on the home page, see lib/bat-rush/banner.ts. */}
+        <script dangerouslySetInnerHTML={{ __html: batRushBannerScript }} />
       </head>
       <body className="font-sans bg-black text-white min-h-screen flex flex-col">
         <SiteJsonLd />

@@ -53,6 +53,19 @@ export default async function HomePage() {
 
   return (
     <div>
+      {/* Bat Rush, only from 12:00 on 31 October to 06:00 on 1 November, see
+          lib/bat-rush/banner.ts. A plain link, so the home page does not
+          prefetch the game for every visitor. */}
+      <a
+        href="/halloween"
+        className="bat-rush-only bg-gradient-to-r from-[#7c3aed] via-[#ff8a1f] to-[#ffd700] text-black"
+      >
+        <span className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-center gap-3 font-black">
+          <span>Bat Rush is live</span>
+          <span className="rounded-full bg-black text-white px-4 py-1.5 text-sm">Play now</span>
+        </span>
+      </a>
+
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-black via-black/95 to-black" />
