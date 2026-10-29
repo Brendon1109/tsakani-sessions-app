@@ -47,6 +47,17 @@ function SignInContent() {
             </div>
           )}
 
+          {/* Above the button, so it is seen before the tap. Still unticked. */}
+          <label className="mb-5 flex items-start gap-3 min-h-11 text-left text-sm text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={wantsUpdates}
+              onChange={(e) => setWantsUpdates(e.target.checked)}
+              className="mt-0.5 w-5 h-5 shrink-0 accent-[#ff8a1f]"
+            />
+            Email me about Tsakani events. Unsubscribe any time.
+          </label>
+
           <button
             onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold py-3 px-4 rounded-lg hover:bg-gray-100 transition-colors"
@@ -71,16 +82,6 @@ function SignInContent() {
             </svg>
             Continue with Google
           </button>
-
-          <label className="mt-5 flex items-start gap-3 min-h-11 text-left text-sm text-gray-300 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={wantsUpdates}
-              onChange={(e) => setWantsUpdates(e.target.checked)}
-              className="mt-0.5 w-5 h-5 shrink-0 accent-[#ff8a1f]"
-            />
-            Email me about Tsakani events. Unsubscribe any time.
-          </label>
 
           <p className="text-gray-500 text-xs mt-4">
             Google shares your name, email and profile photo with us to sign you

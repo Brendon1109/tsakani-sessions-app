@@ -63,13 +63,18 @@ export async function GET(request: Request) {
             if (row?.unsubscribe_token) {
               const base = SITE_URL.replace(/\/+$/, "");
               const token = encodeURIComponent(row.unsubscribe_token);
-              await sendNewsletterWelcome({
-                to: email,
-                consentEvents: true,
-                consentMerch: false,
-                unsubscribeUrl: `${base}/unsubscribe?token=${token}`,
-                listUnsubscribeUrl: `${base}/api/newsletter/unsubscribe?token=${token}`,
-              }).catch(() => {});
+              // Awaited so the Worker doesn't drop it, but capped so a slow
+              // Resend never holds someone on the way back to the game.
+              await Promise.race([
+                sendNewsletterWelcome({
+                  to: email,
+                  consentEvents: true,
+                  consentMerch: false,
+                  unsubscribeUrl: `${base}/unsubscribe?token=${token}`,
+                  listUnsubscribeUrl: `${base}/api/newsletter/unsubscribe?token=${token}`,
+                }).catch(() => false),
+                new Promise((resolve) => setTimeout(resolve, 2500)),
+              ]);
             }
           }
         }
