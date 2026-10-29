@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Crown, Download, Gamepad2, Image as ImageIcon, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -36,6 +36,7 @@ interface Draft {
 
 export default function AdminBatRushPage() {
   const [data, setData] = useState<AdminData | null>(null);
+  const dataRef = useRef<AdminData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export default function AdminBatRushPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [removing, setRemoving] = useState<AdminBoardRow | null>(null);
+  const [closing, setClosing] = useState<BatRushRound | null>(null);
   const [card, setCard] = useState<string | null>(null);
   const [now, setNow] = useState(0);
 
@@ -56,13 +58,19 @@ export default function AdminBatRushPage() {
       const next = body as AdminData;
       const at = Date.now();
       setNow(at);
+      // Keep an unsaved edit on a round the server did not change.
+      const prevData = dataRef.current;
+      dataRef.current = next;
       setData(next);
-      setDrafts(
+      setDrafts((prevDrafts) =>
         Object.fromEntries(
-          next.rounds.map((r) => [
-            r.id,
-            { opens: toSastInput(r.opens_at), closes: toSastInput(r.closes_at), prize: r.prize ?? "" },
-          ]),
+          next.rounds.map((r) => {
+            const was = prevData?.rounds.find((x) => x.id === r.id);
+            const same =
+              was && was.opens_at === r.opens_at && was.closes_at === r.closes_at && was.prize === r.prize;
+            const fresh = { opens: toSastInput(r.opens_at), closes: toSastInput(r.closes_at), prize: r.prize ?? "" };
+            return [r.id, same && prevDrafts[r.id] ? prevDrafts[r.id] : fresh];
+          }),
         ),
       );
       setSelected((current) => {
@@ -118,7 +126,10 @@ export default function AdminBatRushPage() {
     if (out) setNotice(`${r.name} saved.`);
   };
 
-  const closeNow = async (r: BatRushRound) => {
+  const closeNow = async () => {
+    if (!closing) return;
+    const r = closing;
+    setClosing(null);
     const out = await call("POST", { action: "close", id: r.id }, `close-${r.id}`);
     if (out) setNotice(out.opened ? `${out.closed} closed. ${out.opened} is open.` : `${out.closed} closed.`);
   };
@@ -127,6 +138,16 @@ export default function AdminBatRushPage() {
     if (!round) return;
     const clear = round.winner_user_id === row.user_id;
     await call("POST", { action: "winner", round_id: round.id, user_id: clear ? null : row.user_id }, `win-${row.user_id}`);
+  };
+
+  const clearHandle = async (row: AdminBoardRow) => {
+    if (!data) return;
+    const out = await call(
+      "POST",
+      { action: "clear_handle", event_id: data.event.id, user_id: row.user_id },
+      `clear-${row.user_id}`,
+    );
+    if (out) setNotice(`@${row.handle} taken off the board.`);
   };
 
   const deleteScore = async () => {
@@ -279,7 +300,7 @@ export default function AdminBatRushPage() {
                 {status === "open" && (
                   <button
                     type="button"
-                    onClick={() => closeNow(r)}
+                    onClick={() => setClosing(r)}
                     disabled={busy !== null}
                     className="border border-red-500/40 text-red-300 font-semibold px-4 py-2 rounded-lg disabled:opacity-50"
                   >
@@ -354,25 +375,37 @@ export default function AdminBatRushPage() {
                           {sastDayClock(row.at)} · {row.saves}x
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-right">
-                          <button
-                            type="button"
-                            onClick={() => markWinner(row)}
-                            disabled={busy !== null}
-                            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold mr-2 ${
-                              winner ? "border-gold-500 text-gold-500" : "border-white/15 text-gray-300"
-                            }`}
-                          >
-                            {winner ? "Winner" : "Mark winner"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setRemoving(row)}
-                            disabled={busy !== null}
-                            aria-label={`Delete ${row.shown}'s score`}
-                            className="p-1.5 rounded-lg border border-red-500/30 text-red-300 align-middle"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            {row.handle && (
+                              <button
+                                type="button"
+                                onClick={() => clearHandle(row)}
+                                disabled={busy !== null}
+                                className="min-h-11 px-3 rounded-lg border border-white/15 text-xs font-semibold text-gray-300"
+                              >
+                                Clear @
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => markWinner(row)}
+                              disabled={busy !== null}
+                              className={`min-h-11 px-3 rounded-lg border text-xs font-semibold ${
+                                winner ? "border-gold-500 text-gold-500" : "border-white/15 text-gray-300"
+                              }`}
+                            >
+                              {winner ? "Winner" : "Mark winner"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRemoving(row)}
+                              disabled={busy !== null}
+                              aria-label={`Delete ${row.shown}'s score`}
+                              className="min-h-11 min-w-11 rounded-lg border border-red-500/30 text-red-300 flex items-center justify-center"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -398,6 +431,16 @@ export default function AdminBatRushPage() {
           )}
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={closing !== null}
+        title={closing ? `Close ${closing.name} now?` : ""}
+        message="The board for this round freezes, and the next round opens straight away."
+        confirmLabel="Close it"
+        variant="warning"
+        onConfirm={closeNow}
+        onCancel={() => setClosing(null)}
+      />
 
       <ConfirmDialog
         isOpen={removing !== null}

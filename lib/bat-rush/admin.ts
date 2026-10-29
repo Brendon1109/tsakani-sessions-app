@@ -94,8 +94,6 @@ export function csvPlayers(data: Pick<AdminData, "players" | "scores">): CsvPlay
     .map((p) => ({
       handle: p.instagram_handle,
       show_handle: p.show_handle,
-      google_name: p.profiles?.full_name ?? null,
-      email: p.profiles?.email ?? null,
       best_aura: best.get(p.user_id) ?? null,
       first_played: p.created_at,
     }));

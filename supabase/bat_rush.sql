@@ -29,12 +29,18 @@
 --                          RLS on and no policy). The round is the one open
 --                          when the save arrives, decided here, not by the
 --                          browser.
+--   bat_rush_set_handle()  signed in players only. Changes or withdraws their
+--                          own handle and whether it shows, at any time.
 --
 -- THE SCORE CAP, 270, is lib/bat-rush/rules.ts SCORE_CAP. A round has exactly
 -- 72 spawns (the schedule there is deterministic), at most 3 of them gold bats
 -- at 67, every other spawn at most a plain bat at 1, and a pumpkin only takes
 -- aura away: 69 * 1 + 3 * 67 = 270. __tests__/batRush.test.ts fails if this
--- file and the game disagree. Change the game, change this, re-run it.
+-- file and the game disagree. To change the cap, change the number in
+-- bat_rush_submit and re-run this file, AND alter the table's CHECK by hand
+-- (alter table public.bat_rush_scores drop constraint bat_rush_scores_aura_check,
+-- then add it back with the new number): it sits inside create table if not
+-- exists, so a re-run does not touch it.
 --
 -- RETENTION. Handles and scores are kept for 30 days after the event and then
 -- deleted, so by 30 November 2026 for the Halloween party. Nothing deletes
@@ -320,6 +326,63 @@ $$;
 
 revoke all on function public.bat_rush_submit(text, integer, text, boolean) from public, anon;
 grant execute on function public.bat_rush_submit(text, integer, text, boolean) to authenticated;
+
+
+-- ── 4b. bat_rush_set_handle: change or withdraw your own handle ──
+-- Consent to show a handle can be withdrawn at any time, so a player can
+-- clear it or untick it without saving another score. Touches only the
+-- caller's own row, and never creates one.
+
+create or replace function public.bat_rush_set_handle(
+  p_event_slug text,
+  p_handle text,
+  p_show_handle boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_event uuid;
+  v_handle text;
+  v_player public.bat_rush_players%rowtype;
+begin
+  if v_uid is null then
+    raise exception 'Sign in first' using errcode = '42501';
+  end if;
+
+  select id into v_event from public.events where slug = p_event_slug;
+  if v_event is null then
+    return jsonb_build_object('ok', false, 'reason', 'no_event');
+  end if;
+
+  v_handle := nullif(regexp_replace(btrim(coalesce(p_handle, '')), '^@', ''), '');
+  if v_handle is not null and v_handle !~ '^[A-Za-z0-9._]{1,30}$' then
+    return jsonb_build_object('ok', false, 'reason', 'bad_handle');
+  end if;
+
+  update public.bat_rush_players
+     set instagram_handle = v_handle,
+         show_handle = coalesce(p_show_handle, false) and v_handle is not null,
+         updated_at = now()
+   where event_id = v_event and user_id = v_uid
+  returning * into v_player;
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'no_player');
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'name', case when v_player.show_handle and v_player.instagram_handle is not null
+                 then '@' || v_player.instagram_handle else v_player.display_name end
+  );
+end;
+$$;
+
+revoke all on function public.bat_rush_set_handle(text, text, boolean) from public, anon;
+grant execute on function public.bat_rush_set_handle(text, text, boolean) to authenticated;
 
 
 -- ── 5. bat_rush_board: the public top 10 ────────────────────

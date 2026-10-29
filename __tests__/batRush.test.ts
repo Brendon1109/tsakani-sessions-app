@@ -29,6 +29,7 @@ import {
   type BatRushRound,
 } from "@/lib/bat-rush/rounds";
 import { decodeCarry, encodeCarry } from "@/lib/bat-rush/carry";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { batRushBannerScript, isBatRushBannerOn } from "@/lib/bat-rush/banner";
 import { csvCell, playersCsv } from "@/lib/bat-rush/csv";
 import { adminBoard } from "@/lib/bat-rush/admin";
@@ -198,6 +199,10 @@ describe("in-app browser detection", () => {
   });
 });
 
+// These mirror the SQL in bat_rush_submit and bat_rush_board so the admin
+// screen agrees with the database. They prove the TypeScript copy, not the
+// SQL: the SQL itself was proven role by role against production on
+// 29 October 2026 (see the pull request).
 describe("rounds", () => {
   const t = (iso: string) => Date.parse(iso);
   const rounds: BatRushRound[] = [
@@ -277,22 +282,38 @@ describe("rounds", () => {
 });
 
 describe("carrying a score out of Instagram", () => {
-  it("comes back as the same score", () => {
-    for (let aura = 0; aura <= SCORE_CAP; aura++) expect(decodeCarry(encodeCarry(aura))).toBe(aura);
+  const now = Date.parse("2026-10-31T20:00:00+02:00");
+
+  it("comes back as the same score, stamped to the minute", () => {
+    for (let aura = 0; aura <= SCORE_CAP; aura++) {
+      const back = decodeCarry(encodeCarry(aura, now), now + 60_000);
+      expect(back?.aura).toBe(aura);
+      expect(back && now - back.at).toBeLessThan(60_000);
+    }
+  });
+
+  it("stops working after 30 minutes, so a pasted link stops handing out its score", () => {
+    const token = encodeCarry(150, now);
+    expect(decodeCarry(token, now + 29 * 60_000)?.aura).toBe(150);
+    expect(decodeCarry(token, now + 31 * 60_000)).toBeNull();
+    expect(decodeCarry(token, now - 10 * 60_000)).toBeNull();
   });
 
   it("refuses a hand edited or junk value", () => {
-    const token = encodeCarry(40);
-    const flipped = token.slice(0, -1) + (token.endsWith("0") ? "1" : "0");
-    expect(decodeCarry(flipped)).toBeNull();
-    expect(decodeCarry("270")).toBeNull();
-    expect(decodeCarry("")).toBeNull();
-    expect(decodeCarry(null)).toBeNull();
-    expect(decodeCarry("ZZ!!")).toBeNull();
+    const token = encodeCarry(40, now);
+    const [head, stamp] = token.split(".");
+    const flipped = `${head.slice(0, -1)}${head.endsWith("0") ? "1" : "0"}.${stamp}`;
+    expect(decodeCarry(flipped, now)).toBeNull();
+    const shifted = `${head}.${(parseInt(stamp, 36) + 1).toString(36)}`;
+    expect(decodeCarry(shifted, now)).toBeNull();
+    expect(decodeCarry("270", now)).toBeNull();
+    expect(decodeCarry("", now)).toBeNull();
+    expect(decodeCarry(null, now)).toBeNull();
+    expect(decodeCarry("ZZ!!.abcd", now)).toBeNull();
   });
 
   it("never carries more than the cap", () => {
-    expect(decodeCarry(encodeCarry(9999))).toBe(SCORE_CAP);
+    expect(decodeCarry(encodeCarry(9999, now), now)?.aura).toBe(SCORE_CAP);
   });
 });
 
@@ -337,15 +358,16 @@ describe("admin CSV and board", () => {
     expect(csvCell(null)).toBe("");
   });
 
-  it("lists only players who gave a handle", () => {
+  it("lists only players who gave a handle, and carries no name or email", () => {
     const csv = playersCsv([
-      { handle: "lerato.m", show_handle: true, google_name: "Lerato M", email: "l@example.com", best_aura: 150, first_played: "2026-10-31T18:00:00Z" },
-      { handle: null, show_handle: false, google_name: "No Handle", email: "n@example.com", best_aura: 20, first_played: "2026-10-31T18:05:00Z" },
+      { handle: "lerato.m", show_handle: true, best_aura: 150, first_played: "2026-10-31T18:00:00Z" },
+      { handle: null, show_handle: false, best_aura: 20, first_played: "2026-10-31T18:05:00Z" },
     ]);
     const lines = csv.trim().split("\r\n");
     expect(lines).toHaveLength(2);
-    expect(lines[1]).toContain("lerato.m,https://instagram.com/lerato.m,yes");
-    expect(csv).not.toContain("No Handle");
+    expect(lines[0]).toBe("instagram,instagram_url,shown_on_board,best_aura,first_played");
+    expect(lines[1]).toBe("lerato.m,https://instagram.com/lerato.m,yes,150,2026-10-31T18:00:00Z");
+    expect(csv).not.toMatch(/@|email|google/i);
   });
 
   it("ranks best aura per player, first to get there wins a tie", () => {
@@ -368,5 +390,29 @@ describe("admin CSV and board", () => {
       [3, "Chris N.", 30, 1],
     ]);
     expect(board[1].score_id).toBe(2);
+  });
+});
+
+describe("where sign in sends you back to", () => {
+  it("keeps a path on this site", () => {
+    expect(safeRedirectPath("/halloween")).toBe("/halloween");
+    expect(safeRedirectPath("/gallery/abc?x=1")).toBe("/gallery/abc?x=1");
+  });
+
+  it("sends anything that could leave the site home", () => {
+    for (const bad of [
+      ".evil.example",
+      "@evil.example",
+      "evil.example",
+      "https://evil.example",
+      "//evil.example",
+      "/\\evil.example",
+      "/\tevil",
+      "",
+      null,
+      undefined,
+    ]) {
+      expect(safeRedirectPath(bad)).toBe("/");
+    }
   });
 });

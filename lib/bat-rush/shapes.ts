@@ -8,6 +8,5 @@ export const BAT_PATH =
 
 /** The pumpkin orange of html[data-theme="halloween"] in globals.css. */
 export const PUMPKIN = "#ff8a1f";
-export const PUMPKIN_DARK = "#e8650a";
 export const GOLD = "#ffd700";
 export const NIGHT = "#0b0710";

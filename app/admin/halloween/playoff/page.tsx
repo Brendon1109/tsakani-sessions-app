@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Crown } from "lucide-react";
@@ -38,6 +38,10 @@ function PlayOff() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [step, setStep] = useState<Step>({ s: "setup" });
   const [run, setRun] = useState(0);
+  // A thumb still tapping when the clock hits zero must not skip the score
+  // shot or start the next player's round.
+  const [armed, setArmed] = useState(true);
+  const armTimer = useRef(0);
   const [env, setEnv] = useState({ font: "system-ui, sans-serif", calm: false });
 
   // Fill in the round's top three, still editable.
@@ -70,7 +74,8 @@ function PlayOff() {
       if (cancelled) return;
       setEnv(nextEnv);
       setRoundName(label);
-      if (top.length) setNames([top[0] ?? "", top[1] ?? "", top[2] ?? ""]);
+      // Fill in the top three only if nobody has typed yet.
+      if (top.length) setNames((typed) => (typed.some((n) => n.trim()) ? typed : [top[0] ?? "", top[1] ?? "", top[2] ?? ""]));
     })();
     return () => {
       cancelled = true;
@@ -96,11 +101,20 @@ function PlayOff() {
     setStep({ s: "play", i });
   };
 
+  const holdTaps = () => {
+    setArmed(false);
+    window.clearTimeout(armTimer.current);
+    armTimer.current = window.setTimeout(() => setArmed(true), 900);
+  };
+
+  useEffect(() => () => window.clearTimeout(armTimer.current), []);
+
   const onDone = ({ aura }: { aura: number }) => {
     if (step.s !== "play") return;
     const i = step.i;
     setPlayers((list) => list.map((p, j) => (j === i ? { ...p, aura } : p)));
     setStep({ s: "scored", i });
+    holdTaps();
   };
 
   const top = useMemo(() => Math.max(...players.map((p) => p.aura ?? -1)), [players]);
@@ -127,6 +141,7 @@ function PlayOff() {
             {names.map((n, i) => (
               <input
                 key={i}
+                aria-label={`Player ${i + 1}`}
                 value={n}
                 onChange={(e) => setNames(names.map((x, j) => (j === i ? e.target.value : x)))}
                 placeholder={`Player ${i + 1}`}
@@ -156,6 +171,7 @@ function PlayOff() {
         <button
           type="button"
           onClick={() => go(step.i)}
+          disabled={!armed}
           className="relative h-full w-full flex flex-col items-center justify-center px-6 text-center"
         >
           <span className="text-sm font-bold tracking-[0.35em] text-gray-400">
@@ -180,9 +196,12 @@ function PlayOff() {
               <span className="text-3xl font-black text-[#ff8a1f]">{rankFor(current.aura ?? 0)}</span>
               <button
                 type="button"
-                onClick={() =>
-                  step.i + 1 < players.length ? setStep({ s: "ready", i: step.i + 1 }) : setStep({ s: "results" })
-                }
+                disabled={!armed}
+                onClick={() => {
+                  holdTaps();
+                  if (step.i + 1 < players.length) setStep({ s: "ready", i: step.i + 1 });
+                  else setStep({ s: "results" });
+                }}
                 className="mt-10 rounded-full bg-white text-black text-2xl font-black px-10 py-5"
               >
                 {step.i + 1 < players.length ? "NEXT PLAYER" : "RESULTS"}

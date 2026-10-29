@@ -59,3 +59,18 @@ export async function submitAura(
   if (!data || typeof data !== "object") return { ok: false, reason: "error" };
   return data as SubmitOutcome;
 }
+
+/** Change or withdraw the player's own handle, without saving a score. */
+export async function setHandle(
+  supabase: SupabaseClient,
+  args: { slug: string; handle: string | null; show: boolean },
+): Promise<{ ok: true; name: string } | { ok: false; reason: string }> {
+  const { data, error } = await supabase.rpc("bat_rush_set_handle", {
+    p_event_slug: args.slug,
+    p_handle: args.handle,
+    p_show_handle: args.show,
+  });
+  if (error) return { ok: false, reason: error.code === "42501" ? "signed_out" : "error" };
+  if (!data || typeof data !== "object") return { ok: false, reason: "error" };
+  return data as { ok: true; name: string } | { ok: false; reason: string };
+}

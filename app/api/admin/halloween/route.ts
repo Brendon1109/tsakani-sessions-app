@@ -63,17 +63,21 @@ export async function GET(request: NextRequest) {
     .eq("event_id", event.id);
   if (playersError) return NextResponse.json({ error: playersError.message }, { status: 500 });
 
+  // Supabase hands back at most 1000 rows per request whatever .limit() says,
+  // so read in pages. 10 000 saves is far beyond one party.
   const roundIds = (rounds || []).map((r) => r.id);
-  let scores: unknown[] = [];
-  if (roundIds.length) {
+  const scores: unknown[] = [];
+  const PAGE = 1000;
+  for (let from = 0; roundIds.length && from < 10_000; from += PAGE) {
     const { data, error } = await supabase
       .from("bat_rush_scores")
       .select("id, round_id, user_id, aura, created_at")
       .in("round_id", roundIds)
-      .order("aura", { ascending: false })
-      .limit(5000);
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    scores = data || [];
+    scores.push(...(data || []));
+    if (!data || data.length < PAGE) break;
   }
 
   return NextResponse.json({ event, rounds: rounds || [], players: players || [], scores });
@@ -112,9 +116,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 /**
- * Two actions. close: the round ends now and the one after it opens now, so
- * the board never sits closed between rounds. winner: marks or clears the
- * play-off winner of a round.
+ * Three actions. close: the round ends now and the one after it opens now,
+ * so the board never sits closed between rounds. winner: marks or clears the
+ * play-off winner of a round. clear_handle: takes a handle off the board.
  */
 export async function POST(request: NextRequest) {
   const { supabase, user, email } = await requireAdmin();
@@ -158,7 +162,12 @@ export async function POST(request: NextRequest) {
         .from("bat_rush_rounds")
         .update({ opens_at: now.toISOString(), updated_at: now.toISOString() })
         .eq("id", next.id);
-      if (openError) return NextResponse.json({ error: openError.message }, { status: 500 });
+      if (openError) {
+        return NextResponse.json(
+          { error: `${round.name} closed, but ${next.name} did not open. Set its open time to now and save.` },
+          { status: 500 },
+        );
+      }
       opened = next.name;
     }
 
@@ -196,6 +205,33 @@ export async function POST(request: NextRequest) {
       details: { name: data.name, winner_user_id: winner },
     });
     return NextResponse.json(data);
+  }
+
+  if (action === "clear_handle") {
+    // For a handle that is not the player's own, or anything that should not
+    // be on the board. Clears it and stops it showing; the score stays.
+    const userId = typeof body.user_id === "string" ? body.user_id : "";
+    const eventId = typeof body.event_id === "string" ? body.event_id : "";
+    if (!userId || !eventId) return NextResponse.json({ error: "user_id and event_id required" }, { status: 400 });
+
+    const { data, error } = await supabase
+      .from("bat_rush_players")
+      .update({ instagram_handle: null, show_handle: false, updated_at: new Date().toISOString() })
+      .eq("event_id", eventId)
+      .eq("user_id", userId)
+      .select("user_id")
+      .maybeSingle();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: "That player is gone" }, { status: 404 });
+
+    await logAudit(supabase, {
+      user_id: user.id,
+      user_email: email,
+      action: "bat_rush.handle_clear",
+      resource_type: "bat_rush_player",
+      resource_id: userId,
+    });
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

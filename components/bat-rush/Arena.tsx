@@ -34,12 +34,16 @@ export default function Arena({ font, calm, label, onStart, onDone }: ArenaProps
   const clockEl = useRef<HTMLSpanElement>(null);
   const barEl = useRef<HTMLDivElement>(null);
   const hooks = useRef({ onStart, onDone });
+  // Read through a ref, so a font or motion setting that arrives after the
+  // round has started cannot restart it. One mount is one round.
+  const look = useRef({ font, calm });
   const [count, setCount] = useState<number | null>(3);
   const [shaking, setShaking] = useState(false);
 
   useEffect(() => {
     hooks.current = { onStart, onDone };
-  }, [onStart, onDone]);
+    look.current = { font, calm };
+  }, [onStart, onDone, font, calm]);
 
   useEffect(() => {
     let engine: BatRushEngine | null = null;
@@ -65,7 +69,7 @@ export default function Arena({ font, calm, label, onStart, onDone }: ArenaProps
         // iPhones have no vibrate, and some browsers throw without a tap.
       }
 
-      if (calm) {
+      if (look.current.calm) {
         drawCrack(ctx, shape, Infinity);
         timers.push(window.setTimeout(() => hooks.current.onDone({ aura }), 250));
         return;
@@ -102,8 +106,8 @@ export default function Arena({ font, calm, label, onStart, onDone }: ArenaProps
           },
           onEnd: ({ aura, origin }) => crack(origin, aura),
         },
-        font,
-        calm,
+        look.current.font,
+        look.current.calm,
       );
       engine.start();
       hooks.current.onStart?.();
@@ -126,7 +130,7 @@ export default function Arena({ font, calm, label, onStart, onDone }: ArenaProps
       cancelAnimationFrame(raf);
       engine?.destroy();
     };
-  }, [font, calm]);
+  }, []);
 
   return (
     <div
