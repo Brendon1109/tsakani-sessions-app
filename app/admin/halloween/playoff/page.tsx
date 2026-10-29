@@ -181,6 +181,9 @@ function PlayOff() {
           <span className="mt-10 rounded-full bg-gradient-to-r from-[#ff8a1f] to-[#ffd700] text-black text-2xl font-black px-10 py-5">
             TAP TO PLAY
           </span>
+          {/* Said out loud at the booth too, see legal/tsakani-bat-rush-popia-2026-10-29.md in Breazy. */}
+          <span className="mt-8 text-sm font-bold tracking-[0.2em] text-[#ff8a1f]">FILMING FOR @tsakani_sessions</span>
+          <span className="mt-1 text-base text-gray-300">Not keen? Tell the DJ, you still play.</span>
         </button>
       )}
 

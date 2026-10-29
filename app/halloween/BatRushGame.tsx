@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Copy, Share2, X } from "lucide-react";
 import Arena from "@/components/bat-rush/Arena";
@@ -639,7 +640,9 @@ function HandleForm({
       <label htmlFor="bat-rush-instagram" className="block font-bold mb-1">
         Your Instagram
       </label>
-      <p className="text-sm text-gray-400 mb-2">So we can tag you if you win. Deleted 30 days after the party.</p>
+      <p className="text-sm text-gray-400 mb-2">
+        So we can tag you if you win. Deleted 30 days after the party. 18 and over only.
+      </p>
       <div className="flex items-center rounded-2xl bg-white/10 border border-white/15 focus-within:border-[#ff8a1f]">
         <span className="pl-4 text-gray-400 text-base">@</span>
         <input
@@ -670,7 +673,12 @@ function HandleForm({
         />
         Show my @ on the board
       </label>
-      <p className="text-sm text-gray-400">Unticked, the board shows your first name and initial.</p>
+      <p className="text-sm text-gray-400">
+        Unticked, the board shows your first name and initial.{" "}
+        <Link href="/privacy#bat-rush" target="_blank" rel="noopener" className="underline">
+          Privacy
+        </Link>
+      </p>
       <div className="mt-4 flex gap-2">
         <button type="submit" className="flex-1 h-14 rounded-full bg-gold-gradient text-black text-lg font-black">
           {submitLabel}

@@ -14,7 +14,8 @@
  * The checksum only stops a casual edit of the address turning 40 into 270.
  * It is not security: any signed in player can send any score up to the cap
  * straight to the database, and the cap in supabase/bat_rush.sql is the only
- * real limit. Prizes are decided by a live play-off, not the board.
+ * real limit. A winner with a score that looks too good plays one round in
+ * front of the team before a prize changes hands.
  */
 import { SCORE_CAP } from "./rules";
 

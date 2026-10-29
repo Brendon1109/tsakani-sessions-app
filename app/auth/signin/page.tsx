@@ -2,13 +2,17 @@
 
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Suspense } from "react";
+import { buildCallbackUrl } from "@/lib/signin-updates";
+import { Suspense, useState } from "react";
 
 function SignInContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") || "/";
   const error = searchParams.get("error");
+  // Always starts unticked, and never from the URL. See lib/signin-updates.ts.
+  const [wantsUpdates, setWantsUpdates] = useState(false);
 
   const handleGoogleSignIn = async () => {
     const supabase = createClient();
@@ -16,7 +20,7 @@ function SignInContent() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+        redirectTo: buildCallbackUrl(window.location.origin, redirectTo, wantsUpdates),
       },
     });
   };
@@ -43,6 +47,17 @@ function SignInContent() {
             </div>
           )}
 
+          {/* Above the button, so it is seen before the tap. Still unticked. */}
+          <label className="mb-5 flex items-start gap-3 min-h-11 text-left text-sm text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={wantsUpdates}
+              onChange={(e) => setWantsUpdates(e.target.checked)}
+              className="mt-0.5 w-5 h-5 shrink-0 accent-[#ff8a1f]"
+            />
+            Email me about Tsakani events. Unsubscribe any time.
+          </label>
+
           <button
             onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold py-3 px-4 rounded-lg hover:bg-gray-100 transition-colors"
@@ -68,9 +83,12 @@ function SignInContent() {
             Continue with Google
           </button>
 
-          <p className="text-gray-500 text-xs mt-6">
-            By signing in, you agree to receive updates about Tsakani Sessions
-            events.
+          <p className="text-gray-500 text-xs mt-4">
+            Google shares your name, email and profile photo with us to sign you
+            in.{" "}
+            <Link href="/privacy" className="underline hover:text-gray-300">
+              Privacy
+            </Link>
           </p>
         </div>
       </div>

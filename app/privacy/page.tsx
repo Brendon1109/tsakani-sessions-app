@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
 };
 
-const LAST_UPDATED = "27 August 2026";
+const LAST_UPDATED = "29 October 2026";
 
 export default function PrivacyPage() {
   return (
@@ -209,6 +209,142 @@ export default function PrivacyPage() {
           </p>
         </section>
 
+        {/* Wording from legal/tsakani-bat-rush-popia-2026-10-29.md in Breazy. */}
+        <section id="bat-rush" className="scroll-mt-24">
+          <h2 className="text-xl font-semibold text-white mb-3">
+            Bat Rush, our Halloween game
+          </h2>
+          <p>
+            Bat Rush is our phone game at tsakanisessions.co.za/halloween, made
+            for the Tsakani Halloween party at The Barn, UWC, on 31 October 2026.
+            Anyone can play without signing in. We save nothing about you unless
+            you choose to save a score. Saving a score is for people aged 18 and
+            over.
+          </p>
+
+          <h3 className="font-semibold text-white mt-5 mb-2">
+            What we keep when you save a score
+          </h3>
+          <ul className="list-disc pl-5 space-y-2">
+            <li>
+              Your first name and the first letter of your surname, taken from
+              your Google account, like &ldquo;Thabo M.&rdquo;.
+            </li>
+            <li>Your scores and when you saved them.</li>
+            <li>
+              Your Instagram handle, if you give one, and whether you ticked
+              &ldquo;Show my @ on the board&rdquo;.
+            </li>
+          </ul>
+          <p className="mt-3">
+            To save, you sign in with Google, which gives us your name, email
+            address and profile photo.
+          </p>
+          <p className="mt-3">
+            Our own event tracking also counts what happens in the game: a game
+            started, a game finished with a rough score range, sign in tapped,
+            score saved, Instagram tapped and story shared. None of this is saved
+            with your name or your account. See{" "}
+            <a
+              href="#analytics"
+              className="text-gold-500 hover:text-gold-400 underline"
+            >
+              how we count visits
+            </a>
+            .
+          </p>
+
+          <h3 className="font-semibold text-white mt-5 mb-2">Who sees what</h3>
+          <ul className="list-disc pl-5 space-y-2">
+            <li>
+              The leaderboard is public and shows the top 10 of each round. It
+              shows your @ only if you ticked the box. Otherwise it shows your
+              first name and initial. It never shows your email.
+            </li>
+            <li>
+              We may post a picture of each round&rsquo;s top 3 on our
+              Instagram. It shows the same names as the board.
+            </li>
+            <li>
+              If you win a round, we may tag your @ in our
+              Instagram posts, even if you didn&rsquo;t tick the box. That&rsquo;s
+              why we ask for it.
+            </li>
+            <li>
+              Our team sees your full Google name, your email and your handle on
+              our admin page, so we can find the winners on the night. Our team
+              can also download a list of handles and best scores, with no names
+              or emails. We use it only to find and tag winners, never to send
+              you marketing.
+            </li>
+          </ul>
+
+          <h3 className="font-semibold text-white mt-5 mb-2">If you win</h3>
+          <p>
+            We may film or photograph round winners and post it on our
+            Instagram, @tsakani_sessions, with the winner tagged. We&rsquo;ll
+            ask you first. If you don&rsquo;t want to be in it, say so. You still
+            win.
+          </p>
+
+          <h3 className="font-semibold text-white mt-5 mb-2">
+            Where it&rsquo;s stored
+          </h3>
+          <p>
+            Game information is stored in our Supabase database in Ireland. The
+            site runs on Cloudflare, and Google runs the sign in.
+          </p>
+
+          <h3 className="font-semibold text-white mt-5 mb-2">
+            How long we keep it
+          </h3>
+          <ul className="list-disc pl-5 space-y-2">
+            <li>
+              Your handle, your name on the board and your scores are deleted by
+              30 November 2026.
+            </li>
+            <li>
+              Your sign in account stays until you ask us to delete it, because
+              it&rsquo;s the same account you use on the rest of the site.
+            </li>
+            <li>
+              Posts and videos on Instagram stay up after 30 November. Ask us and
+              we&rsquo;ll take down a video of you or remove your tag.
+            </li>
+          </ul>
+
+          <h3 className="font-semibold text-white mt-5 mb-2">
+            Removing it sooner
+          </h3>
+          <ul className="list-disc pl-5 space-y-2">
+            <li>
+              Right after you save, tap &ldquo;Change my @&rdquo; to change your
+              handle, remove it or untick the box.
+            </li>
+            <li>
+              Any other time, email{" "}
+              <a
+                href="mailto:tsakanisessions@gmail.com"
+                className="text-gold-500 hover:text-gold-400 underline"
+              >
+                tsakanisessions@gmail.com
+              </a>{" "}
+              or WhatsApp{" "}
+              <a
+                href="https://wa.me/27769961477"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gold-500 hover:text-gold-400 underline"
+              >
+                +27 76 996 1477
+              </a>{" "}
+              with the name or @ you played under. We&rsquo;ll delete your handle
+              and scores, or your whole account if you ask, and tell you when
+              it&rsquo;s done.
+            </li>
+          </ul>
+        </section>
+
         <section>
           <h2 className="text-xl font-semibold text-white mb-3">
             How we use it
@@ -259,7 +395,10 @@ export default function PrivacyPage() {
               <strong>Supabase</strong> &mdash; database and authentication.
             </li>
             <li>
-              <strong>Vercel</strong> &mdash; website hosting.
+              <strong>Cloudflare</strong> &mdash; website hosting, so it
+              carries everything you send us through the site. It also hosts
+              Breazy Analytics, the second of the two visit counting systems
+              described above.
             </li>
             <li>
               <strong>Resend</strong> &mdash; sending order confirmation and
@@ -272,12 +411,6 @@ export default function PrivacyPage() {
             <li>
               <strong>WhatsApp (Meta)</strong> &mdash; customer communication
               and order confirmation.
-            </li>
-            <li>
-              <strong>Cloudflare</strong> &mdash; hosts Breazy Analytics, the
-              second of the two visit counting systems described above. It
-              receives only the usage information listed there and never
-              receives your contact details or order details.
             </li>
           </ul>
         </section>
