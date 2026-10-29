@@ -1,6 +1,8 @@
 /**
  * Halloween 2026. The site turns pumpkin orange from 28 October and goes back
- * to gold by itself at 00:00 on 1 November, Cape Town time, with no deploy.
+ * to gold by itself at 06:00 on 1 November, Cape Town time, with no deploy.
+ * The party at The Barn runs until 02:00, so midnight would have switched it
+ * off halfway through.
  *
  * The check runs in the browser before first paint, not on the server. Static
  * pages are rendered once at build time and the service worker keeps old HTML,
@@ -14,7 +16,7 @@
  * seasonal theme gets in.
  */
 export const HALLOWEEN_START = Date.parse("2026-10-28T00:00:00+02:00");
-export const HALLOWEEN_END = Date.parse("2026-11-01T00:00:00+02:00");
+export const HALLOWEEN_END = Date.parse("2026-11-01T06:00:00+02:00");
 
 export function isHalloween(now: number): boolean {
   return now >= HALLOWEEN_START && now < HALLOWEEN_END;

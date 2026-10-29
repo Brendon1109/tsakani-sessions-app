@@ -13,8 +13,13 @@ describe("Halloween window", () => {
     expect(isHalloween(at("2026-10-31T23:59:59+02:00"))).toBe(true);
   });
 
-  it("goes back to gold at 00:00 on 1 November", () => {
-    expect(isHalloween(at("2026-11-01T00:00:00+02:00"))).toBe(false);
+  it("stays on through the party until 06:00 on 1 November", () => {
+    expect(isHalloween(at("2026-11-01T02:00:00+02:00"))).toBe(true);
+    expect(isHalloween(at("2026-11-01T05:59:59+02:00"))).toBe(true);
+  });
+
+  it("goes back to gold at 06:00 on 1 November", () => {
+    expect(isHalloween(at("2026-11-01T06:00:00+02:00"))).toBe(false);
   });
 
   it("does not come back next year", () => {
@@ -46,7 +51,8 @@ describe("the inline head script", () => {
 
   it("sets the theme inside the window and leaves it alone outside", () => {
     expect(run("2026-10-31T21:00:00+02:00")).toBe("halloween");
-    expect(run("2026-11-01T00:00:01+02:00")).toBeUndefined();
+    expect(run("2026-11-01T01:30:00+02:00")).toBe("halloween");
+    expect(run("2026-11-01T06:00:01+02:00")).toBeUndefined();
     expect(run("2026-10-20T12:00:00+02:00")).toBeUndefined();
   });
 });
