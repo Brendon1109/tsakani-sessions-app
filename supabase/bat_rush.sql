@@ -44,14 +44,17 @@
 --
 -- RETENTION. Handles and scores are kept for 30 days after the event and then
 -- deleted, so by 30 November 2026 for the Halloween party. Nothing deletes
--- them on its own. It is two statements, run by hand in the SQL editor:
+-- them on its own. It is three statements, run by hand in the SQL editor:
 --
 --   delete from public.bat_rush_rounds
 --    where event_id = (select id from public.events where slug = 'hallowee-kani');
 --   delete from public.bat_rush_players
 --    where event_id = (select id from public.events where slug = 'hallowee-kani');
+--   delete from public.audit_log where action like 'bat_rush.%';
 --
--- Scores go with their rounds. Deleting a user removes their rows too.
+-- Scores go with their rounds. Deleting a user removes their rows too. The
+-- audit_log rows carry winners and scores from the admin page and would
+-- otherwise outlive the promise on /privacy by two years.
 --
 -- Additive only. Run after schema.sql (events, profiles). Safe to re-run: the
 -- seed never overwrites a round an admin has edited.
