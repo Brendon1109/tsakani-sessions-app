@@ -266,7 +266,7 @@ export default function PrivacyPage() {
               Instagram. It shows the same names as the board.
             </li>
             <li>
-              If you win a round or play in the playoff, we may tag your @ in our
+              If you win a round, we may tag your @ in our
               Instagram posts, even if you didn&rsquo;t tick the box. That&rsquo;s
               why we ask for it.
             </li>
@@ -279,15 +279,12 @@ export default function PrivacyPage() {
             </li>
           </ul>
 
-          <h3 className="font-semibold text-white mt-5 mb-2">
-            The playoff at the DJ booth
-          </h3>
+          <h3 className="font-semibold text-white mt-5 mb-2">If you win</h3>
           <p>
-            The top players of each round are called to the DJ booth for a live
-            playoff. We film it and post it on our Instagram, @tsakani_sessions,
-            with the winner tagged. We&rsquo;ll tell you before we film. If you
-            don&rsquo;t want to be in the video, say so. You still play, and we
-            keep you out of the shot.
+            We may film or photograph round winners and post it on our
+            Instagram, @tsakani_sessions, with the winner tagged. We&rsquo;ll
+            ask you first. If you don&rsquo;t want to be in it, say so. You still
+            win.
           </p>
 
           <h3 className="font-semibold text-white mt-5 mb-2">
