@@ -38,10 +38,32 @@ export const SCAN_WIDTH = 640;
 
 let loading: Promise<typeof FaceApi> | null = null;
 
+/** Reject if a step has not finished in time, so the sheet never spins forever. */
+export function withTimeout<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${what} took longer than ${ms} ms`)), ms);
+    work.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      }
+    );
+  });
+}
+
+/** How long the GPU gets to start before Find me falls back to the CPU. */
+export const GPU_START_MS = 10_000;
+/** How long the whole start, library and models, gets before giving up. */
+export const START_MS = 60_000;
+
 /** Load the library and its three models once per page. Only after consent. */
 export function loadFaceApi(): Promise<typeof FaceApi> {
   if (!loading) {
-    loading = (async () => {
+    loading = withTimeout((async () => {
       const faceapi = await import("@vladmandic/face-api");
       // WebGL runs on the device's GPU and needs no extra download. The CPU
       // backend is the slow fallback. Neither fetches anything from a CDN.
@@ -50,15 +72,26 @@ export function loadFaceApi(): Promise<typeof FaceApi> {
         setBackend(name: string): Promise<boolean>;
         ready(): Promise<void>;
       };
-      await tf.setBackend("webgl").catch(() => tf.setBackend("cpu"));
-      await tf.ready();
+      // Some phones never finish starting WebGL. Give it GPU_START_MS, then
+      // carry on with the CPU, slower but it finishes.
+      try {
+        const ok = await withTimeout(
+          tf.setBackend("webgl").then(async (set) => (set ? (await tf.ready(), true) : false)),
+          GPU_START_MS,
+          "GPU start"
+        );
+        if (!ok) throw new Error("no WebGL");
+      } catch {
+        await tf.setBackend("cpu");
+        await tf.ready();
+      }
       await Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
       ]);
       return faceapi;
-    })().catch((err) => {
+    })(), START_MS, "Find me start").catch((err) => {
       loading = null;
       throw err;
     });
