@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { cleanTakenAt } from "@/lib/photo-order";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
   };
   const width = dim("width");
   const height = dim("height");
+  const takenAt = cleanTakenAt(formData.get("taken_at"));
 
   for (const file of files) {
     const ext = file.name.split(".").pop() || "jpg";
@@ -52,16 +54,26 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const { data: record, error: dbError } = await supabase
+    const row: Record<string, unknown> = {
+      gallery_id: galleryId,
+      storage_path: path,
+      sort_order: uploaded.length,
+      ...(width && height && files.length === 1 ? { width, height } : {}),
+    };
+    let { data: record, error: dbError } = await supabase
       .from("gallery_photos")
-      .insert({
-        gallery_id: galleryId,
-        storage_path: path,
-        sort_order: uploaded.length,
-        ...(width && height && files.length === 1 ? { width, height } : {}),
-      })
+      .insert(takenAt && files.length === 1 ? { ...row, taken_at: takenAt } : row)
       .select()
       .single();
+    // Before supabase/photo_taken_at.sql runs there is no taken_at column.
+    // Keep the photo rather than lose it, it just sorts by upload time.
+    if (dbError && takenAt && /taken_at/.test(dbError.message)) {
+      ({ data: record, error: dbError } = await supabase
+        .from("gallery_photos")
+        .insert(row)
+        .select()
+        .single());
+    }
 
     if (!dbError && record) {
       uploaded.push({ storage_path: path, id: record.id });

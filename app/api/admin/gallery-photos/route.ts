@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { sortPhotos } from "@/lib/photo-order";
 
 /**
  * The photos in one gallery, for the admin.
  *
- *   GET     ?gallery_id=<uuid>   every photo, upload order
+ *   GET     ?gallery_id=<uuid>   every photo, in capture order (lib/photo-order.ts)
  *   DELETE  { ids: uuid[] }      removes the rows and their files in storage
  *
  * Admins only. RLS agrees: "Admins manage photos" on gallery_photos and
@@ -37,15 +38,13 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("gallery_photos")
-    .select("id, storage_path")
-    .eq("gallery_id", galleryId)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
+    .select("*")
+    .eq("gallery_id", galleryId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const bucket = supabase.storage.from("gallery-photos");
   return NextResponse.json(
-    ((data as { id: string; storage_path: string }[]) || []).map((p) => ({
+    sortPhotos((data as { id: string; storage_path: string; created_at: string }[]) || []).map((p) => ({
       id: p.id,
       url: bucket.getPublicUrl(p.storage_path).data.publicUrl,
     }))

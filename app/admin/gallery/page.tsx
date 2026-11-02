@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Upload, Image as ImageIcon, Loader2, Stamp, Trash2, Star, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
 import { compressPhoto, formatBytes, loadLogo } from "@/lib/image-optimize";
 import PhotoManager from "./PhotoManager";
+import { readTakenAt } from "@/lib/taken-at";
 
 interface Gallery {
   id: string;
@@ -270,9 +271,10 @@ export default function AdminGalleryPage() {
     setQueue((prev) => prev.map((q) => (q.id === id ? { ...q, status, error } : q)));
   }
 
-  async function sendOne(galleryId: string, file: File): Promise<string | null> {
+  async function sendOne(galleryId: string, file: File, takenAt: string | null): Promise<string | null> {
     const formData = new FormData();
     formData.append("gallery_id", galleryId);
+    if (takenAt) formData.append("taken_at", takenAt);
     formData.append("files", file, file.name);
     try {
       const bmp = await createImageBitmap(file);
@@ -320,6 +322,8 @@ export default function AdminGalleryPage() {
         const item = todo[next++];
         setStatus(item.id, "working");
         let file: File;
+        // Read before compressing, which strips the camera's EXIF data.
+        const takenAt = await readTakenAt(item.file);
         try {
           file = await compressPhoto(item.file, logo);
         } catch (err) {
@@ -327,7 +331,7 @@ export default function AdminGalleryPage() {
           setStatus(item.id, "error", "Could not read this photo");
           continue;
         }
-        const error = await sendOne(galleryId, file);
+        const error = await sendOne(galleryId, file, takenAt);
         if (error) {
           setStatus(item.id, "error", error);
           if (error.startsWith("Signed out")) stopRef.current = true;

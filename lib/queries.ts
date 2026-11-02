@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { sortPhotos } from "@/lib/photo-order";
 import { createClient } from "@/lib/supabase/server";
 import type { Event, Product, Gallery, GalleryPhoto, Ticket, CheckoutOptions, Dj } from "@/lib/types";
 import { onSaleTickets } from "@/lib/tickets";
@@ -174,11 +175,10 @@ export async function getGalleryBySlug(
   const { data: photos } = await supabase
     .from("gallery_photos")
     .select("*")
-    .eq("gallery_id", gallery.id)
-    .order("sort_order", { ascending: true });
+    .eq("gallery_id", gallery.id);
 
-  // Build public URLs for photos
-  const photosWithUrls = (photos || []).map((photo: GalleryPhoto) => {
+  // Build public URLs for photos, in capture order (lib/photo-order.ts)
+  const photosWithUrls = sortPhotos((photos as GalleryPhoto[]) || []).map((photo: GalleryPhoto) => {
     const { data: urlData } = supabase.storage
       .from("gallery-photos")
       .getPublicUrl(photo.storage_path);
