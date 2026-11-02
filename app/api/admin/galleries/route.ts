@@ -1,5 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { slugify } from "@/lib/djs";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** null clears the link, a uuid sets it, anything else is refused. */
+function parseEventId(value: unknown): { ok: true; value: string | null } | { ok: false } {
+  if (value === null || value === "") return { ok: true, value: null };
+  if (typeof value === "string" && UUID_RE.test(value)) return { ok: true, value };
+  return { ok: false };
+}
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -53,7 +63,8 @@ export async function GET() {
     event_id: g.event_id,
     is_public: !!g.is_public,
     drive_url: g.drive_url || "",
-    title: g.event?.title ? `${g.event.title} — ${g.title}` : g.title,
+    title: g.title,
+    event_title: g.event?.title?.trim() || null,
   }));
 
   return NextResponse.json(normalized);
@@ -71,6 +82,11 @@ export async function PATCH(request: NextRequest) {
   const updates: Record<string, unknown> = {};
   if (typeof is_public === "boolean") updates.is_public = is_public;
   if (typeof drive_url === "string") updates.drive_url = drive_url.trim() || null;
+  if ("event_id" in body) {
+    const parsed = parseEventId(body.event_id);
+    if (!parsed.ok) return NextResponse.json({ error: "Pick an event from the list" }, { status: 400 });
+    updates.event_id = parsed.value;
+  }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "no updates" }, { status: 400 });
   }
@@ -94,4 +110,35 @@ export async function PATCH(request: NextRequest) {
   if (primary.error) return NextResponse.json({ error: primary.error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
+}
+
+export async function POST(request: NextRequest) {
+  const { supabase, user } = await requireAdmin();
+  if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
+  if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const body = await request.json().catch(() => ({}));
+  const title = typeof body.title === "string" ? body.title.trim().slice(0, 120) : "";
+  if (!title) return NextResponse.json({ error: "Give the gallery a title" }, { status: 400 });
+
+  const parsed = parseEventId(body.event_id ?? null);
+  if (!parsed.ok) return NextResponse.json({ error: "Pick an event from the list" }, { status: 400 });
+
+  const base = slugify(title) || "gallery";
+  const { data: taken } = await supabase
+    .from("galleries")
+    .select("slug")
+    .like("slug", `${base}%`);
+  const used = new Set(((taken as { slug: string }[] | null) || []).map((r) => r.slug));
+  let slug = base;
+  for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
+
+  const { data, error } = await supabase
+    .from("galleries")
+    .insert({ title, slug, event_id: parsed.value, is_public: false })
+    .select("id")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true, id: (data as { id: string }).id, slug });
 }
