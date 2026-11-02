@@ -108,8 +108,8 @@ describe("admin gallery photos route", () => {
   it("lists photos with public urls", async () => {
     const body = await (await GET(new NextRequest(`http://localhost/x?gallery_id=${G}`))).json();
     expect(body).toEqual([
-      { id: A, url: `https://x.supabase.co/galleries/${G}/a.jpg` },
-      { id: B, url: `https://x.supabase.co/galleries/${G}/b.jpg` },
+      { id: A, url: `https://x.supabase.co/galleries/${G}/a.jpg`, find_me_excluded: false },
+      { id: B, url: `https://x.supabase.co/galleries/${G}/b.jpg`, find_me_excluded: false },
     ]);
   });
 });
