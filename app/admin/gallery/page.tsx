@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Upload, Image as ImageIcon, Loader2, Stamp, Trash2, Star, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
 import { compressPhoto, formatBytes, loadLogo } from "@/lib/image-optimize";
+import PhotoManager from "./PhotoManager";
 
 interface Gallery {
   id: string;
@@ -67,6 +68,7 @@ export default function AdminGalleryPage() {
   const [uploadedBytes, setUploadedBytes] = useState(0);
   const [lastPreview, setLastPreview] = useState<string | null>(null);
   const stopRef = useRef(false);
+  const [photosKey, setPhotosKey] = useState(0);
   const [logos, setLogos] = useState<Logo[]>([]);
   const [logoId, setLogoId] = useState("");
   const [brandOn, setBrandOn] = useState(true);
@@ -331,6 +333,7 @@ export default function AdminGalleryPage() {
 
     await Promise.all(Array.from({ length: PARALLEL }, worker));
     setUploading(false);
+    setPhotosKey((k) => k + 1);
   }
 
   function clearList() {
@@ -784,6 +787,11 @@ export default function AdminGalleryPage() {
           <p className="text-gray-400 text-sm">
             Pick as many photos as you like. Each one is compressed on your phone and uploaded one by one.
           </p>
+        </div>
+      )}
+      {selectedGallery && (
+        <div className="mt-8">
+          <PhotoManager galleryId={selectedGallery.id} refreshKey={photosKey} />
         </div>
       )}
     </div>
