@@ -26,7 +26,11 @@ function cfg() {
     salt,
     ingestSecret,
     endpoint: process.env.BZ_ENDPOINT || "https://breazy-analytics.breazy.workers.dev/e",
-    platform: (process.env.BZ_PLATFORM as "vercel" | "cloudflare") || "vercel",
+    // Cloudflare when unset: this site has only run on the Worker since
+    // 24 September 2026, so a missing BZ_PLATFORM must never fall back to
+    // trusting Vercel's headers. The shared upstream copy still defaults to
+    // vercel, keep this line if it is ever copied over again.
+    platform: (process.env.BZ_PLATFORM as "vercel" | "cloudflare") || "cloudflare",
     returning: process.env.BZ_RETURNING !== "off",
   };
 }

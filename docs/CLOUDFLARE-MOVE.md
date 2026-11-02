@@ -2,7 +2,7 @@
 
 The cutover runbook. Written 24 September 2026, when the code was prepared (PR 6 for Next 16, PR 7 for the Worker wiring) and nothing had been deployed. Supabase stays exactly where it is. Only the hosting moves.
 
-**Status: cut over on 24 September 2026, 21:05 SAST.** The Worker serves the apex and www. `vercel.json`, `.vercelignore` and the Vercel half of `lib/request-meta.ts` are gone from the code, so a Vercel build of this repo would have no crons and would read no client IP or geo, because `lib/request-meta.ts` trusts the cf headers only inside the Worker's own request context. What is left of step 12 is dashboard work, starting with disconnecting the repo from the Vercel project. The steps below are kept as the record of how the move went.
+**Status: cut over on 24 September 2026, 21:05 SAST.** The Worker serves the apex and www. `vercel.json`, `.vercelignore` and the Vercel half of `lib/request-meta.ts` are gone from the code, so a Vercel build of this repo would have no crons and would read no client IP or geo, because `lib/request-meta.ts` trusts the cf headers only inside the Worker's own request context. Step 12 is done apart from one key: the Vercel project was deleted on 28 October 2026, and on 2 November 2026 the domain came off the Vercel team, GitHub's Vercel deployments and environments were deleted and the repo's website link moved to the real domain. **Still open: revoke the old Resend key Vercel used**, in the Resend dashboard (the Worker sends with the newer key). The steps below are kept as the record of how the move went.
 
 Until step 9, Vercel is production and every merge to `master` still deploys there. The Worker answers only on its workers.dev address, so every step before step 9 can be undone without anyone noticing.
 
@@ -108,7 +108,7 @@ Set each as a Secret (Worker, Settings, Variables and secrets, or `npx wrangler 
     ]
     ```
 11. **Watch for a week.** The morning after, open the Worker's cron events and logs and confirm the 03:00 run passed. Vercel's crons keep running too until step 12. Both jobs are idempotent, so a double run is harmless.
-12. **Retire Vercel after two quiet weeks.** Remove `vercel.json` (done, together with `.vercelignore` and the rest of the Vercel leftovers in the code), remove the domains from the Vercel project and delete it, revoke the old Resend key, and remove the workers.dev entry from Supabase if `workers_dev` is switched off.
+12. **Retire Vercel after two quiet weeks.** Remove `vercel.json` (done, together with `.vercelignore` and the rest of the Vercel leftovers in the code), remove the domains from the Vercel project and delete it (done 28 October and 2 November 2026), revoke the old Resend key (still open), and remove the workers.dev entry from Supabase if `workers_dev` is switched off. Also check the Supabase auth Site URL and Redirect URLs before deleting the old host: the Site URL still pointed at Vercel after the deletion and broke sign in from 28 October to 2 November.
 
 ## Checklist on the Worker
 
