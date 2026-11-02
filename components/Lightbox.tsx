@@ -2,18 +2,23 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import SavePhotosButton from "@/components/SavePhotosButton";
+import { photoFileName } from "@/lib/photo-download";
 
 interface LightboxProps {
   images: { url: string; caption?: string }[];
   initialIndex: number;
   onClose: () => void;
+  /** Names saved files, "tsakani-halloween-003.jpg". */
+  fileBase?: string;
 }
 
 export default function Lightbox({
   images,
   initialIndex,
   onClose,
+  fileBase = "tsakani",
 }: LightboxProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const touchStartX = useRef<number | null>(null);
@@ -96,16 +101,13 @@ export default function Lightbox({
         {currentIndex + 1} / {images.length}
       </div>
 
-      <a
-        href={current.url}
-        download
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute top-4 right-16 z-10 text-white/70 hover:text-white p-2 transition-colors"
-        aria-label="Download photo"
-      >
-        <Download size={22} />
-      </a>
+      <SavePhotosButton
+        photos={() => [{ url: current.url, name: photoFileName(fileBase, currentIndex) }]}
+        zipName={photoFileName(fileBase, currentIndex)}
+        label="Save photo"
+        iconOnly
+        className="absolute top-4 right-16 z-10 text-white/80 hover:text-white p-2 transition-colors inline-flex items-center gap-2 text-sm"
+      />
 
       {images.length > 1 && (
         <>
