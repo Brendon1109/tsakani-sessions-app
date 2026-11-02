@@ -274,6 +274,14 @@ export default function AdminGalleryPage() {
     const formData = new FormData();
     formData.append("gallery_id", galleryId);
     formData.append("files", file, file.name);
+    try {
+      const bmp = await createImageBitmap(file);
+      formData.append("width", String(bmp.width));
+      formData.append("height", String(bmp.height));
+      bmp.close();
+    } catch {
+      // The gallery measures the photo itself when these are missing.
+    }
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const res = await fetch("/api/gallery/upload", { method: "POST", body: formData });

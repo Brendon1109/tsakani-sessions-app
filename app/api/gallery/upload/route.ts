@@ -27,6 +27,14 @@ export async function POST(request: NextRequest) {
   }
 
   const uploaded: { storage_path: string; id: string }[] = [];
+  // Sent by the admin uploader so the gallery can lay photos out at their
+  // real shape. Ignored unless both are sane whole numbers.
+  const dim = (k: string) => {
+    const n = Number(formData.get(k));
+    return Number.isInteger(n) && n > 0 && n <= 20000 ? n : null;
+  };
+  const width = dim("width");
+  const height = dim("height");
 
   for (const file of files) {
     const ext = file.name.split(".").pop() || "jpg";
@@ -50,6 +58,7 @@ export async function POST(request: NextRequest) {
         gallery_id: galleryId,
         storage_path: path,
         sort_order: uploaded.length,
+        ...(width && height && files.length === 1 ? { width, height } : {}),
       })
       .select()
       .single();

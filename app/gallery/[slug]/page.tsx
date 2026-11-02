@@ -67,9 +67,18 @@ export default async function GallerySlugPage({
     });
   }
 
-  const photos = (data.photos as unknown as { url: string; caption: string | null }[]).map(
-    (p) => ({ url: p.url, caption: p.caption || undefined })
-  );
+  const photos = (
+    data.photos as unknown as {
+      url: string;
+      caption: string | null;
+      width: number | null;
+      height: number | null;
+    }[]
+  ).map((p) => ({
+    url: p.url,
+    caption: p.caption || undefined,
+    ratio: p.width && p.height ? p.width / p.height : undefined,
+  }));
 
   return (
     <GalleryClient
