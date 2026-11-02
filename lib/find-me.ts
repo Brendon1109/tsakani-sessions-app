@@ -18,9 +18,20 @@ export const MODEL_URL = "/models/face-api";
 
 /**
  * Two faces closer than this count as the same person. face-api's usual line
- * is 0.6. Tighter shows fewer strangers, at the cost of a few missed photos.
+ * is 0.6, far too loose for a dark party crowd in costume. Measured on 30
+ * real Halloween photos on 2 November 2026: true pairs sat at 0.36 to 0.42,
+ * the first stranger pair at 0.417 (hats and sunglasses), the next at 0.462.
  */
-export const MATCH_DISTANCE = 0.5;
+export const MATCH_DISTANCE = 0.45;
+
+/**
+ * Gallery faces weaker or smaller than this are skipped. Blurred and half
+ * hidden background faces gave scans that sat close to everyone (0.34 to
+ * 0.47 against unrelated people in the same test), so they only added
+ * strangers to the results.
+ */
+export const MIN_FACE_SCORE = 0.6;
+export const MIN_FACE_WIDTH = 40; // pixels, at SCAN_WIDTH
 
 /** Width each gallery photo is scanned at, through the site's own resizer. */
 export const SCAN_WIDTH = 640;
@@ -123,10 +134,11 @@ export async function findInGallery(
     try {
       const img = await loadImage(scanUrl(p.url));
       const faces = await faceapi
-        .detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
+        .detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: MIN_FACE_SCORE }))
         .withFaceLandmarks()
         .withFaceDescriptors();
-      if (photoMatches(selfie, faces.map((f) => f.descriptor))) matches.push(p.i);
+      const clear = faces.filter((f) => f.detection.box.width >= MIN_FACE_WIDTH);
+      if (photoMatches(selfie, clear.map((f) => f.descriptor))) matches.push(p.i);
       img.src = "";
     } catch {
       // A photo that will not load is just not a match.
