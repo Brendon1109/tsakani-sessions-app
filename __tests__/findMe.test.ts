@@ -84,3 +84,17 @@ describe("matching", () => {
     expect(photoMatches(me, [])).toBe(false);
   });
 });
+
+describe("Find me never spins forever", () => {
+  it("gives up on a step that does not finish in time", async () => {
+    const { withTimeout } = await import("@/lib/find-me");
+    await expect(withTimeout(new Promise(() => {}), 20, "test")).rejects.toThrow(/longer than 20 ms/);
+    await expect(withTimeout(Promise.resolve(7), 20, "test")).resolves.toBe(7);
+  });
+
+  it("gives the GPU a short start and the whole start a minute", async () => {
+    const { GPU_START_MS, START_MS } = await import("@/lib/find-me");
+    expect(GPU_START_MS).toBeLessThan(START_MS);
+    expect(START_MS).toBeLessThanOrEqual(60_000);
+  });
+});
