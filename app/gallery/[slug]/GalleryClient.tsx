@@ -1,20 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
-import { Share2, QrCode, ArrowLeft, CheckSquare, Check, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Share2, QrCode, ArrowLeft, CheckSquare, X, Square, Rows3, Grid3x3 } from "lucide-react";
 import Link from "next/link";
 import Lightbox from "@/components/Lightbox";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
 import SavePhotosButton from "@/components/SavePhotosButton";
 import { MAX_SAVE, photoFileName } from "@/lib/photo-download";
+import PhotoGrid, { VIEWS, type GalleryView, type GridPhoto } from "./PhotoGrid";
+
+const VIEW_KEY = "tsakani-gallery-view";
+
+const VIEW_META: Record<GalleryView, { label: string; Icon: typeof Square }> = {
+  large: { label: "Large", Icon: Square },
+  rows: { label: "Rows", Icon: Rows3 },
+  compact: { label: "Compact", Icon: Grid3x3 },
+};
 
 interface GalleryClientProps {
   slug: string;
   title: string;
   description: string | null;
   date: string | null;
-  photos: { url: string; caption?: string }[];
+  photos: GridPhoto[];
 }
 
 export default function GalleryClient({
@@ -29,6 +37,21 @@ export default function GalleryClient({
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const atLimit = selected.length >= MAX_SAVE;
+  const [view, setView] = useState<GalleryView>("rows");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_KEY) as GalleryView | null;
+      if (saved && VIEWS.includes(saved)) setView(saved);
+    } catch {}
+  }, []);
+
+  const changeView = useCallback((v: GalleryView) => {
+    setView(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {}
+  }, []);
 
   function toggle(index: number) {
     setSelected((prev) =>
@@ -141,39 +164,38 @@ export default function GalleryClient({
               </p>
             </div>
           ) : (
-            <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
-              {photos.map((photo, index) => {
-                const on = selected.includes(index);
-                return (
-                <button
-                  key={index}
-                  onClick={() => (selecting ? toggle(index) : setLightboxIndex(index))}
-                  aria-pressed={selecting ? on : undefined}
-                  aria-label={selecting ? `Select photo ${index + 1}` : `Open photo ${index + 1}`}
-                  className={`relative block w-full break-inside-avoid rounded-xl overflow-hidden border-2 transition-colors group ${
-                    on ? "border-gold-500" : "border-white/5 hover:border-gold-500/30"
-                  }`}
-                >
-                  {selecting && (
-                    <span
-                      className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center border-2 ${
-                        on ? "bg-gold-500 border-gold-500 text-black" : "bg-black/40 border-white/70"
-                      }`}
-                    >
-                      {on && <Check size={16} />}
-                    </span>
-                  )}
-                  <Image
-                    src={photo.url}
-                    alt={photo.caption || `Photo ${index + 1}`}
-                    width={400}
-                    height={300}
-                    className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </button>
-                );
-              })}
-            </div>
+            <>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div role="radiogroup" aria-label="Photo view" className="inline-flex rounded-lg border border-white/10 p-0.5">
+                  {VIEWS.map((v) => {
+                    const { label, Icon } = VIEW_META[v];
+                    return (
+                      <button
+                        key={v}
+                        role="radio"
+                        aria-checked={view === v}
+                        onClick={() => changeView(v)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
+                          view === v ? "bg-gold-500 text-black font-semibold" : "text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        <Icon size={14} />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-gray-500 sm:hidden">Pinch to change</p>
+              </div>
+              <PhotoGrid
+                photos={photos}
+                view={view}
+                onViewChange={changeView}
+                selecting={selecting}
+                selected={selected}
+                onTap={(index) => (selecting ? toggle(index) : setLightboxIndex(index))}
+              />
+            </>
           )}
         </div>
       </section>
