@@ -622,8 +622,8 @@ export default function PrivacyPage() {
             Our address is 8 Moringa Way, Pinelands, Cape Town, 7405.
           </p>
           <p className="mt-3">
-            Our Information Officer under POPIA is Brendon Mapinda. Reach him at
-            the email or WhatsApp above for any request about your personal
+            Our Information Officer under POPIA is Brendon Mapinda. Use the
+            email or WhatsApp above for any request about your personal
             information, including access, correction or deletion.
           </p>
         </section>
