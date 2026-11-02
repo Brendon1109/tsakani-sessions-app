@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import SavePhotosButton from "@/components/SavePhotosButton";
 import { photoFileName } from "@/lib/photo-download";
 
 interface LightboxProps {
-  images: { url: string; caption?: string }[];
+  /**
+   * From lib/photo-storage.ts: src is the small copy, bigSrcSet lets the
+   * browser take the medium copy or the full photo for the screen it is on,
+   * and download is what Save fetches.
+   */
+  images: { src: string; bigSrcSet: string; download: string; caption?: string }[];
   initialIndex: number;
   onClose: () => void;
   /** Names saved files, "tsakani-halloween-003.jpg". */
@@ -102,7 +106,7 @@ export default function Lightbox({
       </div>
 
       <SavePhotosButton
-        photos={() => [{ url: current.url, name: photoFileName(fileBase, currentIndex) }]}
+        photos={() => [{ url: current.download, name: photoFileName(fileBase, currentIndex) }]}
         zipName={photoFileName(fileBase, currentIndex)}
         label="Save photo"
         iconOnly
@@ -129,13 +133,15 @@ export default function Lightbox({
       )}
 
       <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-12">
-        <Image
-          src={current.url}
-          alt={current.caption || `Photo ${currentIndex + 1}`}
-          fill
-          className="object-contain"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          key={currentIndex}
+          src={current.src}
+          srcSet={current.bigSrcSet}
           sizes="100vw"
-          priority
+          alt={current.caption || `Photo ${currentIndex + 1}`}
+          decoding="async"
+          className="max-w-full max-h-full object-contain"
         />
       </div>
 

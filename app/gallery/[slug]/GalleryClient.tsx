@@ -71,7 +71,7 @@ export default function GalleryClient({
   const selectedPhotos = () =>
     [...selected]
       .sort((a, b) => a - b)
-      .map((i) => ({ url: photos[i].url, name: photoFileName(title, i) }));
+      .map((i) => ({ url: photos[i].download, name: photoFileName(title, i) }));
 
   const galleryUrl =
     typeof window !== "undefined"

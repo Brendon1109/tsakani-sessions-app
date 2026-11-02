@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Check } from "lucide-react";
 
 export type GalleryView = "large" | "rows" | "compact";
@@ -9,11 +8,32 @@ export type GalleryView = "large" | "rows" | "compact";
 /** Biggest to smallest, the order a pinch walks through. */
 export const VIEWS: GalleryView[] = ["large", "rows", "compact"];
 
+/**
+ * One photo's addresses, from lib/photo-storage.ts. Plain <img> with a
+ * srcset rather than next/image: the photos on R2 already come in the sizes
+ * the grid needs, straight from photos.tsakanisessions.co.za, so the Worker
+ * never sees a gallery photo.
+ */
 export interface GridPhoto {
-  url: string;
+  src: string;
+  srcSet: string;
+  bigSrcSet: string;
+  download: string;
   caption?: string;
   /** width / height, when the upload recorded it. */
   ratio?: number;
+}
+
+/** Row heights in Rows view, matching --row-h below: phone, sm and lg. */
+const ROW_H = [110, 170, 220];
+
+/**
+ * How wide a Rows tile shows, for the browser to pick a copy. A tile grows
+ * past its basis to fill the row, hence the quarter on top.
+ */
+export function rowSizes(ratio: number): string {
+  const [phone, tablet, desktop] = ROW_H.map((h) => Math.ceil(ratio * h * 1.25));
+  return `(max-width: 639px) ${phone}px, (max-width: 1023px) ${tablet}px, ${desktop}px`;
 }
 
 interface Props {
@@ -131,12 +151,17 @@ export default function PhotoGrid({ photos, view, onViewChange, selecting, selec
                 }`}
               >
                 {tick(on, false)}
-                <Image
-                  src={photo.url}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.src}
+                  srcSet={photo.srcSet}
+                  sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, (max-width: 1279px) 34vw, 25vw"
                   alt={alt(index)}
-                  width={400}
-                  height={300}
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  width={600}
+                  height={Math.round(600 / ratioOf(index))}
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={remember(index)}
                   className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               </button>
@@ -161,13 +186,16 @@ export default function PhotoGrid({ photos, view, onViewChange, selecting, selec
               >
                 <span className="block" style={{ paddingBottom: `${100 / r}%` }} />
                 {tick(on, true)}
-                <Image
-                  src={photo.url}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.src}
+                  srcSet={photo.srcSet}
+                  sizes={rowSizes(r)}
                   alt={alt(index)}
-                  fill
-                  sizes="(max-width: 640px) 50vw, 25vw"
+                  loading="lazy"
+                  decoding="async"
                   onLoad={remember(index)}
-                  className={`object-cover ${on ? "opacity-80" : ""}`}
+                  className={`absolute inset-0 w-full h-full object-cover ${on ? "opacity-80" : ""}`}
                 />
               </button>
             );
@@ -186,12 +214,15 @@ export default function PhotoGrid({ photos, view, onViewChange, selecting, selec
                 className={`relative aspect-square overflow-hidden outline-none ${on ? "ring-2 ring-gold-500 ring-inset" : ""}`}
               >
                 {tick(on, true)}
-                <Image
-                  src={photo.url}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.src}
+                  srcSet={photo.srcSet}
+                  sizes="(max-width: 639px) 20vw, (max-width: 1023px) 13vw, 9vw"
                   alt={alt(index)}
-                  fill
-                  sizes="(max-width: 640px) 20vw, 10vw"
-                  className={`object-cover ${on ? "opacity-80" : ""}`}
+                  loading="lazy"
+                  decoding="async"
+                  className={`absolute inset-0 w-full h-full object-cover ${on ? "opacity-80" : ""}`}
                 />
               </button>
             );

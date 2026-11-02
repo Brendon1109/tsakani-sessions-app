@@ -50,6 +50,8 @@ export interface GalleryPhoto {
   id: string;
   gallery_id: string;
   storage_path: string;
+  /** "r2" once the photo is on Cloudflare R2, see lib/photo-storage.ts. */
+  storage?: string | null;
   thumbnail_path: string | null;
   caption: string | null;
   sort_order: number;

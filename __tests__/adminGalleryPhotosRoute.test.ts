@@ -3,14 +3,23 @@ import { NextRequest } from "next/server";
 
 /**
  * Deleting gallery photos: admins only, real ids only, and both the row and
- * its file in storage go.
+ * its files go, from R2 for a photo there (lib/photo-storage.ts) and from the
+ * Supabase bucket, which also holds the backup of every moved photo.
  */
 
 type Who = "nobody" | "visitor" | "admin";
 let who: Who = "admin";
-let rows: { id: string; storage_path: string; thumbnail_path: string | null; gallery_id: string }[] = [];
+let rows: {
+  id: string;
+  storage_path: string;
+  thumbnail_path: string | null;
+  gallery_id: string;
+  storage?: string;
+  created_at?: string;
+}[] = [];
 const deletedRows: string[][] = [];
 const removedFiles: string[][] = [];
+const r2Deleted: string[][] = [];
 
 function query() {
   let op = "select";
@@ -54,11 +63,26 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+vi.mock("@opennextjs/cloudflare/cloudflare-context", () => ({
+  getCloudflareContext: () => ({
+    env: {
+      PHOTOS: {
+        put: async () => {},
+        delete: async (keys: string[]) => {
+          r2Deleted.push(keys);
+        },
+      },
+    },
+  }),
+}));
+
 import { GET, DELETE } from "@/app/api/admin/gallery-photos/route";
+import { PHOTOS_ORIGIN } from "@/lib/photo-storage";
 
 const G = "11111111-1111-4111-8111-111111111111";
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const C = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 function del(body: unknown) {
   return new NextRequest("http://localhost/api/admin/gallery-photos", {
@@ -72,6 +96,7 @@ beforeEach(() => {
   who = "admin";
   deletedRows.length = 0;
   removedFiles.length = 0;
+  r2Deleted.length = 0;
   rows = [
     { id: A, storage_path: `galleries/${G}/a.jpg`, thumbnail_path: null, gallery_id: G },
     { id: B, storage_path: `galleries/${G}/b.jpg`, thumbnail_path: `galleries/${G}/b_t.jpg`, gallery_id: G },
@@ -103,6 +128,21 @@ describe("admin gallery photos route", () => {
     expect(removedFiles[0].sort()).toEqual(
       [`galleries/${G}/a.jpg`, `galleries/${G}/b.jpg`, `galleries/${G}/b_t.jpg`].sort()
     );
+    expect(r2Deleted).toHaveLength(0);
+  });
+
+  it("deletes a photo on R2 there, all three files, and its Supabase backup", async () => {
+    rows.push({ id: C, storage_path: `galleries/${G}/c.jpg`, thumbnail_path: null, gallery_id: G, storage: "r2" });
+    const body = await (await DELETE(del({ ids: [C] }))).json();
+    expect(body).toEqual({ deleted: 1, files_removed: true });
+    expect(r2Deleted).toEqual([[`galleries/${G}/c.jpg`, `md/galleries/${G}/c.jpg`, `sm/galleries/${G}/c.jpg`]]);
+    expect(removedFiles).toEqual([[`galleries/${G}/c.jpg`]]);
+  });
+
+  it("shows the admin the small copy of a photo on R2", async () => {
+    rows.push({ id: C, storage_path: `galleries/${G}/c.jpg`, thumbnail_path: null, gallery_id: G, storage: "r2" });
+    const body = await (await GET(new NextRequest(`http://localhost/x?gallery_id=${G}`))).json();
+    expect(body.find((p: { id: string }) => p.id === C).url).toBe(`${PHOTOS_ORIGIN}/sm/galleries/${G}/c.jpg`);
   });
 
   it("lists photos with public urls", async () => {
