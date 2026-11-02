@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { sortPhotos } from "@/lib/photo-order";
+import { photoSources, type PhotoSources } from "@/lib/photo-storage";
 import { createClient } from "@/lib/supabase/server";
 import type { Event, Product, Gallery, GalleryPhoto, Ticket, CheckoutOptions, Dj } from "@/lib/types";
 import { onSaleTickets } from "@/lib/tickets";
@@ -160,7 +161,11 @@ export async function getGalleries(): Promise<(Gallery & { photo_count: number; 
 
 export async function getGalleryBySlug(
   slug: string
-): Promise<{ gallery: Gallery; photos: GalleryPhoto[]; event: Event | null } | null> {
+): Promise<{
+  gallery: Gallery;
+  photos: (GalleryPhoto & { url: string; sources: PhotoSources })[];
+  event: Event | null;
+} | null> {
   const supabase = await createClient();
   if (!supabase) return null;
 
@@ -177,15 +182,17 @@ export async function getGalleryBySlug(
     .select("*")
     .eq("gallery_id", gallery.id);
 
-  // Build public URLs for photos, in capture order (lib/photo-order.ts)
+  // Every address each photo is shown at (lib/photo-storage.ts), in capture
+  // order (lib/photo-order.ts)
   const photosWithUrls = sortPhotos((photos as GalleryPhoto[]) || []).map((photo: GalleryPhoto) => {
-    const { data: urlData } = supabase.storage
-      .from("gallery-photos")
-      .getPublicUrl(photo.storage_path);
-
+    const sources = photoSources(
+      photo,
+      () => supabase.storage.from("gallery-photos").getPublicUrl(photo.storage_path).data?.publicUrl || ""
+    );
     return {
       ...photo,
-      url: urlData?.publicUrl || "",
+      url: sources.full,
+      sources,
     };
   });
 

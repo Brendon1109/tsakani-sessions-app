@@ -11,6 +11,11 @@ const SUPABASE_ORIGIN = (() => {
   }
 })();
 
+// Gallery photos on R2, the same value as PHOTOS_ORIGIN in
+// lib/photo-storage.ts (this file cannot import TypeScript, a test keeps the
+// two in step). img-src shows them, connect-src lets Save fetch them.
+const PHOTOS_ORIGIN = "https://photos.tsakanisessions.co.za";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -107,10 +112,10 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://www.tiktok.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com https://i.ytimg.com",
+              `img-src 'self' data: blob: https://*.supabase.co ${PHOTOS_ORIGIN} https://*.googleusercontent.com https://i.ytimg.com`,
               "font-src 'self' https://fonts.gstatic.com",
               "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.tiktok.com https://www.instagram.com",
-              `connect-src 'self' ${SUPABASE_ORIGIN}`,
+              `connect-src 'self' ${SUPABASE_ORIGIN} ${PHOTOS_ORIGIN}`,
             ].join("; "),
           },
         ],

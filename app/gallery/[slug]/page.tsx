@@ -67,15 +67,11 @@ export default async function GallerySlugPage({
     });
   }
 
-  const photos = (
-    data.photos as unknown as {
-      url: string;
-      caption: string | null;
-      width: number | null;
-      height: number | null;
-    }[]
-  ).map((p) => ({
-    url: p.url,
+  const photos = data.photos.map((p) => ({
+    src: p.sources.src,
+    srcSet: p.sources.srcSet,
+    bigSrcSet: p.sources.bigSrcSet,
+    download: p.sources.download,
     caption: p.caption || undefined,
     ratio: p.width && p.height ? p.width / p.height : undefined,
   }));

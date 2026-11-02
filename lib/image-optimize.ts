@@ -128,6 +128,86 @@ export async function brandPhoto(file: File, logo: HTMLImageElement): Promise<Fi
   return new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() });
 }
 
+/**
+ * The halving steps from one width down to a target: halve while the next
+ * half is still at least the target, then one last draw at the target. Big
+ * single jumps leave jagged edges, halves keep them clean. Pure, so it is tested.
+ */
+export function downscaleSteps(from: number, to: number): number[] {
+  const steps: number[] = [];
+  let w = from;
+  while (w / 2 >= to) {
+    w = Math.round(w / 2);
+    steps.push(w);
+  }
+  if (w !== to) steps.push(to);
+  return steps;
+}
+
+/**
+ * The photo's size and its smaller copies at the given widths, as JPEGs, made
+ * on the phone so nothing has to resize a gallery photo later
+ * (lib/photo-storage.ts). A width the photo does not exceed gives null, and
+ * the server then uses the photo itself. Biggest copy first, each smaller one
+ * carries on from the last, and every canvas is freed after.
+ */
+export async function photoCopies(
+  file: Blob,
+  widths: number[]
+): Promise<{ width: number; height: number; copies: (Blob | null)[] }> {
+  const bitmap = await createImageBitmap(file);
+  const width = bitmap.width;
+  const height = bitmap.height;
+  const made = new Map<number, Blob | null>();
+  const canvases: HTMLCanvasElement[] = [];
+
+  const draw = (src: CanvasImageSource, w: number) => {
+    const c = document.createElement("canvas");
+    canvases.push(c);
+    c.width = w;
+    c.height = Math.max(1, Math.round((height * w) / width));
+    const ctx = c.getContext("2d");
+    if (!ctx) throw new Error("No canvas");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  };
+
+  try {
+    let src: HTMLCanvasElement | ImageBitmap = bitmap;
+    let srcW = width;
+    for (const target of [...widths].sort((a, b) => b - a)) {
+      if (target >= width) {
+        made.set(target, null);
+        continue;
+      }
+      // A canvas can fail on a phone short of memory. The photo still goes
+      // up with its size, and the server stands it in for the missing copy.
+      try {
+        for (const w of downscaleSteps(srcW, target)) {
+          src = draw(src, w);
+          srcW = w;
+        }
+        const blob = await new Promise<Blob | null>((resolve) =>
+          (src as HTMLCanvasElement).toBlob(resolve, "image/jpeg", target <= 600 ? 0.78 : 0.82)
+        );
+        made.set(target, blob);
+      } catch (err) {
+        console.warn(`Could not make the ${target} px copy:`, err);
+        made.set(target, null);
+      }
+    }
+  } finally {
+    bitmap.close();
+    for (const c of canvases) {
+      c.width = 0;
+      c.height = 0;
+    }
+  }
+  return { width, height, copies: widths.map((w) => made.get(w) ?? null) };
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;

@@ -16,7 +16,7 @@ Why? Raw event footage is 30 GB+. Cloud storage at that volume costs real money
 | Lightroom RAW photos | ~2 GB | External SSD / NAS | — |
 | VirtualDJ audio mix | ~100 MB | External SSD / NAS | — |
 | **Aftermovie MP4 (1080p)** | ~500 MB | **YouTube** | FREE forever |
-| **Web-optimized photos** (~1MB × 150) | ~150 MB | **Supabase Storage** | FREE up to 1 GB, then R450/mo for 100 GB |
+| **Web-optimized photos** (~1MB × 150, plus md and sm copies) | ~180 MB | **Cloudflare R2**, bucket `tsakani-photos` | FREE up to 10 GB, no bandwidth charges |
 | **Short clips** | ~200 MB | **TikTok / IG / Shorts** | FREE — social platforms store them |
 
 **Total cloud footprint per event: ~850 MB**
@@ -49,7 +49,14 @@ Transfer all raw footage to your external SSD in a folder per event:
 5. Upload contents of `./web-photos/` via the admin gallery uploader
 6. Keep `./raw-photos/` on your SSD as the archive
 
-**Result:** a 150-photo gallery that was 2 GB raw → ~150 MB on Supabase.
+**Result:** a 150-photo gallery that was 2 GB raw → ~180 MB on R2, the photos plus their two smaller copies.
+
+Since 2 November 2026 gallery photos live on Cloudflare R2 and load straight
+from `photos.tsakanisessions.co.za`, see `lib/photo-storage.ts`. The admin
+uploader makes each photo's 1200 and 480 wide copies on the phone, so nothing
+resizes a gallery photo later and a busy gallery costs the Worker nothing.
+Product, DJ, event cover and logo pictures are still in the Supabase bucket
+`gallery-photos`, and so are the backups of the photos moved on 2 November.
 
 ### 3. Video workflow
 1. Edit and render the aftermovie on your laptop, with the external SSD attached
@@ -65,19 +72,22 @@ Transfer all raw footage to your external SSD in a folder per event:
 
 ## Scale breakpoints
 
-On the **Supabase free tier (1 GB)** with optimized photos:
-- Photos only: ~6-7 events before full
-- Then upgrade to Supabase Pro (100 GB / R450/mo): ~120 events
+On the **R2 free tier (10 GB a month, shared with the other buckets on the
+personal Cloudflare account)** with optimized photos:
+- About 50 events of 150 photos before it starts to cost
+- Past 10 GB, R2 Standard storage is USD 0.015 per GB a month, with no
+  charge for visitors downloading photos
 
 On **YouTube** (unlimited): forever free, no cap.
 
-**When you outgrow Supabase Pro (100 GB):**
-Archive old event galleries to your SSD and delete the oldest from Supabase. You can keep the gallery link working by re-uploading a few "highlights" per past event.
+**When the photos outgrow the free 10 GB:** archive old event galleries to
+your SSD and delete the oldest from the admin. You can keep the gallery link
+working by re-uploading a few "highlights" per past event.
 
 ## Rule of thumb
 
 - **If it's raw** → lives on your SSD/NAS, never cloud
-- **If it's for the public** → YouTube (video), Supabase Storage (photos), TikTok/IG (shorts)
+- **If it's for the public** → YouTube (video), Cloudflare R2 (photos), TikTok/IG (shorts)
 - **If you're not sure** → it probably doesn't need to be in the cloud
 
 Storage discipline is how small brands stay on free tiers. Most of what feels "big" isn't — it's raw footage you never look at again after editing.

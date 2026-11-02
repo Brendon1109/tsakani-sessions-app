@@ -6,6 +6,8 @@ import { Check, Loader2, Trash2, X, CheckSquare } from "lucide-react";
 interface Photo {
   id: string;
   url: string;
+  /** The full photo, for Open photo. url is the small copy. */
+  full?: string;
 }
 
 /** Enough to scroll through, few enough that a phone only loads what it shows. */
@@ -93,7 +95,12 @@ export default function PhotoManager({
       setPhotos((prev) => prev.filter((p) => !gone.has(p.id)));
       setSelected(new Set());
       setSelecting(false);
-      setMessage(`${data.deleted} photo${data.deleted === 1 ? "" : "s"} deleted.`);
+      setMessage(
+        `${data.deleted} photo${data.deleted === 1 ? "" : "s"} deleted.` +
+          (data.files_removed === false
+            ? " Some files were not removed and can still open from a saved link. Ask Brendon to clear them."
+            : "")
+      );
     } finally {
       setDeleting(false);
     }
@@ -163,7 +170,7 @@ export default function PhotoManager({
             >
               <button
                 type="button"
-                onClick={() => (selecting ? toggle(p.id) : window.open(p.url, "_blank", "noopener"))}
+                onClick={() => (selecting ? toggle(p.id) : window.open(p.full || p.url, "_blank", "noopener"))}
                 aria-pressed={selecting ? on : undefined}
                 aria-label={selecting ? "Select photo" : "Open photo"}
                 className="absolute inset-0"

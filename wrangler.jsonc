@@ -22,6 +22,16 @@
   "images": {
     "binding": "IMAGES"
   },
+  // Gallery photos since 2 November 2026 (lib/photo-storage.ts). The bucket
+  // is public on photos.tsakanisessions.co.za with GET and HEAD CORS for any
+  // origin, so visitors load photos straight from it. The Worker only writes
+  // (app/api/gallery/upload) and deletes (app/api/admin/gallery-photos).
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "tsakani-photos"
+    }
+  ],
   // The two nightly jobs, cleanup-orders and finalize-events, both at 03:00
   // UTC. custom-worker.ts runs both from this one trigger.
   "triggers": {

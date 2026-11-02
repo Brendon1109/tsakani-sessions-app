@@ -1,5 +1,8 @@
 // Tsakani Sessions service worker — minimal cache-first with offline fallback
-const CACHE_NAME = "tsakani-v3";
+// v4, 2 November 2026: a new name so every installed worker updates. A worker
+// installed while the site was on Vercel keeps the CSP it came with, which
+// blocks photos.tsakanisessions.co.za, and an unchanged sw.js never replaces it.
+const CACHE_NAME = "tsakani-v4";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   "/",
@@ -15,8 +18,12 @@ const PRECACHE_URLS = [
 ];
 
 self.addEventListener("install", (event) => {
+  // One at a time and allowed to fail: with addAll a single page answering
+  // 503 would fail the whole install and leave the visitor on the old worker.
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)))
+    )
   );
   self.skipWaiting();
 });
@@ -32,6 +39,11 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
+
+  // Other origins go straight to the network: gallery photos on R2, Google
+  // avatars, YouTube thumbnails. The worker never cached them (opaque), and
+  // fetching them here would hold them to the worker's own CSP.
+  if (new URL(request.url).origin !== self.location.origin) return;
 
   // Skip non-GET, admin, and API requests
   if (request.method !== "GET") return;

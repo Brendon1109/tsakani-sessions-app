@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { Camera, Calendar, ExternalLink, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { eventDateShort } from "@/lib/date";
+import { photoSources, type PhotoSources } from "@/lib/photo-storage";
 
 const PUBLIC_PREVIEW_COUNT = 4;
 
@@ -30,6 +30,8 @@ export const metadata: Metadata = {
 interface PhotoRow {
   id: string;
   storage_path: string;
+  storage?: string | null;
+  width?: number | null;
   caption: string | null;
   sort_order: number;
 }
@@ -43,10 +45,13 @@ interface GalleryRow {
   photos: PhotoRow[];
 }
 
+// gallery_photos(*) rather than a column list, so the storage column
+// (supabase/photos_on_r2.sql) comes back when it exists and nothing breaks
+// when it does not.
 const SELECT_WITH_DRIVE =
-  "id, title, slug, drive_url, event:events(date), photos:gallery_photos(id, storage_path, caption, sort_order)";
+  "id, title, slug, drive_url, event:events(date), photos:gallery_photos(*)";
 const SELECT_WITHOUT_DRIVE =
-  "id, title, slug, event:events(date), photos:gallery_photos(id, storage_path, caption, sort_order)";
+  "id, title, slug, event:events(date), photos:gallery_photos(*)";
 
 export default async function GalleryPage() {
   const supabase = await createClient();
@@ -57,7 +62,7 @@ export default async function GalleryPage() {
     drive_url: string | null;
     eventDate: string | null;
     totalPhotos: number;
-    previewPhotos: Array<{ id: string; url: string; caption: string | null }>;
+    previewPhotos: Array<{ id: string; sources: PhotoSources; caption: string | null }>;
   }> = [];
 
   if (supabase) {
@@ -82,14 +87,13 @@ export default async function GalleryPage() {
       const sorted = [...(g.photos || [])].sort((a, b) => a.sort_order - b.sort_order);
       const allPhotos = sorted
         .map((p) => {
-          const { data: urlData } = supabase.storage
-            .from("gallery-photos")
-            .getPublicUrl(p.storage_path);
-          return urlData?.publicUrl
-            ? { id: p.id, url: urlData.publicUrl, caption: p.caption }
-            : null;
+          const sources = photoSources(
+            p,
+            () => supabase.storage.from("gallery-photos").getPublicUrl(p.storage_path).data?.publicUrl || ""
+          );
+          return sources.full ? { id: p.id, sources, caption: p.caption } : null;
         })
-        .filter((x): x is { id: string; url: string; caption: string | null } => x !== null);
+        .filter((x): x is { id: string; sources: PhotoSources; caption: string | null } => x !== null);
       if (allPhotos.length === 0) continue;
       sections.push({
         id: g.id,
@@ -174,17 +178,22 @@ export default async function GalleryPage() {
                       {section.previewPhotos.map((photo) => (
                         <a
                           key={photo.id}
-                          href={photo.url}
+                          href={photo.sources.full}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="group relative aspect-square overflow-hidden rounded-lg bg-dark-300"
                         >
-                          <Image
-                            src={photo.url}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.sources.src}
+                            srcSet={photo.sources.srcSet}
+                            // Square crops of mostly portrait photos, so the
+                            // 480 copy covers a phone tile without stretching.
+                            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 40vw"
                             alt={photo.caption || section.title}
-                            fill
-                            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-                            className="object-cover transition-transform duration-500 group-hover:scale-110"
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                         </a>

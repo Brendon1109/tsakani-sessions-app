@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Upload, Image as ImageIcon, Loader2, Stamp, Trash2, Star, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
-import { compressPhoto, formatBytes, loadLogo } from "@/lib/image-optimize";
+import { compressPhoto, formatBytes, loadLogo, photoCopies } from "@/lib/image-optimize";
+import { MD_WIDTH, SM_WIDTH } from "@/lib/photo-storage";
 import PhotoManager from "./PhotoManager";
 import { readTakenAt } from "@/lib/taken-at";
 
@@ -277,12 +278,15 @@ export default function AdminGalleryPage() {
     if (takenAt) formData.append("taken_at", takenAt);
     formData.append("files", file, file.name);
     try {
-      const bmp = await createImageBitmap(file);
-      formData.append("width", String(bmp.width));
-      formData.append("height", String(bmp.height));
-      bmp.close();
+      // The medium and small copies the gallery shows (lib/photo-storage.ts).
+      const { width, height, copies: [md, sm] } = await photoCopies(file, [MD_WIDTH, SM_WIDTH]);
+      formData.append("width", String(width));
+      formData.append("height", String(height));
+      if (md) formData.append("md", md, "md.jpg");
+      if (sm) formData.append("sm", sm, "sm.jpg");
     } catch {
-      // The gallery measures the photo itself when these are missing.
+      // The server then uses the photo for both copies, and the gallery
+      // measures it itself.
     }
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
