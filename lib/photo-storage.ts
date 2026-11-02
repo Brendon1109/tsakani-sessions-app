@@ -20,8 +20,13 @@
 export const PHOTOS_ORIGIN = "https://photos.tsakanisessions.co.za";
 export const SM_WIDTH = 480;
 export const MD_WIDTH = 1200;
-/** Keys are never reused, so a photo can be cached for good. */
-export const PHOTO_CACHE_CONTROL = "public, max-age=31536000, immutable";
+/**
+ * An hour, the same as Supabase served photos with. Longer would be cheaper,
+ * but nothing purges Cloudflare's cache when a photo is deleted, so this is
+ * also how long a taken down photo can still load from a link someone kept.
+ * After an hour the edge checks R2 again, a cheap 304 while the photo exists.
+ */
+export const PHOTO_CACHE_CONTROL = "public, max-age=3600";
 
 export type PhotoStorage = "supabase" | "r2";
 
@@ -76,9 +81,9 @@ export function photoSources(photo: StoredPhoto, legacyUrl: () => string): Photo
       srcSet: `${sm} ${SM_WIDTH}w, ${md} ${MD_WIDTH}w`,
       bigSrcSet: `${sm} ${SM_WIDTH}w, ${md} ${MD_WIDTH}w, ${full} ${fullW}w`,
       full,
-      // Its own cache entry at the edge, always made by a CORS request, so a
-      // copy cached from a plain page load can never answer Save without the
-      // CORS header.
+      // Its own address, because R2 sends no Vary: Origin. Without it the
+      // browser could answer Save's CORS fetch with the copy it cached while
+      // showing the photo, which has no CORS header, and Save would fail.
       download: `${full}?dl=1`,
     };
   }

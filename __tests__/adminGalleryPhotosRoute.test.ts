@@ -77,7 +77,7 @@ vi.mock("@opennextjs/cloudflare/cloudflare-context", () => ({
 }));
 
 import { GET, DELETE } from "@/app/api/admin/gallery-photos/route";
-import { PHOTOS_ORIGIN } from "@/lib/photo-storage";
+import { PHOTOS_ORIGIN, photoKeys } from "@/lib/photo-storage";
 
 const G = "11111111-1111-4111-8111-111111111111";
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -128,7 +128,23 @@ describe("admin gallery photos route", () => {
     expect(removedFiles[0].sort()).toEqual(
       [`galleries/${G}/a.jpg`, `galleries/${G}/b.jpg`, `galleries/${G}/b_t.jpg`].sort()
     );
-    expect(r2Deleted).toHaveLength(0);
+    // Also from R2, even for rows still marked supabase: the move copies a
+    // photo before it flips the row, so the copies may already be public.
+    expect(r2Deleted.flat().sort()).toEqual(
+      [...photoKeys(`galleries/${G}/a.jpg`), ...photoKeys(`galleries/${G}/b.jpg`)].sort()
+    );
+  });
+
+  it("deletes from R2 in batches R2 accepts, whole photos per batch", async () => {
+    const many = Array.from({ length: 400 }, (_, i) => {
+      const id = `dddddddd-dddd-4ddd-8ddd-${String(i).padStart(12, "0")}`;
+      return { id, storage_path: `galleries/${G}/${i}.jpg`, thumbnail_path: null, gallery_id: G, storage: "r2" };
+    });
+    rows = many;
+    const body = await (await DELETE(del({ ids: many.map((r) => r.id) }))).json();
+    expect(body).toEqual({ deleted: 400, files_removed: true });
+    expect(r2Deleted.map((b) => b.length)).toEqual([999, 201]);
+    for (const batch of r2Deleted) expect(batch.length % 3).toBe(0);
   });
 
   it("deletes a photo on R2 there, all three files, and its Supabase backup", async () => {
@@ -142,14 +158,16 @@ describe("admin gallery photos route", () => {
   it("shows the admin the small copy of a photo on R2", async () => {
     rows.push({ id: C, storage_path: `galleries/${G}/c.jpg`, thumbnail_path: null, gallery_id: G, storage: "r2" });
     const body = await (await GET(new NextRequest(`http://localhost/x?gallery_id=${G}`))).json();
-    expect(body.find((p: { id: string }) => p.id === C).url).toBe(`${PHOTOS_ORIGIN}/sm/galleries/${G}/c.jpg`);
+    const c = body.find((p: { id: string }) => p.id === C);
+    expect(c.url).toBe(`${PHOTOS_ORIGIN}/sm/galleries/${G}/c.jpg`);
+    expect(c.full).toBe(`${PHOTOS_ORIGIN}/galleries/${G}/c.jpg`);
   });
 
   it("lists photos with public urls", async () => {
     const body = await (await GET(new NextRequest(`http://localhost/x?gallery_id=${G}`))).json();
     expect(body).toEqual([
-      { id: A, url: `https://x.supabase.co/galleries/${G}/a.jpg` },
-      { id: B, url: `https://x.supabase.co/galleries/${G}/b.jpg` },
+      { id: A, url: `https://x.supabase.co/galleries/${G}/a.jpg`, full: `https://x.supabase.co/galleries/${G}/a.jpg` },
+      { id: B, url: `https://x.supabase.co/galleries/${G}/b.jpg`, full: `https://x.supabase.co/galleries/${G}/b.jpg` },
     ]);
   });
 });

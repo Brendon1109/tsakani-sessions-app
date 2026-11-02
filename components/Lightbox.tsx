@@ -81,6 +81,20 @@ export default function Lightbox({
 
   const current = images[currentIndex];
 
+  // Fetch the photos either side the way the viewer will ask for them, so a
+  // swipe shows the next one at once. The same img stays mounted, so the old
+  // photo stays up until the new one has loaded rather than flashing black.
+  useEffect(() => {
+    if (images.length < 2) return;
+    for (const i of [currentIndex + 1, currentIndex - 1 + images.length]) {
+      const next = images[i % images.length];
+      const pre = new window.Image();
+      pre.sizes = "100vw";
+      pre.srcset = next.bigSrcSet;
+      pre.src = next.src;
+    }
+  }, [currentIndex, images]);
+
   return (
     <div
       className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center"
@@ -135,7 +149,6 @@ export default function Lightbox({
       <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-12">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          key={currentIndex}
           src={current.src}
           srcSet={current.bigSrcSet}
           sizes="100vw"

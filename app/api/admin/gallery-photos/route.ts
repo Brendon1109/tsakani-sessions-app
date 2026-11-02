@@ -17,6 +17,8 @@ import { isOnR2, photoKeys, photoSources, type StoredPhoto } from "@/lib/photo-s
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_DELETE = 500;
+/** R2 deletes at most 1,000 keys a call. Three keys a photo, so whole photos. */
+const R2_DELETE_BATCH = 999;
 
 type PhotoRow = StoredPhoto & { id: string; created_at: string; thumbnail_path?: string | null };
 
@@ -51,7 +53,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(
     sortPhotos((data as PhotoRow[]) || []).map((p) => {
       const legacy = () => bucket.getPublicUrl(p.storage_path).data.publicUrl;
-      return { id: p.id, url: isOnR2(p) ? photoSources(p, legacy).src : legacy() };
+      if (!isOnR2(p)) return { id: p.id, url: legacy(), full: legacy() };
+      const s = photoSources(p, legacy);
+      return { id: p.id, url: s.src, full: s.full };
     })
   );
 }
@@ -90,20 +94,25 @@ export async function DELETE(request: NextRequest) {
     );
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
 
-  // The rows are gone, so the photos are off the site. A file left behind by
-  // a failed remove only costs storage, never shows.
+  // The rows are gone, so the photos are off the gallery. The files still
+  // load from a direct link until they go too, so a failed remove is
+  // reported to the admin rather than only logged.
   let filesRemoved = true;
 
-  const r2Keys = found.filter(isOnR2).flatMap((r) => photoKeys(r.storage_path));
-  if (r2Keys.length > 0) {
-    const r2 = photoBucket();
-    try {
-      if (!r2) throw new Error("PHOTOS binding missing");
-      await r2.delete(r2Keys);
-    } catch (err) {
-      filesRemoved = false;
-      console.error("[admin/gallery-photos] R2 delete failed:", err);
+  // R2 for every row, not only the ones marked r2: scripts/move-photos-to-r2.mjs
+  // copies a photo before it flips the row, so a row still marked supabase
+  // can already have public copies. Deleting a key that is not there is a
+  // no-op. R2 takes at most 1,000 keys a call, so 333 photos at a time.
+  const r2Keys = found.flatMap((r) => photoKeys(r.storage_path));
+  const r2 = photoBucket();
+  try {
+    if (!r2) throw new Error("PHOTOS binding missing");
+    for (let i = 0; i < r2Keys.length; i += R2_DELETE_BATCH) {
+      await r2.delete(r2Keys.slice(i, i + R2_DELETE_BATCH));
     }
+  } catch (err) {
+    filesRemoved = false;
+    console.error("[admin/gallery-photos] R2 delete failed:", err);
   }
 
   // Photos still in the Supabase bucket, from before the move to R2. Their

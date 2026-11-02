@@ -187,7 +187,9 @@ export default async function GalleryPage() {
                           <img
                             src={photo.sources.src}
                             srcSet={photo.sources.srcSet}
-                            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                            // Square crops of mostly portrait photos, so the
+                            // 480 copy covers a phone tile without stretching.
+                            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 40vw"
                             alt={photo.caption || section.title}
                             loading="lazy"
                             decoding="async"

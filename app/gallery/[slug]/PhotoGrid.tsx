@@ -28,11 +28,13 @@ export interface GridPhoto {
 const ROW_H = [110, 170, 220];
 
 /**
- * How wide a Rows tile shows, for the browser to pick a copy. A tile grows
- * past its basis to fill the row, hence the quarter on top.
+ * How wide a Rows tile shows, for the browser to pick a copy. A tile can grow
+ * a little past this to fill its row. Not counted on purpose: on a phone that
+ * keeps most landscape tiles on the 480 copy instead of the 1200 one, at four
+ * times the data, for a stretch nobody sees.
  */
 export function rowSizes(ratio: number): string {
-  const [phone, tablet, desktop] = ROW_H.map((h) => Math.ceil(ratio * h * 1.25));
+  const [phone, tablet, desktop] = ROW_H.map((h) => Math.ceil(ratio * h));
   return `(max-width: 639px) ${phone}px, (max-width: 1023px) ${tablet}px, ${desktop}px`;
 }
 
@@ -103,13 +105,16 @@ export default function PhotoGrid({ photos, view, onViewChange, selecting, selec
 
   const ratioOf = (i: number) => photos[i].ratio || measured[i] || 2 / 3;
 
-  const remember = (i: number) => (e: React.SyntheticEvent<HTMLImageElement>) => {
-    if (photos[i].ratio || measured[i]) return;
-    const img = e.currentTarget;
-    if (img.naturalWidth && img.naturalHeight) {
-      setMeasured((m) => ({ ...m, [i]: img.naturalWidth / img.naturalHeight }));
+  const measure = (i: number, img: HTMLImageElement | null) => {
+    if (!img || photos[i].ratio || measured[i]) return;
+    if (img.complete && img.naturalWidth && img.naturalHeight) {
+      setMeasured((m) => (m[i] ? m : { ...m, [i]: img.naturalWidth / img.naturalHeight }));
     }
   };
+  const remember = (i: number) => (e: React.SyntheticEvent<HTMLImageElement>) => measure(i, e.currentTarget);
+  // A cached photo can finish loading before React hydrates, and React does
+  // not replay that load event, so check on mount as well.
+  const measureOnMount = (i: number) => (img: HTMLImageElement | null) => measure(i, img);
 
   const tick = (on: boolean, small: boolean) =>
     selecting && (
@@ -161,6 +166,7 @@ export default function PhotoGrid({ photos, view, onViewChange, selecting, selec
                   height={Math.round(600 / ratioOf(index))}
                   loading="lazy"
                   decoding="async"
+                  ref={measureOnMount(index)}
                   onLoad={remember(index)}
                   className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -194,6 +200,7 @@ export default function PhotoGrid({ photos, view, onViewChange, selecting, selec
                   alt={alt(index)}
                   loading="lazy"
                   decoding="async"
+                  ref={measureOnMount(index)}
                   onLoad={remember(index)}
                   className={`absolute inset-0 w-full h-full object-cover ${on ? "opacity-80" : ""}`}
                 />

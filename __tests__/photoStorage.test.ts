@@ -79,6 +79,15 @@ describe("photoSources", () => {
     expect(config).toMatch(/connect-src[^`]*\$\{PHOTOS_ORIGIN\}/);
   });
 
+  it("the service worker leaves other origins, R2 photos included, to the network", () => {
+    // An old worker fetching them would hold them to its own, older CSP.
+    const sw = readFileSync("public/sw.js", "utf8");
+    const skip = sw.indexOf("new URL(request.url).origin !== self.location.origin) return;");
+    expect(skip).toBeGreaterThan(-1);
+    expect(skip).toBeLessThan(sw.indexOf("event.respondWith"));
+    expect(sw).not.toContain('"tsakani-v3"');
+  });
+
   it("the Worker has the bucket bound as PHOTOS", () => {
     const wrangler = readFileSync("wrangler.jsonc", "utf8");
     expect(wrangler).toMatch(/"binding":\s*"PHOTOS",\s*"bucket_name":\s*"tsakani-photos"/);
@@ -95,8 +104,13 @@ describe("making the smaller copies on the phone", () => {
 });
 
 describe("Rows view tile sizes", () => {
-  it("tell the browser each tile's width at every row height, with room to grow", () => {
-    expect(rowSizes(0.75)).toBe("(max-width: 639px) 104px, (max-width: 1023px) 160px, 207px");
-    expect(rowSizes(1.5)).toBe("(max-width: 639px) 207px, (max-width: 1023px) 319px, 413px");
+  it("tell the browser each tile's width at every row height", () => {
+    expect(rowSizes(0.75)).toBe("(max-width: 639px) 83px, (max-width: 1023px) 128px, 165px");
+    expect(rowSizes(1.5)).toBe("(max-width: 639px) 165px, (max-width: 1023px) 255px, 330px");
+  });
+
+  it("keep a 4:3 landscape tile on a 3x phone on the 480 copy", () => {
+    const phone = Number(rowSizes(4 / 3).match(/639px\) (\d+)px/)![1]);
+    expect(phone * 3).toBeLessThanOrEqual(SM_WIDTH);
   });
 });

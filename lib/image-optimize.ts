@@ -182,14 +182,21 @@ export async function photoCopies(
         made.set(target, null);
         continue;
       }
-      for (const w of downscaleSteps(srcW, target)) {
-        src = draw(src, w);
-        srcW = w;
+      // A canvas can fail on a phone short of memory. The photo still goes
+      // up with its size, and the server stands it in for the missing copy.
+      try {
+        for (const w of downscaleSteps(srcW, target)) {
+          src = draw(src, w);
+          srcW = w;
+        }
+        const blob = await new Promise<Blob | null>((resolve) =>
+          (src as HTMLCanvasElement).toBlob(resolve, "image/jpeg", target <= 600 ? 0.78 : 0.82)
+        );
+        made.set(target, blob);
+      } catch (err) {
+        console.warn(`Could not make the ${target} px copy:`, err);
+        made.set(target, null);
       }
-      const blob = await new Promise<Blob | null>((resolve) =>
-        (src as HTMLCanvasElement).toBlob(resolve, "image/jpeg", target <= 600 ? 0.78 : 0.82)
-      );
-      made.set(target, blob);
     }
   } finally {
     bitmap.close();
