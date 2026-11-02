@@ -135,10 +135,6 @@ export default function TermsPage() {
             If you appear in photos or videos taken at our events and want
             them removed, email us and we&apos;ll take them down.
           </p>
-          <p className="mt-3">
-            Find me is for finding photos of yourself. Don&apos;t use it with a
-            photo of anyone else.
-          </p>
         </section>
 
         <section>

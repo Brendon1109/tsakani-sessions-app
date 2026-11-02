@@ -1,9 +1,8 @@
 // The one Supabase project this site talks to. connect-src used to allow
 // https://*.supabase.co, which is any project, including one an attacker set
-// up, so an injected script could have sent data there. Find me promises a
-// selfie never leaves the device, so the browser is held to this host only.
-// Read from the build env (.env.production), with the production ref as the
-// fallback. See legal/tsakani-find-my-photos-popia-2026-11-02.md in Breazy.
+// up, so an injected script could have sent data there. The browser is held to
+// this host only. Read from the build env (.env.production), with the
+// production ref as the fallback.
 const SUPABASE_ORIGIN = (() => {
   try {
     return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "").origin;

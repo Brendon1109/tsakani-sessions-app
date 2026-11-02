@@ -55,8 +55,8 @@ export default function PrivacyPage() {
             <li>
               <strong>Galleries you open</strong>, saved against your account when you
               are signed in. See{" "}
-              <a href="#find-my-photos" className="text-gold-500 hover:text-gold-400 underline">
-                event galleries and Find me
+              <a href="#galleries" className="text-gold-500 hover:text-gold-400 underline">
+                event galleries
               </a>
               .
             </li>
@@ -353,10 +353,10 @@ export default function PrivacyPage() {
           </ul>
         </section>
 
-        {/* Wording from legal/tsakani-find-my-photos-popia-2026-11-02.md in Breazy. */}
-        <section id="find-my-photos" className="scroll-mt-24">
+        {/* Wording from legal/tsakani-find-my-photos-popia-2026-11-02.md in Breazy, Find me removed 2 November 2026. */}
+        <section id="galleries" className="scroll-mt-24">
           <h2 className="text-xl font-semibold text-white mb-3">
-            Event galleries and Find me
+            Event galleries
           </h2>
           <p>
             Our event photos are at tsakanisessions.co.za/gallery. You sign in with
@@ -384,85 +384,6 @@ export default function PrivacyPage() {
               down.
             </li>
           </ul>
-
-          <h3 className="font-semibold text-white mt-5 mb-2">What Find me is</h3>
-          <p>
-            Find me helps you spot photos of yourself in a gallery. It uses face
-            recognition, and POPIA treats face recognition as biometric information,
-            a special kind of personal information. So it only runs after you tap
-            &ldquo;I agree, find me&rdquo;, and you can always scroll the full
-            gallery instead.
-          </p>
-
-          <h3 className="font-semibold text-white mt-5 mb-2">How it works</h3>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>You take or pick a selfie.</li>
-            <li>
-              Your device downloads a face recognition model from our own site, about
-              5 MB.
-            </li>
-            <li>
-              On your device, the model turns your selfie into a face scan, which is a
-              list of numbers that describes a face. It does the same for each face in
-              that gallery&rsquo;s photos. Then it compares them and shows you the
-              photos that look like you.
-            </li>
-          </ul>
-
-          <h3 className="font-semibold text-white mt-5 mb-2">What reaches us</h3>
-          <p>
-            Nothing about your face. Your selfie, the face scans and which photos
-            matched are never sent to us or to anyone else, never saved on a server
-            and never logged. They stay in your browser&rsquo;s memory and are gone
-            when you close or leave the page. We keep no database of faces.
-          </p>
-          <p className="mt-3">
-            Our event tracking counts that Find me was used, the same way it counts
-            other taps. That count holds no image, no face scan and no results. See{" "}
-            <a href="#analytics" className="text-gold-500 hover:text-gold-400 underline">
-              how we count visits
-            </a>
-            .
-          </p>
-
-          <h3 className="font-semibold text-white mt-5 mb-2">
-            Other people in the photos
-          </h3>
-          <p>
-            When someone uses Find me, their device also makes a face scan of the
-            other people in that gallery&rsquo;s photos, so it can compare them.
-            Those scans stay on that person&rsquo;s device, are never saved and are
-            gone when the page closes. They are only used to check whether a face
-            looks like the person searching, and never to name anyone.
-          </p>
-          <p className="mt-3">
-            If you&rsquo;re in our photos and don&rsquo;t want to be found this way,
-            tell us. We&rsquo;ll leave those photos out of Find me, or take them down
-            if you prefer.
-          </p>
-
-          <h3 className="font-semibold text-white mt-5 mb-2">Using it fairly</h3>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>Find me is for people aged 18 and over.</li>
-            <li>
-              Only use a selfie of yourself. Using it to look for someone else is not
-              allowed.
-            </li>
-            <li>
-              It isn&rsquo;t perfect. Dark lighting, masks and face paint make it miss
-              photos, and it can show someone who just looks like you.
-            </li>
-          </ul>
-
-          <h3 className="font-semibold text-white mt-5 mb-2">
-            Why we&rsquo;re allowed to do this
-          </h3>
-          <p>
-            Your consent, under section 27(1)(a) of POPIA. Saying no changes nothing
-            else, and the full gallery is still there. To stop, close Find me or
-            leave the page. There is nothing for us to delete, because we never had
-            it.
-          </p>
         </section>
 
         <section>
