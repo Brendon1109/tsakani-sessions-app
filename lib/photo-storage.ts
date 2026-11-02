@@ -75,11 +75,14 @@ export function photoSources(photo: StoredPhoto, legacyUrl: () => string): Photo
     const full = r2Url(photo.storage_path);
     const md = r2Url(`md/${photo.storage_path}`);
     const sm = r2Url(`sm/${photo.storage_path}`);
-    const fullW = photo.width && photo.width > MD_WIDTH ? photo.width : 2048;
+    // The full photo is only offered where it has more pixels than the md
+    // copy. A photo no wider than MD_WIDTH has an md copy as wide as itself,
+    // at a third of the bytes, so a desktop lightbox should never fetch it.
+    const bigger = !photo.width ? `, ${full} 2048w` : photo.width > MD_WIDTH ? `, ${full} ${photo.width}w` : "";
     return {
       src: sm,
       srcSet: `${sm} ${SM_WIDTH}w, ${md} ${MD_WIDTH}w`,
-      bigSrcSet: `${sm} ${SM_WIDTH}w, ${md} ${MD_WIDTH}w, ${full} ${fullW}w`,
+      bigSrcSet: `${sm} ${SM_WIDTH}w, ${md} ${MD_WIDTH}w${bigger}`,
       full,
       // Its own address, because R2 sends no Vary: Origin. Without it the
       // browser could answer Save's CORS fetch with the copy it cached while

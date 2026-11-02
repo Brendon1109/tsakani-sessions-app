@@ -53,6 +53,12 @@ describe("photoSources", () => {
     expect(s.download).not.toBe(s.full);
   });
 
+  it("never offers the full photo when the md copy is already as wide", () => {
+    const s = photoSources({ storage_path: PATH, storage: "r2", width: 1152 }, legacy);
+    expect(s.bigSrcSet).toBe(s.srcSet);
+    expect(s.bigSrcSet).not.toContain(`${PHOTOS_ORIGIN}/${PATH} `);
+  });
+
   it("guesses the full photo at 2048 wide when the row has no width", () => {
     const s = photoSources({ storage_path: PATH, storage: "r2", width: null }, legacy);
     expect(s.bigSrcSet.endsWith(`${PHOTOS_ORIGIN}/${PATH} 2048w`)).toBe(true);
