@@ -618,6 +618,9 @@ export default function PrivacyPage() {
             </a>{" "}
             for any privacy-related requests.
           </p>
+          <p className="mt-3">
+            Our address is 8 Moringa Way, Pinelands, Cape Town, 7405.
+          </p>
         </section>
 
         <section className="pt-4 border-t border-white/10">
