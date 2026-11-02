@@ -64,7 +64,7 @@ export default function TermsPage() {
             <li>
               A reserved ticket is only <strong>confirmed</strong> once payment
               has reached us. Free tickets are confirmed as soon as they&apos;re
-              booked &mdash; there is nothing to pay.
+              booked, so there is nothing to pay.
             </li>
             <li>
               Payment is made through the payment link on your confirmation, or
@@ -146,8 +146,8 @@ export default function TermsPage() {
             Privacy and marketing
           </h2>
           <p>
-            How we handle your personal information &mdash; and how you can
-            opt out of marketing &mdash; is set out in our{" "}
+            How we handle your personal information, and how you can opt out of
+            marketing, is set out in our{" "}
             <Link
               href="/privacy"
               className="text-gold-500 hover:text-gold-400 underline"
