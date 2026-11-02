@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Upload, Image as ImageIcon, X, Loader2, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
-import { optimizePhoto, formatBytes, type OptimizedImage } from "@/lib/image-optimize";
+import { Upload, Image as ImageIcon, Loader2, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
+import { compressPhoto, formatBytes } from "@/lib/image-optimize";
 
 interface Gallery {
   id: string;
@@ -31,19 +31,25 @@ function eventLabel(e: EventOption): string {
   return `${e.title.trim()}, ${day}`;
 }
 
-interface ProcessedFile extends OptimizedImage {
+interface QueuedPhoto {
   id: string;
-  name: string;
-  status: "ready" | "uploading" | "done" | "error";
+  /** The picked file. iOS keeps it on disk until it is read, so holding it costs nothing. */
+  file: File;
+  status: "waiting" | "working" | "done" | "error";
   error?: string;
 }
+
+/** Two photos in flight at once: quick on a phone, light on its memory. */
+const PARALLEL = 2;
 
 export default function AdminGalleryPage() {
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [selectedGalleryId, setSelectedGalleryId] = useState("");
-  const [files, setFiles] = useState<ProcessedFile[]>([]);
-  const [optimizing, setOptimizing] = useState(false);
+  const [queue, setQueue] = useState<QueuedPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [lastPreview, setLastPreview] = useState<string | null>(null);
+  const stopRef = useRef(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [driveUrl, setDriveUrl] = useState("");
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
@@ -151,126 +157,108 @@ export default function AdminGalleryPage() {
     await patchGallery({ drive_url: driveUrl });
   }
 
-  async function handleFiles(newFiles: FileList | null) {
+  function handleFiles(newFiles: FileList | null) {
     if (!newFiles || newFiles.length === 0) return;
-    setOptimizing(true);
-
-    const imageFiles = Array.from(newFiles).filter((f) =>
-      f.type.startsWith("image/")
-    );
-
-    const processed: ProcessedFile[] = [];
-    for (const f of imageFiles) {
-      try {
-        const optimized = await optimizePhoto(f);
-        processed.push({
-          ...optimized,
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          name: f.name,
-          status: "ready",
-        });
-      } catch (err) {
-        console.error("Optimize failed:", err);
-        processed.push({
-          file: f,
-          originalSize: f.size,
-          optimizedSize: f.size,
-          preview: URL.createObjectURL(f),
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          name: f.name,
-          status: "error",
-          error: "Optimization failed — will upload original",
-        });
-      }
-    }
-
-    setFiles((prev) => [...prev, ...processed]);
-    setOptimizing(false);
+    // Only list the photos here. Nothing is read or compressed until upload,
+    // one at a time, so a few hundred photos never sit in memory together.
+    const picked = Array.from(newFiles)
+      .filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name))
+      .map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        status: "waiting" as const,
+      }));
+    setQueue((prev) => [...prev, ...picked]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function removeFile(id: string) {
-    setFiles((prev) => {
-      const file = prev.find((f) => f.id === id);
-      if (file) URL.revokeObjectURL(file.preview);
-      return prev.filter((f) => f.id !== id);
+  function showPreview(file: File) {
+    setLastPreview((old) => {
+      if (old) URL.revokeObjectURL(old);
+      return URL.createObjectURL(file);
     });
+  }
+
+  function setStatus(id: string, status: QueuedPhoto["status"], error?: string) {
+    setQueue((prev) => prev.map((q) => (q.id === id ? { ...q, status, error } : q)));
+  }
+
+  async function sendOne(galleryId: string, file: File): Promise<string | null> {
+    const formData = new FormData();
+    formData.append("gallery_id", galleryId);
+    formData.append("files", file, file.name);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch("/api/gallery/upload", { method: "POST", body: formData });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.uploaded > 0) return null;
+        if (res.status === 401 || res.status === 403) return "Signed out, sign in again";
+        if (attempt === 1) return data.error || "Upload failed";
+      } catch {
+        if (attempt === 1) return "Network error";
+      }
+    }
+    return "Upload failed";
   }
 
   async function uploadAll() {
-    if (!selectedGalleryId || files.length === 0) return;
+    const galleryId = selectedGalleryId;
+    const todo = queue.filter((q) => q.status === "waiting" || q.status === "error");
+    if (!galleryId || todo.length === 0) return;
     setUploading(true);
+    stopRef.current = false;
 
-    // Upload in small parallel batches (3 at a time) to avoid overwhelming
-    const batchSize = 3;
-    for (let i = 0; i < files.length; i += batchSize) {
-      const batch = files.slice(i, i + batchSize);
-      await Promise.all(batch.map(uploadOne));
-    }
+    let next = 0;
+    const worker = async () => {
+      while (!stopRef.current && next < todo.length) {
+        const item = todo[next++];
+        setStatus(item.id, "working");
+        let file: File;
+        try {
+          file = await compressPhoto(item.file);
+        } catch (err) {
+          console.error("Compress failed:", err);
+          setStatus(item.id, "error", "Could not read this photo");
+          continue;
+        }
+        const error = await sendOne(galleryId, file);
+        if (error) {
+          setStatus(item.id, "error", error);
+          if (error.startsWith("Signed out")) stopRef.current = true;
+        } else {
+          setStatus(item.id, "done");
+          setUploadedBytes((b) => b + file.size);
+          showPreview(file);
+        }
+      }
+    };
 
+    await Promise.all(Array.from({ length: PARALLEL }, worker));
     setUploading(false);
   }
 
-  async function uploadOne(file: ProcessedFile) {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === file.id ? { ...f, status: "uploading" } : f))
-    );
-
-    const formData = new FormData();
-    formData.append("gallery_id", selectedGalleryId);
-    formData.append("files", file.file, file.file.name);
-
-    try {
-      const res = await fetch("/api/gallery/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (res.ok) {
-        setFiles((prev) =>
-          prev.map((f) => (f.id === file.id ? { ...f, status: "done" } : f))
-        );
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.id === file.id
-              ? { ...f, status: "error", error: data.error || "Upload failed" }
-              : f
-          )
-        );
-      }
-    } catch {
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.id === file.id ? { ...f, status: "error", error: "Network error" } : f
-        )
-      );
-    }
-  }
-
-  function clearDone() {
-    setFiles((prev) => {
-      prev.filter((f) => f.status === "done").forEach((f) =>
-        URL.revokeObjectURL(f.preview)
-      );
-      return prev.filter((f) => f.status !== "done");
+  function clearList() {
+    setQueue([]);
+    setUploadedBytes(0);
+    setLastPreview((old) => {
+      if (old) URL.revokeObjectURL(old);
+      return null;
     });
   }
 
-  const totalOriginal = files.reduce((s, f) => s + f.originalSize, 0);
-  const totalOptimized = files.reduce((s, f) => s + f.optimizedSize, 0);
-  const savings = totalOriginal > 0 ? 1 - totalOptimized / totalOriginal : 0;
-
-  const readyCount = files.filter((f) => f.status === "ready").length;
-  const doneCount = files.filter((f) => f.status === "done").length;
-  const errorCount = files.filter((f) => f.status === "error").length;
+  const total = queue.length;
+  const doneCount = queue.filter((q) => q.status === "done").length;
+  const errorCount = queue.filter((q) => q.status === "error").length;
+  const leftCount = queue.filter((q) => q.status === "waiting" || q.status === "error").length;
+  const pickedBytes = queue.reduce((s, q) => s + q.file.size, 0);
+  const failed = queue.filter((q) => q.status === "error");
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold">Gallery Management</h1>
         <p className="text-gray-400 mt-1">
-          Upload event photos — auto-optimized to web quality before saving
+          Upload event photos, compressed to web quality on your phone before saving
         </p>
       </div>
 
@@ -504,142 +492,91 @@ export default function AdminGalleryPage() {
         </p>
       </div>
 
-      {optimizing && (
-        <div className="mt-4 bg-gold-500/5 border border-gold-500/20 rounded-xl p-4 flex items-center gap-3">
-          <Loader2 size={18} className="text-gold-500 animate-spin" />
-          <p className="text-sm text-gray-300">
-            Optimizing photos in your browser... no server involved
-          </p>
-        </div>
-      )}
-
-      {files.length > 0 && (
-        <div className="mt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      {total > 0 && (
+        <div className="mt-6 bg-dark-500 border border-white/10 rounded-2xl p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-semibold">
-                {files.length} photo{files.length !== 1 ? "s" : ""} ready
-                {doneCount > 0 && (
-                  <span className="text-green-400 text-sm ml-2">
-                    ({doneCount} uploaded)
-                  </span>
-                )}
-                {errorCount > 0 && (
-                  <span className="text-red-400 text-sm ml-2">
-                    ({errorCount} failed)
-                  </span>
-                )}
+                {doneCount} of {total} photo{total !== 1 ? "s" : ""} uploaded
               </h3>
-              {savings > 0 && (
-                <p className="text-xs text-gray-400 mt-1">
-                  {formatBytes(totalOriginal)} → {formatBytes(totalOptimized)}{" "}
-                  <span className="text-gold-500">
-                    ({Math.round(savings * 100)}% smaller)
-                  </span>
-                </p>
-              )}
+              <p className="text-xs text-gray-400 mt-1">
+                {formatBytes(pickedBytes)} picked
+                {uploadedBytes > 0 && <>, {formatBytes(uploadedBytes)} after compressing</>}
+              </p>
             </div>
             <div className="flex gap-2">
-              {doneCount > 0 && (
+              {!uploading && (
                 <button
-                  onClick={clearDone}
+                  onClick={clearList}
                   className="text-sm text-gray-400 hover:text-white border border-white/10 px-4 py-2 rounded-lg transition-colors"
                 >
-                  Clear uploaded
+                  Clear
                 </button>
               )}
-              <button
-                onClick={uploadAll}
-                disabled={uploading || !selectedGalleryId || readyCount === 0}
-                className="bg-gold-gradient text-black font-semibold px-6 py-2.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload size={16} />
-                    Upload {readyCount} photo{readyCount !== 1 ? "s" : ""}
-                  </>
-                )}
-              </button>
+              {uploading ? (
+                <button
+                  onClick={() => (stopRef.current = true)}
+                  className="text-sm text-white border border-white/20 px-4 py-2 rounded-lg inline-flex items-center gap-2"
+                >
+                  <Loader2 size={14} className="animate-spin" />
+                  Pause
+                </button>
+              ) : (
+                <button
+                  onClick={uploadAll}
+                  disabled={!selectedGalleryId || leftCount === 0}
+                  className="bg-gold-gradient text-black font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Upload size={16} />
+                  {errorCount > 0 && leftCount === errorCount ? "Retry" : "Upload"} {leftCount}
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-            {files.map((file) => (
-              <div
-                key={file.id}
-                className={`relative aspect-square rounded-xl overflow-hidden border-2 group ${
-                  file.status === "done"
-                    ? "border-green-500/40"
-                    : file.status === "error"
-                    ? "border-red-500/40"
-                    : file.status === "uploading"
-                    ? "border-gold-500/40"
-                    : "border-white/10"
-                }`}
-              >
-                <Image
-                  src={file.preview}
-                  alt={file.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
-                  unoptimized
-                />
-
-                {file.status === "uploading" && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <Loader2 size={28} className="text-gold-500 animate-spin" />
-                  </div>
-                )}
-
-                {file.status === "done" && (
-                  <div className="absolute top-2 left-2 bg-green-500 text-white rounded-full p-1">
-                    <CheckCircle2 size={14} />
-                  </div>
-                )}
-
-                {file.status !== "done" && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFile(file.id);
-                    }}
-                    className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label={`Remove ${file.name}`}
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2">
-                  <p className="text-[10px] text-white truncate">
-                    {formatBytes(file.optimizedSize)}
-                    {file.originalSize !== file.optimizedSize && (
-                      <span className="text-gray-400">
-                        {" "}(was {formatBytes(file.originalSize)})
-                      </span>
-                    )}
-                  </p>
-                  {file.error && (
-                    <p className="text-[9px] text-red-400 truncate">{file.error}</p>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+            <div
+              className="h-full bg-gold-gradient transition-all"
+              style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }}
+            />
           </div>
+
+          {uploading && (
+            <p className="text-xs text-amber-400">
+              Keep this screen open and your phone awake until it finishes. Pause and Upload carry on where it stopped.
+            </p>
+          )}
+
+          {lastPreview && (
+            <div className="flex items-center gap-3">
+              <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-green-500/40 shrink-0">
+                <Image src={lastPreview} alt="Last uploaded photo" fill className="object-cover" sizes="64px" unoptimized />
+              </div>
+              <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-green-400" />
+                Last photo uploaded
+              </p>
+            </div>
+          )}
+
+          {failed.length > 0 && !uploading && (
+            <div className="text-xs text-red-400 space-y-1">
+              <p>{failed.length} did not upload. Tap Retry to try them again.</p>
+              {failed.slice(0, 5).map((q) => (
+                <p key={q.id} className="truncate text-gray-500">
+                  {q.file.name}: {q.error}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {files.length === 0 && (
+      {total === 0 && (
         <div className="mt-10 bg-dark-500 border border-white/10 rounded-xl p-8 text-center">
           <ImageIcon size={32} className="text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">
-            Drop photos to start. They&apos;ll be compressed locally before upload.
+            Pick as many photos as you like. Each one is compressed on your phone and uploaded one by one.
           </p>
         </div>
       )}

@@ -55,6 +55,23 @@ export async function optimizePhoto(
   };
 }
 
+/**
+ * The same compression as optimizePhoto, returning only the file, with no
+ * preview URL, so a long upload queue holds nothing it does not need.
+ */
+export async function compressPhoto(file: File): Promise<File> {
+  if (file.size < 200 * 1024 && file.type === "image/jpeg") return file;
+  const compressed = await imageCompression(file, {
+    maxSizeMB: 1,
+    maxWidthOrHeight: 2048,
+    useWebWorker: true,
+    fileType: "image/jpeg",
+    initialQuality: 0.85,
+  });
+  const cleanName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+  return new File([compressed], cleanName, { type: "image/jpeg", lastModified: Date.now() });
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
