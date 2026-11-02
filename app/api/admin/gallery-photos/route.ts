@@ -6,6 +6,7 @@ import { sortPhotos } from "@/lib/photo-order";
  * The photos in one gallery, for the admin.
  *
  *   GET     ?gallery_id=<uuid>   every photo, in capture order (lib/photo-order.ts)
+ *   PATCH   { ids, find_me_excluded }  leave photos out of Find me, or put them back
  *   DELETE  { ids: uuid[] }      removes the rows and their files in storage
  *
  * Admins only. RLS agrees: "Admins manage photos" on gallery_photos and
@@ -44,11 +45,46 @@ export async function GET(request: NextRequest) {
 
   const bucket = supabase.storage.from("gallery-photos");
   return NextResponse.json(
-    sortPhotos((data as { id: string; storage_path: string; created_at: string }[]) || []).map((p) => ({
+    sortPhotos(
+      (data as { id: string; storage_path: string; created_at: string; find_me_excluded?: boolean }[]) || []
+    ).map((p) => ({
       id: p.id,
       url: bucket.getPublicUrl(p.storage_path).data.publicUrl,
+      find_me_excluded: !!p.find_me_excluded,
     }))
   );
+}
+
+function validIds(ids: unknown): ids is string[] {
+  return (
+    Array.isArray(ids) &&
+    ids.length > 0 &&
+    ids.length <= MAX_DELETE &&
+    ids.every((id) => typeof id === "string" && UUID_RE.test(id))
+  );
+}
+
+export async function PATCH(request: NextRequest) {
+  const { supabase, ok } = await requireAdmin();
+  if (!supabase) return NextResponse.json({ error: "Not configured" }, { status: 503 });
+  if (!ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const body = await request.json().catch(() => ({}));
+  if (!validIds(body.ids) || typeof body.find_me_excluded !== "boolean") {
+    return NextResponse.json({ error: "ids and find_me_excluded required" }, { status: 400 });
+  }
+  const { error } = await supabase
+    .from("gallery_photos")
+    .update({ find_me_excluded: body.find_me_excluded })
+    .in("id", body.ids);
+  if (error) {
+    const missing = /find_me_excluded/.test(error.message);
+    return NextResponse.json(
+      { error: missing ? "Find me is not set up yet. Run supabase/find_me.sql first." : error.message },
+      { status: 500 }
+    );
+  }
+  return NextResponse.json({ updated: body.ids.length });
 }
 
 export async function DELETE(request: NextRequest) {

@@ -73,11 +73,13 @@ export default async function GallerySlugPage({
       caption: string | null;
       width: number | null;
       height: number | null;
+      find_me_excluded?: boolean | null;
     }[]
   ).map((p) => ({
     url: p.url,
     caption: p.caption || undefined,
     ratio: p.width && p.height ? p.width / p.height : undefined,
+    findMeExcluded: !!p.find_me_excluded,
   }));
 
   return (
@@ -87,6 +89,7 @@ export default async function GallerySlugPage({
       description={data.gallery.description}
       date={data.event?.date ? eventDateShort(data.event.date) : null}
       photos={photos}
+      findMe={!!(data.gallery as { find_me_enabled?: boolean }).find_me_enabled}
     />
   );
 }

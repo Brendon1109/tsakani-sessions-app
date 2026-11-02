@@ -1,3 +1,17 @@
+// The one Supabase project this site talks to. connect-src used to allow
+// https://*.supabase.co, which is any project, including one an attacker set
+// up, so an injected script could have sent data there. Find me promises a
+// selfie never leaves the device, so the browser is held to this host only.
+// Read from the build env (.env.production), with the production ref as the
+// fallback. See legal/tsakani-find-my-photos-popia-2026-11-02.md in Breazy.
+const SUPABASE_ORIGIN = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "").origin;
+  } catch {
+    return "https://gryssobrndqukwnjyosf.supabase.co";
+  }
+})();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -97,7 +111,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com https://i.ytimg.com",
               "font-src 'self' https://fonts.gstatic.com",
               "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.tiktok.com https://www.instagram.com",
-              "connect-src 'self' https://*.supabase.co",
+              `connect-src 'self' ${SUPABASE_ORIGIN}`,
             ].join("; "),
           },
         ],
