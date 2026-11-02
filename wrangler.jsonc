@@ -38,9 +38,10 @@
     "crons": ["0 3 * * *"]
   },
   // Declared here rather than in the dashboard so it ships with the code.
-  // app/api/e/route.ts reads it to decide which edge headers to trust, and
-  // its upstream copy still defaults to vercel when it is unset. Do not also
-  // set it as a secret.
+  // app/api/e/route.ts reads it to decide which edge headers to trust. This
+  // copy defaults to cloudflare since 2 November 2026, but the shared upstream
+  // copy defaults to vercel, so keep it set here. Do not also set it as a
+  // secret.
   "vars": {
     "BZ_PLATFORM": "cloudflare"
   },

@@ -33,7 +33,7 @@ yarn-error.log*
 # .claude/settings.json (shared, no secrets) stays committable; this one never is.
 .claude/settings.local.json
 
-# vercel
+# vercel: a local `vercel` CLI folder, kept out of git (one exists in the main checkout)
 .vercel
 
 # cloudflare workers (OpenNext build output, wrangler state, local secrets)
@@ -63,4 +63,3 @@ supabase/.temp/
 signups-*.csv
 supabase/.branches/
 
-.vercel
