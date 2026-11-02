@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Upload, Image as ImageIcon, X, Loader2, CheckCircle2, Eye, EyeOff, Save, ExternalLink } from "lucide-react";
+import { Upload, Image as ImageIcon, X, Loader2, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
 import { optimizePhoto, formatBytes, type OptimizedImage } from "@/lib/image-optimize";
 
 interface Gallery {
@@ -12,6 +12,23 @@ interface Gallery {
   event_id: string | null;
   is_public: boolean;
   drive_url: string;
+  event_title: string | null;
+}
+
+interface EventOption {
+  id: string;
+  title: string;
+  date: string;
+}
+
+function eventLabel(e: EventOption): string {
+  const day = new Date(e.date).toLocaleDateString("en-ZA", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Africa/Johannesburg",
+  });
+  return `${e.title.trim()}, ${day}`;
 }
 
 interface ProcessedFile extends OptimizedImage {
@@ -30,12 +47,19 @@ export default function AdminGalleryPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [driveUrl, setDriveUrl] = useState("");
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+  const [events, setEvents] = useState<EventOption[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newEventId, setNewEventId] = useState("");
+  const [createMessage, setCreateMessage] = useState<string | null>(null);
+  const [savingNew, setSavingNew] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedGallery = galleries.find((g) => g.id === selectedGalleryId);
 
   useEffect(() => {
     loadGalleries();
+    loadEvents();
   }, []);
 
   useEffect(() => {
@@ -54,7 +78,49 @@ export default function AdminGalleryPage() {
     }
   }
 
-  async function patchGallery(patch: { is_public?: boolean; drive_url?: string }) {
+  async function loadEvents() {
+    const res = await fetch("/api/admin/events");
+    if (res.ok) {
+      const data = (await res.json()) as EventOption[];
+      setEvents(data.map((e) => ({ id: e.id, title: e.title, date: e.date })));
+    }
+  }
+
+  async function createGallery() {
+    if (!newTitle.trim()) {
+      setCreateMessage("Give the gallery a title");
+      return;
+    }
+    setSavingNew(true);
+    setCreateMessage(null);
+    try {
+      const res = await fetch("/api/admin/galleries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle, event_id: newEventId || null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCreateMessage(data.error || "Could not create the gallery");
+        return;
+      }
+      setCreating(false);
+      setNewTitle("");
+      setNewEventId("");
+      await loadGalleries();
+      setSelectedGalleryId(data.id);
+    } finally {
+      setSavingNew(false);
+    }
+  }
+
+  function pickNewEvent(id: string) {
+    setNewEventId(id);
+    const ev = events.find((e) => e.id === id);
+    if (ev && !newTitle.trim()) setNewTitle(ev.title.trim());
+  }
+
+  async function patchGallery(patch: { is_public?: boolean; drive_url?: string; event_id?: string | null }) {
     if (!selectedGallery) return;
     setSavingSettings(true);
     setSettingsMessage(null);
@@ -218,15 +284,82 @@ export default function AdminGalleryPage() {
           className="w-full sm:w-96 bg-dark-500 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:border-gold-500 focus:outline-none transition-colors"
         >
           {galleries.length === 0 ? (
-            <option value="">No galleries found — create an event first</option>
+            <option value="">No galleries yet, create one below</option>
           ) : (
             galleries.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.title}
+                {g.is_public ? "" : " (hidden)"}
               </option>
             ))
           )}
         </select>
+
+        {!creating ? (
+          <button
+            type="button"
+            onClick={() => {
+              setCreating(true);
+              setCreateMessage(null);
+            }}
+            className="mt-3 text-sm text-gold-500 hover:text-gold-400 inline-flex items-center gap-1.5"
+          >
+            <Plus size={14} />
+            New gallery
+          </button>
+        ) : (
+          <div className="mt-4 bg-dark-500 border border-gold-500/20 rounded-2xl p-5 space-y-4 sm:w-96">
+            <h2 className="font-bold">New gallery</h2>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1.5">Event (optional)</label>
+              <select
+                value={newEventId}
+                onChange={(e) => pickNewEvent(e.target.value)}
+                className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-gold-500 focus:outline-none"
+              >
+                <option value="">Not linked to an event</option>
+                {events.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {eventLabel(e)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1.5">Title</label>
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                maxLength={120}
+                placeholder="Tsakani Spring Cleaning"
+                className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-gold-500 focus:outline-none"
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              New galleries start hidden. Turn on Public visibility once the photos are in.
+            </p>
+            {createMessage && <p className="text-xs text-amber-400">{createMessage}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={createGallery}
+                disabled={savingNew}
+                className="bg-gold-gradient text-black font-semibold px-4 py-2 rounded-lg inline-flex items-center gap-1.5 hover:opacity-90 disabled:opacity-40"
+              >
+                {savingNew ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreating(false)}
+                className="text-sm text-gray-400 hover:text-white border border-white/10 px-4 py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectedGallery && (
@@ -271,6 +404,26 @@ export default function AdminGalleryPage() {
                 }`}
               />
             </button>
+          </div>
+
+          <div className="pb-5 border-b border-white/5">
+            <label className="block text-sm font-semibold mb-1.5">Linked event</label>
+            <p className="text-xs text-gray-500 mb-2">
+              The event these photos are from.
+            </p>
+            <select
+              value={selectedGallery.event_id || ""}
+              onChange={(e) => patchGallery({ event_id: e.target.value || null })}
+              disabled={savingSettings}
+              className="w-full bg-dark-300 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-gold-500 focus:outline-none disabled:opacity-50"
+            >
+              <option value="">Not linked to an event</option>
+              {events.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {eventLabel(e)}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

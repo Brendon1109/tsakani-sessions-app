@@ -2,7 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Cron endpoint: marks finished events as past and closes their ticket sales.
+ * Cron endpoint: marks finished events as past, closes their ticket sales,
+ * and gives every past event a hidden gallery (supabase/event_galleries.sql).
  *
  * The public site already hides finished events from the upcoming lists on
  * its own, via isEventPast() in lib/date.ts, which applies a 04:00
@@ -78,12 +79,14 @@ async function handle(request: NextRequest) {
     events_marked_past?: number;
     slugs?: string[];
     tickets_closed?: number;
+    galleries_created?: number;
   };
 
   return NextResponse.json({
     events_marked_past: result.events_marked_past ?? 0,
     slugs: result.slugs ?? [],
     tickets_closed: result.tickets_closed ?? 0,
+    galleries_created: result.galleries_created ?? 0,
     timestamp: new Date().toISOString(),
   });
 }
