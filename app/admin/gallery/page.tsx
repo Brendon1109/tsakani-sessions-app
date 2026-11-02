@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Upload, Image as ImageIcon, Loader2, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
-import { compressPhoto, formatBytes } from "@/lib/image-optimize";
+import { Upload, Image as ImageIcon, Loader2, Stamp, Trash2, Star, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
+import { compressPhoto, formatBytes, loadLogo } from "@/lib/image-optimize";
 
 interface Gallery {
   id: string;
@@ -31,6 +31,23 @@ function eventLabel(e: EventOption): string {
   return `${e.title.trim()}, ${day}`;
 }
 
+interface Logo {
+  id: string;
+  name: string;
+  src: string;
+  is_default: boolean;
+}
+
+const BRAND_KEY = "tsakani-gallery-brand";
+
+/** Ships with the site, so branding works even if the logo library cannot load. */
+const BUILT_IN_LOGO: Logo = {
+  id: "built-in",
+  name: "Tsakani Sessions, white",
+  src: "/branding/tsakani-sessions-logo.png",
+  is_default: true,
+};
+
 interface QueuedPhoto {
   id: string;
   /** The picked file. iOS keeps it on disk until it is read, so holding it costs nothing. */
@@ -50,6 +67,13 @@ export default function AdminGalleryPage() {
   const [uploadedBytes, setUploadedBytes] = useState(0);
   const [lastPreview, setLastPreview] = useState<string | null>(null);
   const stopRef = useRef(false);
+  const [logos, setLogos] = useState<Logo[]>([]);
+  const [logoId, setLogoId] = useState("");
+  const [brandOn, setBrandOn] = useState(true);
+  const [logoMessage, setLogoMessage] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const chosenLogo = logos.find((l) => l.id === logoId) || null;
   const [savingSettings, setSavingSettings] = useState(false);
   const [driveUrl, setDriveUrl] = useState("");
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
@@ -66,6 +90,10 @@ export default function AdminGalleryPage() {
   useEffect(() => {
     loadGalleries();
     loadEvents();
+    loadLogos();
+    try {
+      if (localStorage.getItem(BRAND_KEY) === "off") setBrandOn(false);
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -81,6 +109,63 @@ export default function AdminGalleryPage() {
       if (data.length > 0 && !selectedGalleryId) {
         setSelectedGalleryId(data[0].id);
       }
+    }
+  }
+
+  async function loadLogos(select?: string) {
+    const res = await fetch("/api/admin/gallery-logos").catch(() => null);
+    const listed = res?.ok ? ((await res.json()) as Logo[]) : [];
+    const data = listed.length > 0 ? listed : [BUILT_IN_LOGO];
+    setLogos(data);
+    setLogoId((cur) => {
+      if (select) return select;
+      if (cur && data.some((l) => l.id === cur)) return cur;
+      return data.find((l) => l.is_default)?.id || data[0]?.id || "";
+    });
+  }
+
+  function setBrand(on: boolean) {
+    setBrandOn(on);
+    try {
+      localStorage.setItem(BRAND_KEY, on ? "on" : "off");
+    } catch {}
+  }
+
+  async function addLogo(file: File | undefined) {
+    if (!file) return;
+    setLogoBusy(true);
+    setLogoMessage(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/gallery-logos", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLogoMessage(data.error || "Could not add the logo");
+        return;
+      }
+      await loadLogos(data.id);
+    } finally {
+      setLogoBusy(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  }
+
+  async function logoAction(method: "PATCH" | "DELETE", id: string) {
+    if (method === "DELETE" && !confirm("Delete this logo? Photos already branded keep it.")) return;
+    setLogoBusy(true);
+    setLogoMessage(null);
+    try {
+      const res = await fetch("/api/admin/gallery-logos", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setLogoMessage(data.error || "That did not work");
+      await loadLogos();
+    } finally {
+      setLogoBusy(false);
     }
   }
 
@@ -205,6 +290,17 @@ export default function AdminGalleryPage() {
     const galleryId = selectedGalleryId;
     const todo = queue.filter((q) => q.status === "waiting" || q.status === "error");
     if (!galleryId || todo.length === 0) return;
+
+    let logo: HTMLImageElement | null = null;
+    if (brandOn && chosenLogo) {
+      try {
+        logo = await loadLogo(chosenLogo.src);
+      } catch {
+        setLogoMessage("Could not load the logo, so nothing was uploaded. Try again or switch branding off.");
+        return;
+      }
+    }
+
     setUploading(true);
     stopRef.current = false;
 
@@ -215,7 +311,7 @@ export default function AdminGalleryPage() {
         setStatus(item.id, "working");
         let file: File;
         try {
-          file = await compressPhoto(item.file);
+          file = await compressPhoto(item.file, logo);
         } catch (err) {
           console.error("Compress failed:", err);
           setStatus(item.id, "error", "Could not read this photo");
@@ -461,6 +557,116 @@ export default function AdminGalleryPage() {
           )}
         </div>
       )}
+
+      <div className="bg-dark-500 border border-white/10 rounded-2xl p-5 sm:p-6 mb-6 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm mb-0.5 flex items-center gap-2">
+              <Stamp size={14} className={brandOn ? "text-gold-500" : "text-gray-500"} />
+              Add logo to photos
+            </p>
+            <p className="text-xs text-gray-500">
+              {brandOn
+                ? "Every photo you upload gets the logo below, bottom centre."
+                : "Photos upload as they are, with no logo."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBrand(!brandOn)}
+            disabled={uploading}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+              brandOn ? "bg-green-500" : "bg-white/10"
+            } ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
+            aria-label="Add logo to photos"
+            role="switch"
+            aria-checked={brandOn}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                brandOn ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        {brandOn && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {logos.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setLogoId(l.id)}
+                  disabled={uploading}
+                  aria-pressed={l.id === logoId}
+                  className={`relative rounded-xl border-2 p-3 text-left transition-colors bg-gradient-to-br from-zinc-700 to-zinc-900 ${
+                    l.id === logoId ? "border-gold-500" : "border-white/10 hover:border-white/30"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={l.src} alt={l.name} className="h-16 w-full object-contain" />
+                  <p className="mt-2 text-[11px] text-gray-300 truncate">{l.name}</p>
+                  {l.is_default && (
+                    <span className="absolute top-1.5 right-1.5 text-[10px] bg-gold-500 text-black font-semibold px-1.5 py-0.5 rounded">
+                      Default
+                    </span>
+                  )}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoBusy || uploading}
+                className="rounded-xl border-2 border-dashed border-white/15 hover:border-gold-500/40 p-3 flex flex-col items-center justify-center gap-1 text-xs text-gray-400 min-h-[104px] disabled:opacity-50"
+              >
+                {logoBusy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                Add a logo
+              </button>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/webp"
+                className="hidden"
+                onChange={(e) => addLogo(e.target.files?.[0])}
+              />
+            </div>
+
+            {chosenLogo && !uploading && (
+              <div className="flex flex-wrap gap-2">
+                {!chosenLogo.is_default && (
+                  <button
+                    type="button"
+                    onClick={() => logoAction("PATCH", chosenLogo.id)}
+                    disabled={logoBusy}
+                    className="text-xs border border-white/10 hover:border-gold-500/40 text-gray-300 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+                  >
+                    <Star size={12} />
+                    Make default
+                  </button>
+                )}
+                {!chosenLogo.is_default && (
+                  <button
+                    type="button"
+                    onClick={() => logoAction("DELETE", chosenLogo.id)}
+                    disabled={logoBusy}
+                    className="text-xs border border-white/10 hover:border-red-500/40 text-gray-400 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
+                )}
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500">
+              Use a PNG with a transparent background, under 2 MB. The default logo is picked every time you open this page.
+            </p>
+          </>
+        )}
+
+        {logoMessage && <p className="text-xs text-amber-400">{logoMessage}</p>}
+      </div>
 
       <div
         onDrop={(e) => {
