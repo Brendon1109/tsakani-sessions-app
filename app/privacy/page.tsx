@@ -35,20 +35,20 @@ export default function PrivacyPage() {
           </h2>
           <ul className="list-disc pl-5 space-y-2">
             <li>
-              <strong>Contact details</strong> &mdash; name, email address, and
+              <strong>Contact details</strong>: name, email address, and
               phone number when you place an order, buy a ticket, book a
               service, or sign up for updates.
             </li>
             <li>
-              <strong>Order and event details</strong> &mdash; the items,
+              <strong>Order and event details</strong>: the items,
               tickets, or services you purchase and any notes you include.
             </li>
             <li>
-              <strong>Basic technical data</strong> &mdash; IP address and
+              <strong>Basic technical data</strong>: IP address and
               device info used for security (rate limits, CAPTCHA).
             </li>
             <li>
-              <strong>How the site is used</strong> &mdash; which pages are
+              <strong>How the site is used</strong>: which pages are
               opened and how long they are on screen. This is set out in full in
               the next section, and you can turn it off there.
             </li>
@@ -472,8 +472,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-2">
             <li>To process and confirm your orders, tickets, and bookings.</li>
             <li>
-              To send you marketing about upcoming events and new merch drops
-              &mdash;{" "}
+              To send you marketing about upcoming events and new merch drops,{" "}
               <strong>only if you tick the relevant consent box</strong> when
               you sign up.
             </li>
@@ -512,24 +511,24 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc pl-5 space-y-2 mt-2">
             <li>
-              <strong>Supabase</strong> &mdash; database and authentication.
+              <strong>Supabase</strong>: database and authentication.
             </li>
             <li>
-              <strong>Cloudflare</strong> &mdash; website hosting, so it
+              <strong>Cloudflare</strong>: website hosting, so it
               carries everything you send us through the site. It also hosts
               Breazy Analytics, the second of the two visit counting systems
               described above.
             </li>
             <li>
-              <strong>Resend</strong> &mdash; sending order confirmation and
+              <strong>Resend</strong>: sending order confirmation and
               marketing emails.
             </li>
             <li>
-              <strong>Cloudflare Turnstile</strong> &mdash; bot/CAPTCHA
+              <strong>Cloudflare Turnstile</strong>: bot/CAPTCHA
               protection on forms.
             </li>
             <li>
-              <strong>WhatsApp (Meta)</strong> &mdash; customer communication
+              <strong>WhatsApp (Meta)</strong>: customer communication
               and order confirmation.
             </li>
           </ul>
