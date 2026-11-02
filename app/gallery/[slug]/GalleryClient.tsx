@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Share2, QrCode, ArrowLeft } from "lucide-react";
+import { Share2, QrCode, ArrowLeft, CheckSquare, Check, X } from "lucide-react";
 import Link from "next/link";
 import Lightbox from "@/components/Lightbox";
 import QRCodeDisplay from "@/components/QRCodeDisplay";
+import SavePhotosButton from "@/components/SavePhotosButton";
+import { MAX_SAVE, photoFileName } from "@/lib/photo-download";
 
 interface GalleryClientProps {
   slug: string;
@@ -24,6 +26,29 @@ export default function GalleryClient({
 }: GalleryClientProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [showQR, setShowQR] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<number[]>([]);
+  const atLimit = selected.length >= MAX_SAVE;
+
+  function toggle(index: number) {
+    setSelected((prev) =>
+      prev.includes(index)
+        ? prev.filter((i) => i !== index)
+        : prev.length >= MAX_SAVE
+          ? prev
+          : [...prev, index]
+    );
+  }
+
+  function stopSelecting() {
+    setSelecting(false);
+    setSelected([]);
+  }
+
+  const selectedPhotos = () =>
+    [...selected]
+      .sort((a, b) => a - b)
+      .map((i) => ({ url: photos[i].url, name: photoFileName(title, i) }));
 
   const galleryUrl =
     typeof window !== "undefined"
@@ -65,7 +90,16 @@ export default function GalleryClient({
                 <p className="text-gray-500 text-sm mt-2">{description}</p>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {photos.length > 0 && (
+                <button
+                  onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+                  className="flex items-center gap-2 border border-white/10 text-gray-300 hover:text-gold-500 hover:border-gold-500/30 px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  {selecting ? <X size={16} /> : <CheckSquare size={16} />}
+                  {selecting ? "Cancel" : "Select to save"}
+                </button>
+              )}
               <button
                 onClick={() => setShowQR(!showQR)}
                 className="flex items-center gap-2 border border-white/10 text-gray-300 hover:text-gold-500 hover:border-gold-500/30 px-4 py-2 rounded-lg text-sm transition-colors"
@@ -108,12 +142,27 @@ export default function GalleryClient({
             </div>
           ) : (
             <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
-              {photos.map((photo, index) => (
+              {photos.map((photo, index) => {
+                const on = selected.includes(index);
+                return (
                 <button
                   key={index}
-                  onClick={() => setLightboxIndex(index)}
-                  className="block w-full break-inside-avoid rounded-xl overflow-hidden border border-white/5 hover:border-gold-500/30 transition-colors group"
+                  onClick={() => (selecting ? toggle(index) : setLightboxIndex(index))}
+                  aria-pressed={selecting ? on : undefined}
+                  aria-label={selecting ? `Select photo ${index + 1}` : `Open photo ${index + 1}`}
+                  className={`relative block w-full break-inside-avoid rounded-xl overflow-hidden border-2 transition-colors group ${
+                    on ? "border-gold-500" : "border-white/5 hover:border-gold-500/30"
+                  }`}
                 >
+                  {selecting && (
+                    <span
+                      className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center border-2 ${
+                        on ? "bg-gold-500 border-gold-500 text-black" : "bg-black/40 border-white/70"
+                      }`}
+                    >
+                      {on && <Check size={16} />}
+                    </span>
+                  )}
                   <Image
                     src={photo.url}
                     alt={photo.caption || `Photo ${index + 1}`}
@@ -122,14 +171,36 @@ export default function GalleryClient({
                     className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </section>
 
+      {selecting && (
+        <div className="fixed bottom-0 inset-x-0 z-50 bg-dark-500/95 backdrop-blur border-t border-white/10 px-4 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <p className="text-sm text-gray-300">
+              {selected.length === 0
+                ? "Tap the photos you want"
+                : `${selected.length} selected${atLimit ? `, ${MAX_SAVE} at a time` : ""}`}
+            </p>
+            {selected.length > 0 && (
+              <SavePhotosButton
+                photos={selectedPhotos}
+                zipName={`${photoFileName(title, 0).replace(/-001\.jpg$/, "")}.zip`}
+                label={`Save ${selected.length}`}
+                className="bg-gold-gradient text-black font-semibold px-5 py-2.5 rounded-lg inline-flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {lightboxIndex !== null && (
         <Lightbox
+          fileBase={title}
           images={photos}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
