@@ -81,14 +81,18 @@ export default function Lightbox({
 
   const current = images[currentIndex];
 
-  // Fetch the photos either side the way the viewer will ask for them, so a
-  // swipe shows the next one at once. The same img stays mounted, so the old
-  // photo stays up until the new one has loaded rather than flashing black.
-  useEffect(() => {
+  // Once the photo on screen has loaded, fetch the ones either side the way
+  // the viewer will ask for them, so a swipe shows the next one at once.
+  // Photos still on Supabase are skipped, each would cost the Worker a resize.
+  // The same img stays mounted, so the old photo stays up until the new one
+  // has loaded rather than flashing black.
+  const preloadNeighbours = useCallback(() => {
     if (images.length < 2) return;
     for (const i of [currentIndex + 1, currentIndex - 1 + images.length]) {
       const next = images[i % images.length];
+      if (next.src.startsWith("/_next/image")) continue;
       const pre = new window.Image();
+      pre.setAttribute("fetchpriority", "low");
       pre.sizes = "100vw";
       pre.srcset = next.bigSrcSet;
       pre.src = next.src;
@@ -154,6 +158,7 @@ export default function Lightbox({
           sizes="100vw"
           alt={current.caption || `Photo ${currentIndex + 1}`}
           decoding="async"
+          onLoad={preloadNeighbours}
           className="max-w-full max-h-full object-contain"
         />
       </div>

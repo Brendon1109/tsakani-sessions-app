@@ -18,8 +18,12 @@ const PRECACHE_URLS = [
 ];
 
 self.addEventListener("install", (event) => {
+  // One at a time and allowed to fail: with addAll a single page answering
+  // 503 would fail the whole install and leave the visitor on the old worker.
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)))
+    )
   );
   self.skipWaiting();
 });

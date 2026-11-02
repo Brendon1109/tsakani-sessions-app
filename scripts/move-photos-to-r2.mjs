@@ -10,11 +10,13 @@
  * The Supabase copy stays as a backup. Safe to re-run, a moved row is skipped.
  *
  *   SUPABASE_ACCESS_TOKEN=... CLOUDFLARE_API_TOKEN=... node scripts/move-photos-to-r2.mjs [--flip] [--gallery <slug>]
- *   SUPABASE_ACCESS_TOKEN=... CLOUDFLARE_API_TOKEN=... node scripts/move-photos-to-r2.mjs --sweep
+ *   SUPABASE_ACCESS_TOKEN=... CLOUDFLARE_API_TOKEN=... node scripts/move-photos-to-r2.mjs --sweep [--yes]
  *
- * --sweep deletes every R2 object that belongs to no gallery_photos row, for
- * example the copies of a photo deleted after it was copied but before its
- * row was flipped. Run it after any interrupted move.
+ * --sweep lists the gallery files in R2 that belong to no gallery_photos row,
+ * for example the copies of a photo deleted after it was copied but before
+ * its row was flipped, and with --yes deletes them. Files under an hour old
+ * are left alone, because an upload writes its files before its row. Run it
+ * after any interrupted move.
  *
  * SUPABASE_ACCESS_TOKEN is a personal access token for the Management API.
  * CLOUDFLARE_API_TOKEN needs R2 write on the personal account, and the
@@ -91,8 +93,8 @@ async function remove(key) {
   if (!res.ok && res.status !== 404) throw new Error(`R2 delete ${key}: ${res.status}`);
 }
 
-async function listKeys() {
-  const keys = [];
+async function listObjects() {
+  const objects = [];
   let cursor = "";
   do {
     const res = await fetch(`${R2_API}?per_page=1000${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, {
@@ -100,10 +102,10 @@ async function listKeys() {
     });
     const j = await res.json().catch(() => null);
     if (!res.ok || !j?.success) throw new Error(`R2 list: ${res.status} ${JSON.stringify(j?.errors)}`);
-    keys.push(...j.result.map((o) => o.key));
+    objects.push(...j.result.map((o) => ({ key: o.key, modified: Date.parse(o.last_modified) })));
     cursor = j.result_info?.is_truncated ? j.result_info.cursor : "";
   } while (cursor);
-  return keys;
+  return objects;
 }
 
 /** Does the public address serve this image, at this size? */
@@ -126,15 +128,26 @@ async function inParallel(items, n, fn) {
 }
 
 if (sweep) {
-  const rows = await sql("select storage_path from public.gallery_photos");
-  if (rows.length === 0) {
-    console.error("No gallery_photos rows came back, so nothing is swept. Check by hand.");
+  const yes = process.argv.includes("--yes");
+  // R2 first, rows second, so a file listed here was written before the rows
+  // were read. An upload caught in between is covered by the hour below.
+  const objects = await listObjects();
+  // The count rides on every row, from the same snapshot, so a short result
+  // is caught rather than taken as photos that no longer exist.
+  const rows = await sql("select storage_path, count(*) over () as total from public.gallery_photos");
+  if (rows.length === 0 || rows.length !== Number(rows[0].total)) {
+    console.error(`Rows came back short (${rows.length} of ${rows[0]?.total ?? "?"}), so nothing is swept.`);
     process.exit(1);
   }
   const wanted = new Set(rows.flatMap((r) => keysOf(r.storage_path)));
-  const orphans = (await listKeys()).filter((k) => !wanted.has(k));
-  await inParallel(orphans, 8, remove);
-  console.log(`swept ${orphans.length} R2 objects with no row${orphans.length ? `:\n  ${orphans.join("\n  ")}` : ""}`);
+  const hourAgo = Date.now() - 3600 * 1000;
+  const orphans = objects
+    .filter((o) => /^(md\/|sm\/)?galleries\//.test(o.key) && !wanted.has(o.key) && o.modified < hourAgo)
+    .map((o) => o.key);
+  if (orphans.length > 0 && yes) await inParallel(orphans, 8, remove);
+  const what = orphans.length === 0 ? "" : yes ? ", deleted" : ", run again with --yes to delete them";
+  console.log(`${orphans.length} gallery files in R2 with no row${what}`);
+  for (const k of orphans) console.log(`  ${k}`);
   process.exit(0);
 }
 

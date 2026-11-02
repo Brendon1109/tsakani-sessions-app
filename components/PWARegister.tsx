@@ -12,14 +12,15 @@ export default function PWARegister() {
       return;
     }
 
-    // When a new worker takes over a page an older one started, reload once
-    // so nothing on the page is left with the old worker's failures. Workers
-    // installed while the site was on Vercel block the gallery photos on R2
-    // (public/sw.js). Not on /admin, where a reload would drop an upload queue.
+    // When a new worker takes over a gallery page an older one started, reload
+    // it once. Workers installed while the site was on Vercel block the
+    // gallery photos on R2 (public/sw.js), so the photos it already asked for
+    // show broken. Gallery pages only: anywhere else a reload could wipe a
+    // ticket form, a confirmation or an upload queue.
     const hadController = !!navigator.serviceWorker.controller;
     let reloaded = false;
     const onChange = () => {
-      if (!hadController || reloaded || window.location.pathname.startsWith("/admin")) return;
+      if (!hadController || reloaded || !window.location.pathname.startsWith("/gallery")) return;
       reloaded = true;
       window.location.reload();
     };
