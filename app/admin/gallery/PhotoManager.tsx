@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Loader2, Trash2, X, CheckSquare, EyeOff } from "lucide-react";
+import { Check, Loader2, Trash2, X, CheckSquare } from "lucide-react";
 
 interface Photo {
   id: string;
   url: string;
-  find_me_excluded?: boolean;
 }
 
 /** Enough to scroll through, few enough that a phone only loads what it shows. */
@@ -67,35 +66,6 @@ export default function PhotoManager({
       else visible.forEach((p) => next.add(p.id));
       return next;
     });
-  }
-
-  async function setFindMe(ids: string[], excluded: boolean) {
-    if (ids.length === 0) return;
-    setDeleting(true);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/admin/gallery-photos", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, find_me_excluded: excluded }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage(data.error || "Could not save");
-        return;
-      }
-      const set = new Set(ids);
-      setPhotos((prev) => prev.map((p) => (set.has(p.id) ? { ...p, find_me_excluded: excluded } : p)));
-      setSelected(new Set());
-      setSelecting(false);
-      setMessage(
-        excluded
-          ? `${ids.length} left out of Find me. They still show in the gallery.`
-          : `${ids.length} back in Find me.`
-      );
-    } finally {
-      setDeleting(false);
-    }
   }
 
   async function remove(ids: string[]) {
@@ -163,24 +133,6 @@ export default function PhotoManager({
             {selecting && (
               <button
                 type="button"
-                onClick={() => {
-                  const ids = [...selected];
-                  const allOut = ids.every((id) => photos.find((p) => p.id === id)?.find_me_excluded);
-                  setFindMe(ids, !allOut);
-                }}
-                disabled={selected.size === 0 || deleting}
-                className="text-sm text-gray-200 border border-white/15 px-3 py-2 rounded-lg inline-flex items-center gap-1.5 disabled:opacity-40"
-              >
-                <EyeOff size={14} />
-                {selected.size > 0 &&
-                [...selected].every((id) => photos.find((p) => p.id === id)?.find_me_excluded)
-                  ? "Put back in Find me"
-                  : "Leave out of Find me"}
-              </button>
-            )}
-            {selecting && (
-              <button
-                type="button"
                 onClick={() => remove([...selected])}
                 disabled={selected.size === 0 || deleting}
                 className="text-sm bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-2 rounded-lg inline-flex items-center gap-1.5 disabled:opacity-40"
@@ -219,14 +171,6 @@ export default function PhotoManager({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </button>
-              {p.find_me_excluded && (
-                <span
-                  className="pointer-events-none absolute bottom-1.5 left-1.5 bg-black/70 text-white rounded-full p-1"
-                  title="Left out of Find me"
-                >
-                  <EyeOff size={12} />
-                </span>
-              )}
               {selecting ? (
                 <span
                   className={`pointer-events-none absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center border-2 ${

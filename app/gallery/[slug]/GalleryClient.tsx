@@ -8,7 +8,6 @@ import QRCodeDisplay from "@/components/QRCodeDisplay";
 import SavePhotosButton from "@/components/SavePhotosButton";
 import { MAX_SAVE, photoFileName } from "@/lib/photo-download";
 import PhotoGrid, { VIEWS, type GalleryView, type GridPhoto } from "./PhotoGrid";
-import FindMe from "./FindMe";
 
 const VIEW_KEY = "tsakani-gallery-view";
 
@@ -23,9 +22,7 @@ interface GalleryClientProps {
   title: string;
   description: string | null;
   date: string | null;
-  photos: (GridPhoto & { findMeExcluded?: boolean })[];
-  /** Admin switched Find me on for this gallery. */
-  findMe?: boolean;
+  photos: GridPhoto[];
 }
 
 export default function GalleryClient({
@@ -34,7 +31,6 @@ export default function GalleryClient({
   description,
   date,
   photos,
-  findMe = false,
 }: GalleryClientProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [showQR, setShowQR] = useState(false);
@@ -42,10 +38,6 @@ export default function GalleryClient({
   const [selected, setSelected] = useState<number[]>([]);
   const atLimit = selected.length >= MAX_SAVE;
   const [view, setView] = useState<GalleryView>("rows");
-  // Find me results: indexes into photos, in memory only, gone on reload.
-  const [matches, setMatches] = useState<number[] | null>(null);
-  const shownIdx = matches ?? photos.map((_, i) => i);
-  const shown = shownIdx.map((i) => photos[i]);
 
   useEffect(() => {
     try {
@@ -122,15 +114,6 @@ export default function GalleryClient({
               )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              {findMe && photos.length > 0 && (
-                <FindMe
-                  photos={photos.map((p) => ({ url: p.url, skip: p.findMeExcluded }))}
-                  onFound={(found) => {
-                    setMatches(found);
-                    setSelected([]);
-                  }}
-                />
-              )}
               {photos.length > 0 && (
                 <button
                   onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
@@ -156,17 +139,6 @@ export default function GalleryClient({
               </button>
             </div>
           </div>
-
-          {findMe && (
-            <p className="text-xs text-gray-500 mb-6 -mt-4">
-              Guests can find their own photos here with face recognition on their own phones. Don&rsquo;t want
-              that for a photo of you?{" "}
-              <a href="/privacy#find-my-photos" className="text-gold-500 hover:text-gold-400 underline">
-                Tell us
-              </a>
-              .
-            </p>
-          )}
 
           {showQR && (
             <div className="mb-8 bg-dark-500 border border-white/10 rounded-2xl p-6 w-fit">
@@ -215,32 +187,13 @@ export default function GalleryClient({
                 </div>
                 <p className="text-[11px] text-gray-500 sm:hidden">Pinch to change</p>
               </div>
-              {matches && (
-                <div className="mb-4 bg-gold-500/10 border border-gold-500/30 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm">
-                    {matches.length === 0
-                      ? "We did not spot you this time. Scroll the full gallery, Find me misses photos."
-                      : `Found you in ${matches.length} photo${matches.length === 1 ? "" : "s"}. Tap Select to save them.`}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMatches(null);
-                      setSelected([]);
-                    }}
-                    className="text-sm text-gold-500 hover:text-gold-400 underline"
-                  >
-                    Show all photos
-                  </button>
-                </div>
-              )}
               <PhotoGrid
-                photos={shown}
+                photos={photos}
                 view={view}
                 onViewChange={changeView}
                 selecting={selecting}
-                selected={selected.map((i) => shownIdx.indexOf(i)).filter((k) => k >= 0)}
-                onTap={(k) => (selecting ? toggle(shownIdx[k]) : setLightboxIndex(k))}
+                selected={selected}
+                onTap={(index) => (selecting ? toggle(index) : setLightboxIndex(index))}
               />
             </>
           )}
@@ -270,7 +223,7 @@ export default function GalleryClient({
       {lightboxIndex !== null && (
         <Lightbox
           fileBase={title}
-          images={shown}
+          images={photos}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
         />

@@ -1,5 +1,10 @@
 -- Find me, the on device face match on event galleries. 2 November 2026.
 --
+-- REMOVED the same day: the app no longer reads or writes either column.
+-- They are left in place, unused and harmless. To drop them:
+--   alter table public.galleries drop column if exists find_me_enabled;
+--   alter table public.gallery_photos drop column if exists find_me_excluded;
+--
 -- Legal basis and every rule behind these two columns:
 -- legal/tsakani-find-my-photos-popia-2026-11-02.md in Brendon's Breazy repo.
 --

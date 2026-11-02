@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Upload, Image as ImageIcon, Loader2, Stamp, Trash2, Star, ScanFace, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
+import { Upload, Image as ImageIcon, Loader2, Stamp, Trash2, Star, CheckCircle2, Eye, EyeOff, Save, ExternalLink, Plus } from "lucide-react";
 import { compressPhoto, formatBytes, loadLogo } from "@/lib/image-optimize";
 import PhotoManager from "./PhotoManager";
 import { readTakenAt } from "@/lib/taken-at";
@@ -15,7 +15,6 @@ interface Gallery {
   is_public: boolean;
   drive_url: string;
   event_title: string | null;
-  find_me_enabled: boolean;
 }
 
 interface EventOption {
@@ -215,12 +214,7 @@ export default function AdminGalleryPage() {
     if (ev && !newTitle.trim()) setNewTitle(ev.title.trim());
   }
 
-  async function patchGallery(patch: {
-    is_public?: boolean;
-    drive_url?: string;
-    event_id?: string | null;
-    find_me_enabled?: boolean;
-  }) {
+  async function patchGallery(patch: { is_public?: boolean; drive_url?: string; event_id?: string | null }) {
     if (!selectedGallery) return;
     setSavingSettings(true);
     setSettingsMessage(null);
@@ -506,37 +500,6 @@ export default function AdminGalleryPage() {
               <span
                 className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
                   selectedGallery.is_public ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-start justify-between gap-4 pb-5 border-b border-white/5">
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm mb-0.5 flex items-center gap-2">
-                <ScanFace size={14} className={selectedGallery.find_me_enabled ? "text-gold-500" : "text-gray-500"} />
-                Find me
-              </p>
-              <p className="text-xs text-gray-500">
-                {selectedGallery.find_me_enabled
-                  ? "Guests can find their own photos here with a selfie, on their own phone."
-                  : "Off. Switch on only for events where guests were told about Find me on the night."}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => patchGallery({ find_me_enabled: !selectedGallery.find_me_enabled })}
-              disabled={savingSettings}
-              className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-                selectedGallery.find_me_enabled ? "bg-green-500" : "bg-white/10"
-              } ${savingSettings ? "opacity-50 cursor-not-allowed" : ""}`}
-              aria-label="Find me"
-              role="switch"
-              aria-checked={selectedGallery.find_me_enabled}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                  selectedGallery.find_me_enabled ? "translate-x-6" : "translate-x-1"
                 }`}
               />
             </button>

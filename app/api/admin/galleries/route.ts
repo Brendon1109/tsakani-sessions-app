@@ -24,9 +24,8 @@ async function requireAdmin() {
   return { supabase, user: profile?.role === "admin" ? user : null };
 }
 
-// "*" so optional columns (drive_url, find_me_enabled) come back when the
-// migration that adds them has run, and are simply absent when it has not.
-const SELECT_WITH_DRIVE = "*, event:events(title)";
+const SELECT_WITH_DRIVE =
+  "id, slug, title, event_id, is_public, drive_url, event:events(title)";
 const SELECT_WITHOUT_DRIVE =
   "id, slug, title, event_id, is_public, event:events(title)";
 
@@ -56,7 +55,6 @@ export async function GET() {
     event_id: string | null;
     is_public: boolean;
     drive_url?: string | null;
-    find_me_enabled?: boolean | null;
     event: { title: string } | null;
   };
   const normalized = ((data as unknown as Row[]) || []).map((g) => ({
@@ -65,7 +63,6 @@ export async function GET() {
     event_id: g.event_id,
     is_public: !!g.is_public,
     drive_url: g.drive_url || "",
-    find_me_enabled: !!g.find_me_enabled,
     title: g.title,
     event_title: g.event?.title?.trim() || null,
   }));
@@ -84,7 +81,6 @@ export async function PATCH(request: NextRequest) {
 
   const updates: Record<string, unknown> = {};
   if (typeof is_public === "boolean") updates.is_public = is_public;
-  if (typeof body.find_me_enabled === "boolean") updates.find_me_enabled = body.find_me_enabled;
   if (typeof drive_url === "string") updates.drive_url = drive_url.trim() || null;
   if ("event_id" in body) {
     const parsed = parseEventId(body.event_id);
@@ -110,12 +106,6 @@ export async function PATCH(request: NextRequest) {
       ok: true,
       warning: "drive_url not saved — run the supabase/add_gallery_drive_url.sql migration",
     });
-  }
-  if (primary.error && /find_me_enabled/.test(primary.error.message)) {
-    return NextResponse.json(
-      { error: "Find me is not set up yet. Run supabase/find_me.sql first." },
-      { status: 500 },
-    );
   }
   if (primary.error) return NextResponse.json({ error: primary.error.message }, { status: 500 });
 
