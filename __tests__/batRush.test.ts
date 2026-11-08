@@ -30,7 +30,7 @@ import {
 } from "@/lib/bat-rush/rounds";
 import { decodeCarry, encodeCarry } from "@/lib/bat-rush/carry";
 import { safeRedirectPath } from "@/lib/safe-redirect";
-import { batRushBannerScript, isBatRushBannerOn } from "@/lib/bat-rush/banner";
+import { batRushBannerScript, isBatRushBannerOn, isBatRushBannerOver } from "@/lib/bat-rush/banner";
 import { csvCell, playersCsv } from "@/lib/bat-rush/csv";
 import { adminBoard } from "@/lib/bat-rush/admin";
 
@@ -329,6 +329,13 @@ describe("home page banner window", () => {
     expect(isBatRushBannerOn(at("2026-10-31T12:00:00+02:00"))).toBe(true);
     expect(isBatRushBannerOn(at("2026-11-01T05:59:59+02:00"))).toBe(true);
     expect(isBatRushBannerOn(at("2026-11-01T06:00:00+02:00"))).toBe(false);
+  });
+
+  it("leaves the HTML once the window has closed, and only then", () => {
+    expect(isBatRushBannerOver(at("2026-10-30T20:00:00+02:00"))).toBe(false);
+    expect(isBatRushBannerOver(at("2026-11-01T05:59:59+02:00"))).toBe(false);
+    expect(isBatRushBannerOver(at("2026-11-01T06:00:00+02:00"))).toBe(true);
+    expect(isBatRushBannerOver(at("2026-11-08T12:00:00+02:00"))).toBe(true);
   });
 
   it("the head script sets the attribute only inside the window", () => {

@@ -15,5 +15,17 @@ export function isBatRushBannerOn(now: number): boolean {
   return now >= BAT_RUSH_BANNER_START && now < BAT_RUSH_BANNER_END;
 }
 
+/**
+ * True once the window has closed for good. From then the home page does not
+ * render the banner at all, so it leaves the HTML as well as the screen. The
+ * script below only hides it, which left "Bat Rush is live" in the page for
+ * anything that reads the HTML without the CSS: search engines, link previews,
+ * text readers. The script still hides it on a copy rendered before the end,
+ * such as the one the service worker keeps.
+ */
+export function isBatRushBannerOver(now: number = Date.now()): boolean {
+  return now >= BAT_RUSH_BANNER_END;
+}
+
 // Inline in <head>, so it must stay plain ES5 with no imports.
 export const batRushBannerScript = `(function(){var n=Date.now();if(n>=${BAT_RUSH_BANNER_START}&&n<${BAT_RUSH_BANNER_END})document.documentElement.setAttribute("data-bat-rush","on")})()`;
