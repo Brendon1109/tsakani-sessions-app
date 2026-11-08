@@ -90,7 +90,7 @@ console.log(
 // --- Newsletter sign-ups ----------------------------------------------------
 let subsQuery = db
   .from("newsletter_subscribers")
-  .select("email, source, is_active, consent_events, consent_merch, subscribed_at")
+  .select("email, source, is_active, consent_events, consent_merch, share_partners, subscribed_at")
   .order("subscribed_at", { ascending: false });
 if (since) subsQuery = subsQuery.gte("subscribed_at", since);
 
@@ -104,6 +104,7 @@ const subRows = subs.map((s) => ({
   active: s.is_active,
   wants_events: s.consent_events,
   wants_merch: s.consent_merch,
+  share_partners: s.share_partners,
 }));
 
 console.log(`\n=== NEWSLETTER SIGN-UPS (${subRows.length}${days ? `, last ${days} days` : ""}) ===`);

@@ -10,6 +10,9 @@ export default function NewsletterForm() {
   const [email, setEmail] = useState("");
   const [consentEvents, setConsentEvents] = useState(false);
   const [consentMerch, setConsentMerch] = useState(false);
+  // Sharing with partners is a separate consent under POPIA, unticked until
+  // the visitor ticks it, and signing up without it shares nothing.
+  const [sharePartners, setSharePartners] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -35,6 +38,7 @@ export default function NewsletterForm() {
           email,
           consent_events: consentEvents,
           consent_merch: consentMerch,
+          share_partners: sharePartners,
           captcha_token: captchaToken,
         }),
       });
@@ -49,11 +53,13 @@ export default function NewsletterForm() {
       track("newsletter_submit", {
         events: consentEvents,
         merch: consentMerch,
+        partners: sharePartners,
       });
       setMessage({ kind: "ok", text: "You're in. Thanks for signing up." });
       setEmail("");
       setConsentEvents(false);
       setConsentMerch(false);
+      setSharePartners(false);
       setCaptchaToken("");
     } catch {
       setMessage({ kind: "err", text: "Something went wrong. Check your connection." });
@@ -121,6 +127,21 @@ export default function NewsletterForm() {
         </label>
       </fieldset>
 
+      {/* Not one of the topics above, and not needed to sign up. */}
+      <label className="flex items-start gap-2.5 cursor-pointer group pt-1">
+        <input
+          type="checkbox"
+          checked={sharePartners}
+          onChange={(e) => setSharePartners(e.target.checked)}
+          className="mt-0.5 w-4 h-4 accent-gold-500 cursor-pointer shrink-0"
+        />
+        <span className="text-gray-400 text-xs leading-snug group-hover:text-gray-300 transition-colors">
+          Share my email with Tsakani&apos;s{" "}
+          <strong className="text-gray-300">event partners and collaborating brands</strong>.
+          Optional.
+        </span>
+      </label>
+
       {captchaRequired && (
         <div>
           <Turnstile onToken={setCaptchaToken} />
@@ -136,15 +157,15 @@ export default function NewsletterForm() {
       </button>
 
       <p className="text-gray-500 text-xs leading-relaxed">
-        By signing up you agree to our{" "}
+        We only email you about what you ticked, and we only share your email
+        with partners if you ticked that box. Unsubscribe any time. See our{" "}
         <Link
           href="/privacy"
           className="text-gold-500 hover:text-gold-400 underline"
         >
           Privacy Policy
         </Link>
-        . We may share your email with event partners or collaborating brands
-        to promote Tsakani Sessions. Unsubscribe any time.
+        .
       </p>
 
       {message?.kind === "err" && (

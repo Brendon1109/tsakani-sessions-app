@@ -129,11 +129,12 @@ export async function GET() {
       email: string | null;
       consent_events: boolean | null;
       consent_merch: boolean | null;
+      share_partners: boolean | null;
       subscribed_at: string;
     };
     const { data, error } = await supabase
       .from("newsletter_subscribers")
-      .select("email, consent_events, consent_merch, subscribed_at")
+      .select("email, consent_events, consent_merch, share_partners, subscribed_at")
       .eq("is_active", true)
       .order("subscribed_at", { ascending: false });
     if (!error && data) {
@@ -143,7 +144,7 @@ export async function GET() {
           name: null,
           email: row.email,
           phone: null,
-          detail: describeConsents(!!row.consent_events, !!row.consent_merch),
+          detail: describeConsents(!!row.consent_events, !!row.consent_merch, !!row.share_partners),
           date: row.subscribed_at,
         });
       }

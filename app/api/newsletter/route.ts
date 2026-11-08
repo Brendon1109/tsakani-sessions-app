@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
   const limited = await rateLimit(request, "newsletter", 3, 600);
   if (limited) return limited;
 
-  const { email, captcha_token, consent_events, consent_merch } = await request.json();
+  const { email, captcha_token, consent_events, consent_merch, share_partners } =
+    await request.json();
 
   if (!email || typeof email !== "string" || !email.includes("@") || email.length > 254) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 });
@@ -25,6 +26,10 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  // Its own opt in, never implied by signing up: only a literal true from the
+  // unticked partner box counts. It is not a topic, so it cannot stand in for
+  // events or merch above. See supabase/newsletter_share_partners.sql.
+  const sharePartners = share_partners === true;
 
   const ip = clientIp(request.headers) ?? undefined;
   const captchaOk = await verifyTurnstile(captcha_token, ip);
@@ -51,6 +56,7 @@ export async function POST(request: NextRequest) {
     p_consent_merch: wantsMerch,
     p_source: "website",
     p_consent_ip: ip || null,
+    p_share_partners: sharePartners,
   });
 
   if (error) {

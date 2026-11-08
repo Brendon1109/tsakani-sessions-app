@@ -14,6 +14,12 @@ describe("describeConsents", () => {
   it("falls back to a generic label when nothing is set", () => {
     expect(describeConsents(false, false)).toBe("Newsletter");
   });
+
+  it("says a subscriber may be shared with partners only when they agreed", () => {
+    expect(describeConsents(true, false, true)).toBe("Events, OK to share with partners");
+    expect(describeConsents(true, true, false)).toBe("Events and Merch");
+    expect(describeConsents(true, true)).not.toMatch(/partner/i);
+  });
 });
 
 describe("sortLeadsByDateDesc", () => {

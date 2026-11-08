@@ -269,6 +269,8 @@ export interface NewsletterSubscriber {
   is_active: boolean;
   consent_events: boolean;
   consent_merch: boolean;
+  /** Ticked the separate, optional box agreeing to be shared with partners. */
+  share_partners: boolean;
   consent_at: string | null;
   consent_ip: string | null;
   /**

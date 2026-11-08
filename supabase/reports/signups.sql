@@ -58,6 +58,7 @@ SELECT
   n.source,
   CASE WHEN n.consent_events THEN 'yes' ELSE '-' END AS wants_events,
   CASE WHEN n.consent_merch  THEN 'yes' ELSE '-' END AS wants_merch,
+  CASE WHEN n.share_partners THEN 'yes' ELSE '-' END AS share_with_partners,
   CASE WHEN n.is_active THEN 'active' ELSE 'unsubscribed' END AS state,
   CASE WHEN o.buyer_email IS NOT NULL THEN 'yes' ELSE 'no' END AS registered_for_event
 FROM public.newsletter_subscribers n
@@ -130,3 +131,14 @@ LEFT JOIN public.events  e ON e.id = t.event_id
 GROUP BY o.buyer_email, trim(e.title)
 HAVING count(*) > 1 OR sum(o.quantity) >= 5
 ORDER BY total_tickets DESC;
+
+
+-- ── 8. PARTNER LIST — the only emails that may be shared ─────
+-- Everyone who ticked "Share my email with Tsakani's event partners and
+-- collaborating brands" (supabase/newsletter_share_partners.sql). Signing up
+-- for events or merch is not agreement to be shared, so never hand a partner
+-- any other list.
+SELECT email
+FROM public.newsletter_subscribers
+WHERE is_active AND share_partners
+ORDER BY subscribed_at DESC;

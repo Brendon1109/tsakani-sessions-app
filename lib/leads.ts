@@ -34,12 +34,17 @@ export const LEAD_SOURCES: LeadSource[] = [
   "Gallery view",
 ];
 
-/** Human label for which newsletter topics a subscriber opted into. */
-export function describeConsents(events: boolean, merch: boolean): string {
+/**
+ * Human label for which newsletter topics a subscriber opted into, and whether
+ * they agreed to their email being shared with partners. Only a subscriber
+ * whose label says so may be shared, it is in the CSV export too.
+ */
+export function describeConsents(events: boolean, merch: boolean, sharePartners = false): string {
   const parts: string[] = [];
   if (events) parts.push("Events");
   if (merch) parts.push("Merch");
-  return parts.length ? parts.join(" and ") : "Newsletter";
+  const topics = parts.length ? parts.join(" and ") : "Newsletter";
+  return sharePartners ? `${topics}, OK to share with partners` : topics;
 }
 
 /** Newest first. Rows with an unparseable date sort last. */
