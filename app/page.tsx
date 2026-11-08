@@ -13,6 +13,7 @@ import { getFeaturedEvents } from "@/lib/queries";
 import { getLatestYouTubeVideos } from "@/lib/youtube";
 import { getFeaturedPosts } from "@/lib/social";
 import { eventDateShort, isEventPast } from "@/lib/date";
+import { BOOKING_ENQUIRY_URL } from "@/lib/whatsapp";
 
 // Organization / LocalBusiness / WebSite structured data is now rendered
 // site-wide via <SiteJsonLd /> in the root layout (see lib/seo.ts).
@@ -478,7 +479,7 @@ export default async function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
-              href="https://wa.me/27769961477?text=Hi%20Tsakani%20Sessions!%20I'd%20like%20to%20enquire%20about%20booking."
+              href={BOOKING_ENQUIRY_URL}
               target="_blank"
               rel="noopener noreferrer"
               data-track="book_whatsapp_click"

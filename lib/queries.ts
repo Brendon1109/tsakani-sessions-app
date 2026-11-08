@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Event, Product, Gallery, GalleryPhoto, Ticket, CheckoutOptions, Dj } from "@/lib/types";
 import { onSaleTickets } from "@/lib/tickets";
 import { isDjSlug } from "@/lib/djs";
+import { isEventPast } from "@/lib/date";
 
 export type EventWithTickets = Event & { tickets: Ticket[] };
 
@@ -32,6 +33,25 @@ export async function getPublishedEvents(): Promise<EventWithTickets[]> {
     ...e,
     tickets: onSaleTickets(e.tickets),
   }));
+}
+
+/**
+ * Whether /events has anything under Upcoming, by the same test it uses: a
+ * published event whose night is not over yet. Only the dates are read. False
+ * when the database cannot be asked, so the caller falls back to something
+ * that always works.
+ */
+export async function hasUpcomingEvents(): Promise<boolean> {
+  const supabase = await createClient();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase
+    .from("events")
+    .select("date")
+    .eq("status", "published");
+
+  if (error || !data) return false;
+  return (data as { date: string }[]).some((e) => !isEventPast(e.date));
 }
 
 export async function getFeaturedEvents(): Promise<EventWithTickets[]> {

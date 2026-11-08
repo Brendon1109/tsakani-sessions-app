@@ -130,14 +130,17 @@ export default function Navbar() {
               </Link>
             )}
 
-            <Link
-              href="/events"
+            {/* /book sends the visitor to /events when an event is coming up
+                and to the WhatsApp booking chat when none is, see
+                app/book/route.ts. A plain link, so no page prefetches it. */}
+            <a
+              href="/book"
               data-track="book_now_cta_click"
               data-track-props='{"location":"navbar-desktop"}'
               className="bg-gold-gradient text-black text-sm font-semibold px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity"
             >
               Book Now
-            </Link>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -206,15 +209,15 @@ export default function Navbar() {
                 </Link>
               )}
 
-              <Link
-                href="/events"
+              <a
+                href="/book"
                 onClick={() => setIsOpen(false)}
                 data-track="book_now_cta_click"
                 data-track-props='{"location":"navbar-mobile"}'
                 className="bg-gold-gradient text-black text-base font-semibold px-4 py-3 rounded-lg text-center mt-2 hover:opacity-90 transition-opacity"
               >
                 Book Now
-              </Link>
+              </a>
             </div>
           </div>
         )}

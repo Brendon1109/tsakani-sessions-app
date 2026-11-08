@@ -1,4 +1,13 @@
-const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "27769961477";
+export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "27769961477";
+
+/**
+ * The booking enquiry chat, opened with its first line already typed. "Book
+ * via WhatsApp" on the home page uses it, and so does Book Now in the header
+ * when no event is coming up (app/book/route.ts).
+ */
+export const BOOKING_ENQUIRY_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+  "Hi Tsakani Sessions! I'd like to enquire about booking."
+)}`;
 
 export interface BookingData {
   name: string;
