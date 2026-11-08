@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Phone, Mail, MessageCircle } from "lucide-react";
+import { Phone, Mail, MessageCircle, MapPin } from "lucide-react";
 import NewsletterForm from "@/components/NewsletterForm";
 
 export default function Footer() {
@@ -138,6 +138,16 @@ export default function Footer() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
               </a>
             </div>
+            {/* Tsakani is a VibesMap partner, listed on its nightlife page. */}
+            <a
+              href="https://vibesmap.co.za/thegroove"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex w-fit items-center gap-2.5 text-gray-400 hover:text-gold-500 text-sm transition-colors"
+            >
+              <MapPin size={16} />
+              Find us on VibesMap
+            </a>
           </div>
         </div>
 
