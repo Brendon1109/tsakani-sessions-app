@@ -228,7 +228,7 @@ export default async function EventsPage() {
                 Message us on WhatsApp
               </a>
               <a
-                href="https://youtube.com/@tsakanisessions?si=_bLUBTv9sImhsK4R"
+                href="https://www.youtube.com/@tsakanisessions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="border border-gold-500/40 text-gold-500 font-semibold px-6 py-2.5 rounded-full hover:bg-gold-500/10 transition-colors"
@@ -236,7 +236,7 @@ export default async function EventsPage() {
                 Subscribe on YouTube
               </a>
               <a
-                href="https://www.tiktok.com/@tsakani_sessions?_r=1&_t=ZS-95aeaagWjob"
+                href="https://www.tiktok.com/@tsakani_sessions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="border border-gold-500/40 text-gold-500 font-semibold px-6 py-2.5 rounded-full hover:bg-gold-500/10 transition-colors"

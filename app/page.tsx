@@ -255,7 +255,7 @@ export default async function HomePage() {
                 Latest on YouTube
               </h3>
               <a
-                href="https://youtube.com/@tsakanisessions?si=_bLUBTv9sImhsK4R"
+                href="https://www.youtube.com/@tsakanisessions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors flex items-center gap-2"
@@ -308,7 +308,7 @@ export default async function HomePage() {
               <div className="bg-dark-500 border border-white/10 rounded-2xl p-10 text-center">
                 <p className="text-gray-400 mb-4">Visit our YouTube channel for the latest mixes.</p>
                 <a
-                  href="https://youtube.com/@tsakanisessions?si=_bLUBTv9sImhsK4R"
+                  href="https://www.youtube.com/@tsakanisessions"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-full transition-colors inline-flex items-center gap-2"
@@ -327,7 +327,7 @@ export default async function HomePage() {
                 Latest on TikTok
               </h3>
               <a
-                href="https://www.tiktok.com/@tsakani_sessions?_r=1&_t=ZS-95aeaagWjob"
+                href="https://www.tiktok.com/@tsakani_sessions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white hover:bg-gray-200 text-black text-sm font-semibold px-4 py-2 rounded-full transition-colors"
@@ -372,7 +372,7 @@ export default async function HomePage() {
               </div>
             ) : (
               <a
-                href="https://www.tiktok.com/@tsakani_sessions?_r=1&_t=ZS-95aeaagWjob"
+                href="https://www.tiktok.com/@tsakani_sessions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group bg-dark-500 border border-white/10 rounded-2xl p-6 sm:p-8 hover:border-white/40 transition-all duration-300 flex items-center gap-4 block"
