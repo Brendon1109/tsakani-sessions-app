@@ -11,6 +11,7 @@ import {
   eventMonthShort,
   isEventPast,
 } from "@/lib/date";
+import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 
 export const metadata: Metadata = {
   title: "Upcoming Events & Past Highlights",
@@ -202,10 +203,12 @@ export default async function EventsPage() {
             <h3 className="text-xl font-bold mb-2">
               Never Miss a <span className="text-gold-500">Tsakani</span> Event
             </h3>
+            {/* There is no WhatsApp channel yet, so this offers a chat with the
+                number instead of promising one. */}
             <p className="text-gray-400 text-sm mb-6">
-              Follow us on Instagram or join our WhatsApp channel for updates.
+              Follow us on Instagram, or message us on WhatsApp.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-3">
               <a
                 href="https://instagram.com/tsakani_sessions"
                 target="_blank"
@@ -213,6 +216,16 @@ export default async function EventsPage() {
                 className="bg-gold-gradient text-black font-semibold px-6 py-2.5 rounded-full hover:opacity-90 transition-opacity"
               >
                 Follow on Instagram
+              </a>
+              <a
+                href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-track="contact_click"
+                data-track-props='{"kind":"wa.me","source":"events"}'
+                className="border border-gold-500/40 text-gold-500 font-semibold px-6 py-2.5 rounded-full hover:bg-gold-500/10 transition-colors"
+              >
+                Message us on WhatsApp
               </a>
               <a
                 href="https://youtube.com/@tsakanisessions?si=_bLUBTv9sImhsK4R"
