@@ -24,5 +24,9 @@ export async function GET(request: Request) {
   const destination = (await hasUpcomingEvents())
     ? new URL("/events", request.url)
     : BOOKING_ENQUIRY_URL;
-  return NextResponse.redirect(destination);
+  // no-store so neither a browser nor Cloudflare keeps an old answer.
+  return NextResponse.redirect(destination, {
+    status: 307,
+    headers: { "Cache-Control": "no-store" },
+  });
 }

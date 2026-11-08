@@ -42,6 +42,8 @@ const WHATSAPP = new URL(BOOKING_ENQUIRY_URL).href;
 
 async function bookNow() {
   const res = await GET(new Request("https://tsakanisessions.co.za/book"));
+  // An answer kept by a browser or Cloudflare would outlive the next event.
+  expect(res.headers.get("cache-control")).toBe("no-store");
   return { status: res.status, location: res.headers.get("location") };
 }
 
