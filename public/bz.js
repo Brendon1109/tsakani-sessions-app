@@ -89,7 +89,18 @@
     // Re-checked on every send, not only at load. Somebody who objects while
     // the page is open must stop being counted at that moment, not at their
     // next navigation. Section 11(4) allows no balancing here.
-    if (closed || optedOut()) return;
+    //
+    // It deliberately does NOT check `closed`, and that single word was a real
+    // bug for several hours. closeView() sets closed = true and THEN calls
+    // send(), so a guard on `closed` here swallowed the one beacon that
+    // carries the time on page. Every view was recorded and no leave ever was,
+    // which means the headline metric silently did not exist. Nothing caught it
+    // because every earlier test posted a leave to the endpoint by hand, which
+    // proves the database column and nothing whatever about the client.
+    //
+    // optedOut() is the correct guard on its own: setOptOut() writes the local
+    // marker before it sets closed, so an objection still stops everything.
+    if (optedOut()) return;
     var payload = {
       site: SITE,
       event: event,
